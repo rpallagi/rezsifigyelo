@@ -1,13 +1,15 @@
 """Rezsi Figyelo - Flask application factory."""
 import os
+import logging
 import bcrypt
-from datetime import date
-from flask import Flask
+from datetime import date, datetime
+from flask import Flask, jsonify
 from flask_login import LoginManager
 
 from config import config
 from models import db, AdminUser, TariffGroup, Tariff
 
+APP_VERSION = '1.0.0'
 
 login_manager = LoginManager()
 
@@ -19,6 +21,15 @@ def create_app(config_name=None):
 
     app = Flask(__name__)
     app.config.from_object(config.get(config_name, config['default']))
+
+    # Logging
+    log_level = logging.DEBUG if app.config.get('DEBUG') else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    app.logger.setLevel(log_level)
 
     # Ensure upload folder exists
     os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
@@ -32,6 +43,34 @@ def create_app(config_name=None):
     def load_user(user_id):
         return AdminUser.query.get(int(user_id))
 
+    # Security headers (prod)
+    @app.after_request
+    def set_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        if app.config.get('FLASK_ENV') == 'production':
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        return response
+
+    # Health check endpoint (monitoring, uptime checks)
+    @app.route('/api/health')
+    def health_check():
+        """Health check - DB connection test."""
+        try:
+            db.session.execute(db.text('SELECT 1'))
+            db_status = 'ok'
+        except Exception as e:
+            db_status = f'error: {str(e)}'
+
+        return jsonify({
+            'status': 'ok' if db_status == 'ok' else 'degraded',
+            'version': APP_VERSION,
+            'database': db_status,
+            'timestamp': datetime.utcnow().isoformat(),
+        }), 200 if db_status == 'ok' else 503
+
     # Register blueprints
     from routes.tenant import tenant_bp
     from routes.admin import admin_bp
@@ -43,6 +82,7 @@ def create_app(config_name=None):
         db.create_all()
         seed_initial_data(app)
 
+    app.logger.info(f"Rezsi Figyelo v{APP_VERSION} started ({config_name})")
     return app
 
 
