@@ -158,12 +158,14 @@ def seed_initial_data(app):
         db.session.add(demo_tenant)
         db.session.commit()
 
-        # Assign all properties to demo tenant
-        all_props = Property.query.all()
-        for prop in all_props:
-            demo_tenant.properties.append(prop)
-        db.session.commit()
-        print(f"[SEED] Demo tenant created: demo@rezsikoves.hu / demo123 ({len(all_props)} properties)")
+        # Assign first property to demo tenant (1 property = no selection screen)
+        first_prop = Property.query.first()
+        if first_prop:
+            demo_tenant.properties.append(first_prop)
+            db.session.commit()
+            print(f"[SEED] Demo tenant created: demo@rezsikoves.hu / demo123 (property: {first_prop.name})")
+        else:
+            print("[SEED] Demo tenant created: demo@rezsikoves.hu / demo123 (no properties yet)")
 
 
 # ============================================================
