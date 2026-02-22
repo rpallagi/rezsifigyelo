@@ -46,7 +46,8 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
     volumes:
       - ./uploads:/app/uploads
-      - .:/app:ro  # Mount source code for hot reload in dev
+      - .:/app  # Mount source code (rw for git operations + hot reload)
+      - /var/run/docker.sock:/var/run/docker.sock  # For self-rebuild capability
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5003/api/health"]
       interval: 30s

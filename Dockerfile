@@ -4,7 +4,7 @@ WORKDIR /app
 
 # System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libpq-dev curl \
+    gcc libpq-dev curl git \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps
@@ -17,9 +17,11 @@ COPY . .
 # Create upload directory
 RUN mkdir -p /app/uploads
 
-# Non-root user
+# Non-root user with docker group access for self-rebuild
 RUN adduser --disabled-password --gecos '' appuser && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    groupadd -g 999 docker 2>/dev/null || true && \
+    usermod -aG docker appuser 2>/dev/null || true
 USER appuser
 
 EXPOSE 5003

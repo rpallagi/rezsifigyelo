@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Rendszer - Admin{% endblock %}
+{% block body_class %}admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <nav class="admin-sidebar">
+        <div class="sidebar-header"><h2>Rezsi Figyelo</h2><span class="admin-badge">Admin</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
+            <li><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
+            <li><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
+            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
+            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
+            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
+            <li class="active"><a href="{{ url_for('admin.system') }}">&#128640; Rendszer</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+        </ul>
+        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a></div>
+    </nav>
+
+    <main class="admin-main">
+        <h1>&#128640; Rendszer frissites</h1>
+
+        <!-- Version card -->
+        <div class="system-card">
+            <div class="system-card-header">
+                <h2>Aktualis verzio</h2>
+                <span class="version-badge">v{{ version }}</span>
+            </div>
+            <div class="system-info">
+                <div class="info-row">
+                    <span>Branch:</span>
+                    <strong>{{ branch }}</strong>
+                </div>
+                <div class="info-row">
+                    <span>Commit:</span>
+                    <code>{{ local_hash }}</code>
+                </div>
+                <div class="info-row">
+                    <span>Utolso commit:</span>
+                    <span>{{ last_commit_msg }}</span>
+                </div>
+                <div class="info-row">
+                    <span>Datum:</span>
+                    <span>{{ last_commit_date }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Update status -->
+        <div class="system-card {% if has_update %}update-available{% else %}up-to-date{% endif %}">
+            <div class="system-card-header">
+                <h2>Frissites statusz</h2>
+                {% if has_update %}
+                <span class="update-badge">{{ behind }} uj commit!</span>
+                {% else %}
+                <span class="ok-badge">&#9989; Naprakesz</span>
+                {% endif %}
+            </div>
+
+            {% if has_update %}
+            <div class="system-info">
+                <div class="info-row">
+                    <span>Tavoli verzio:</span>
+                    <code>{{ remote_hash }}</code>
+                </div>
+                <div class="info-row">
+                    <span>Lemaradas:</span>
+                    <strong>{{ behind }} commit</strong>
+                </div>
+            </div>
+
+            {% if new_commits %}
+            <div class="new-commits">
+                <h3>Uj commitok:</h3>
+                <ul>
+                    {% for commit in new_commits %}
+                    <li><code>{{ commit }}</code></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="update-actions">
+                <form method="POST" action="{{ url_for('admin.system_pull') }}" style="display:inline">
+                    <button type="submit" class="btn btn-secondary btn-lg"
+                            onclick="return confirm('Git pull: letolti a legfrissebb kodot. Folytatod?')">
+                        &#128229; Git Pull (csak kod)
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('admin.system_rebuild') }}" style="display:inline">
+                    <button type="submit" class="btn btn-primary btn-lg"
+                            onclick="return confirm('FIGYELM: Ez leallitja es ujrainditja az appot! A folyamat 30-60 masodpercig tarthat. Folytatod?')">
+                        &#128640; Frissites + Ujrainditas
+                    </button>
+                </form>
+            </div>
+
+            {% else %}
+            <div class="system-info">
+                <p style="color: var(--success); font-weight: 600; padding: 1rem 0;">
+                    Az alkalmazas naprakesz. Nincs uj frissites a GitHub-on.
+                </p>
+            </div>
+            <div class="update-actions">
+                <a href="{{ url_for('admin.system') }}" class="btn btn-outline">
+                    &#128260; Ujra ellenorzes
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Auto-update info -->
+        <div class="system-card">
+            <div class="system-card-header">
+                <h2>Automatikus frissites</h2>
+            </div>
+            <div class="system-info">
+                <p>Az automatikus frissites cron-nal allithato be:</p>
+                <code style="display:block; padding:0.5rem; background:#f1f5f9; border-radius:4px; margin:0.5rem 0">
+                    0 */6 * * * /mnt/user/appdata/rezsifigyelo/scripts/auto_update.sh
+                </code>
+                <p style="font-size:0.8rem; color:var(--text-light);">
+                    Ez 6 orankent ellenorzi a GitHub repot es automatikusan frissit ha van uj verzio.
+                </p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<style>
+.system-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow);
+}
+.system-card.update-available {
+    border-left: 4px solid var(--warning);
+}
+.system-card.up-to-date {
+    border-left: 4px solid var(--success);
+}
+.system-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.system-card-header h2 { font-size: 1rem; margin: 0; }
+.version-badge {
+    background: var(--primary);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+.update-badge {
+    background: var(--warning);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    animation: pulse 2s infinite;
+}
+.ok-badge {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--success);
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.4rem 0;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--border);
+}
+.info-row:last-child { border-bottom: none; }
+.new-commits {
+    margin: 1rem 0;
+    padding: 0.75rem;
+    background: #fffbeb;
+    border-radius: 8px;
+}
+.new-commits h3 { font-size: 0.8rem; margin-bottom: 0.5rem; }
+.new-commits ul { list-style: none; padding: 0; }
+.new-commits li {
+    padding: 0.25rem 0;
+    font-size: 0.8rem;
+    font-family: monospace;
+}
+.update-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+</style>
+{% endblock %}

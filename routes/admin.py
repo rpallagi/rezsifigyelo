@@ -1,9 +1,11 @@
 """Admin routes - dashboard, CRUD, payments, maintenance, ROI."""
+import os
+import subprocess
 import bcrypt
 from datetime import date, datetime
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
-    flash, jsonify
+    flash, jsonify, current_app
 )
 from flask_login import login_user, logout_user, login_required, current_user
 
@@ -526,3 +528,138 @@ def change_password():
 
     flash('Jelszo sikeresen megvaltoztatva!', 'success')
     return redirect(url_for('admin.settings'))
+
+
+# ============================================================
+# System Update (Git + Docker)
+# ============================================================
+
+def _git_run(cmd, cwd=None):
+    """Run a git command and return output."""
+    if cwd is None:
+        cwd = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        result = subprocess.run(
+            cmd, cwd=cwd, capture_output=True, text=True, timeout=30
+        )
+        return result.stdout.strip(), result.stderr.strip(), result.returncode
+    except Exception as e:
+        return '', str(e), 1
+
+
+@admin_bp.route('/system')
+@login_required
+def system():
+    """System info and update management."""
+    from app import APP_VERSION
+
+    app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    # Git info
+    local_hash, _, _ = _git_run(['git', 'rev-parse', '--short', 'HEAD'])
+    branch, _, _ = _git_run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'])
+    last_commit_msg, _, _ = _git_run(['git', 'log', '-1', '--format=%s'])
+    last_commit_date, _, _ = _git_run(['git', 'log', '-1', '--format=%ci'])
+
+    # Check for updates (fetch first)
+    _git_run(['git', 'fetch', 'origin', branch])
+    remote_hash, _, _ = _git_run(['git', 'rev-parse', '--short', f'origin/{branch}'])
+    behind_count, _, _ = _git_run(['git', 'rev-list', '--count', f'HEAD..origin/{branch}'])
+
+    has_update = local_hash != remote_hash
+    behind = int(behind_count) if behind_count.isdigit() else 0
+
+    # Remote log (what's new)
+    new_commits = []
+    if has_update:
+        log_output, _, _ = _git_run([
+            'git', 'log', '--oneline', f'HEAD..origin/{branch}', '--format=%h %s'
+        ])
+        new_commits = log_output.split('\n') if log_output else []
+
+    return render_template('admin/system.html',
+                           version=APP_VERSION,
+                           branch=branch,
+                           local_hash=local_hash,
+                           remote_hash=remote_hash,
+                           last_commit_msg=last_commit_msg,
+                           last_commit_date=last_commit_date,
+                           has_update=has_update,
+                           behind=behind,
+                           new_commits=new_commits,
+                           app_dir=app_dir)
+
+
+@admin_bp.route('/system/pull', methods=['POST'])
+@login_required
+def system_pull():
+    """Git pull from remote (does NOT rebuild container)."""
+    app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    branch, _, _ = _git_run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'])
+
+    # git pull
+    stdout, stderr, code = _git_run(['git', 'pull', 'origin', branch])
+
+    if code == 0:
+        flash(f'Git pull sikeres! {stdout}', 'success')
+    else:
+        flash(f'Git pull hiba: {stderr}', 'error')
+
+    return redirect(url_for('admin.system'))
+
+
+@admin_bp.route('/system/rebuild', methods=['POST'])
+@login_required
+def system_rebuild():
+    """Git pull + Docker compose rebuild + restart."""
+    app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    branch, _, _ = _git_run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'])
+
+    # 1. Git pull
+    stdout, stderr, code = _git_run(['git', 'pull', 'origin', branch])
+    if code != 0:
+        flash(f'Git pull hiba: {stderr}', 'error')
+        return redirect(url_for('admin.system'))
+
+    # 2. Find docker-compose file
+    compose_file = os.path.join(app_dir, 'docker-compose.yml')
+    if not os.path.exists(compose_file):
+        flash('docker-compose.yml nem talalhato!', 'error')
+        return redirect(url_for('admin.system'))
+
+    # 3. Docker compose build + up (in background - the container will restart)
+    try:
+        subprocess.Popen(
+            ['docker', 'compose', '-f', compose_file, 'up', '-d', '--build'],
+            cwd=app_dir,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        flash('Frissites elinditva! A container ujraindul... Varj 30 masodpercet es frissitsd az oldalt.', 'success')
+    except Exception as e:
+        flash(f'Docker rebuild hiba: {str(e)}', 'error')
+
+    return redirect(url_for('admin.system'))
+
+
+@admin_bp.route('/api/update-status')
+@login_required
+def update_status_api():
+    """JSON API for update status check."""
+    from app import APP_VERSION
+
+    local_hash, _, _ = _git_run(['git', 'rev-parse', '--short', 'HEAD'])
+    branch, _, _ = _git_run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'])
+
+    _git_run(['git', 'fetch', 'origin', branch])
+    remote_hash, _, _ = _git_run(['git', 'rev-parse', '--short', f'origin/{branch}'])
+    behind_count, _, _ = _git_run(['git', 'rev-list', '--count', f'HEAD..origin/{branch}'])
+
+    return jsonify({
+        'version': APP_VERSION,
+        'branch': branch,
+        'local_hash': local_hash,
+        'remote_hash': remote_hash,
+        'has_update': local_hash != remote_hash,
+        'behind': int(behind_count) if behind_count.isdigit() else 0,
+    })
