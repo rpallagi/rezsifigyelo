@@ -23,10 +23,15 @@ import {
 import { useI18n } from "@/lib/i18n";
 
 const categoryColor: Record<string, string> = {
-  javitas: "bg-red-50 text-red-600 border-red-200",
-  karbantartas: "bg-blue-50 text-blue-600 border-blue-200",
-  felujitas: "bg-purple-50 text-purple-600 border-purple-200",
-  csere: "bg-amber-50 text-amber-600 border-amber-200",
+  javitas: "bg-red-50 text-red-600 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800",
+  karbantartas: "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800",
+  felujitas: "bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950 dark:text-purple-400 dark:border-purple-800",
+  csere: "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800",
+  takaritas: "bg-green-50 text-green-600 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800",
+  lakatossag: "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-800",
+  festes: "bg-pink-50 text-pink-600 border-pink-200 dark:bg-pink-950 dark:text-pink-400 dark:border-pink-800",
+  villanyszereles: "bg-yellow-50 text-yellow-600 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400 dark:border-yellow-800",
+  vizszereles: "bg-cyan-50 text-cyan-600 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-400 dark:border-cyan-800",
   egyeb: "",
 };
 
@@ -45,6 +50,11 @@ const AdminMaintenance = () => {
     karbantartas: t('maint.catMaintenance'),
     felujitas: t('maint.catRenovation'),
     csere: t('maint.catReplacement'),
+    takaritas: t('maint.catCleaning'),
+    lakatossag: t('maint.catLocksmith'),
+    festes: t('maint.catPainting'),
+    villanyszereles: t('maint.catElectrical'),
+    vizszereles: t('maint.catPlumbing'),
     egyeb: t('common.egyeb'),
   };
 
@@ -257,6 +267,11 @@ const AdminMaintenance = () => {
                   <SelectItem value="karbantartas">{t('maint.catMaintenance')}</SelectItem>
                   <SelectItem value="felujitas">{t('maint.catRenovation')}</SelectItem>
                   <SelectItem value="csere">{t('maint.catReplacement')}</SelectItem>
+                  <SelectItem value="takaritas">{t('maint.catCleaning')}</SelectItem>
+                  <SelectItem value="lakatossag">{t('maint.catLocksmith')}</SelectItem>
+                  <SelectItem value="festes">{t('maint.catPainting')}</SelectItem>
+                  <SelectItem value="villanyszereles">{t('maint.catElectrical')}</SelectItem>
+                  <SelectItem value="vizszereles">{t('maint.catPlumbing')}</SelectItem>
                   <SelectItem value="egyeb">{t('common.egyeb')}</SelectItem>
                 </SelectContent>
               </Select>
