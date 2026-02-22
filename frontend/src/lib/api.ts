@@ -101,6 +101,9 @@ export const getTenantChartData = (type: string, limit = 24) =>
 export const getTenantProfile = () =>
   request<TenantProperty>('/tenant/profile');
 
+export const getTenantCommonFees = () =>
+  request<{ fees: TenantCommonFee[] }>('/tenant/common-fees');
+
 // ============ Admin ============
 
 export const getAdminDashboard = () =>
@@ -248,16 +251,32 @@ export interface TenantDashboardData {
   property: TenantProperty;
   last_villany: ReadingSummary | null;
   last_viz: ReadingSummary | null;
+  last_gaz: ReadingSummary | null;
+  has_gas: boolean;
+  common_fees: TenantCommonFee[];
   tariffs: {
     villany: TariffInfo | null;
     viz: TariffInfo | null;
     csatorna: TariffInfo | null;
+    gaz: TariffInfo | null;
   };
   monthly_total: number;
   sparklines: {
     villany: number[];
     viz: number[];
+    gaz: number[];
   };
+}
+
+export interface TenantCommonFee {
+  id: number;
+  monthly_amount: number;
+  bank_account: string | null;
+  recipient: string | null;
+  payment_memo: string | null;
+  frequency: string;
+  payment_day: number | null;
+  notes: string | null;
 }
 
 export interface ReadingSummary {

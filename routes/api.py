@@ -315,10 +315,28 @@ def tenant_dashboard():
 
     lv = get_last_reading(prop.id, 'villany')
     lw = get_last_reading(prop.id, 'viz')
+    lg = get_last_reading(prop.id, 'gaz')
 
     tv = get_active_tariff(prop.tariff_group_id, 'villany')
     tw = get_active_tariff(prop.tariff_group_id, 'viz')
     tc = get_active_tariff(prop.tariff_group_id, 'csatorna')
+    tg = get_active_tariff(prop.tariff_group_id, 'gaz')
+
+    # Determine if property has gas meter
+    has_gas = MeterInfo.query.filter_by(property_id=prop.id, utility_type='gaz').first() is not None or tg is not None
+
+    # Common fees for tenant
+    active_common_fees = CommonFee.query.filter_by(property_id=prop.id, is_active=True).all()
+    common_fees_data = [{
+        'id': f.id,
+        'monthly_amount': f.monthly_amount,
+        'bank_account': f.bank_account,
+        'recipient': f.recipient,
+        'payment_memo': f.payment_memo,
+        'frequency': f.frequency,
+        'payment_day': f.payment_day,
+        'notes': f.notes,
+    } for f in active_common_fees]
 
     # Sparklines: last 12 consumption values
     def get_sparkline(utility_type):
@@ -335,20 +353,28 @@ def tenant_dashboard():
     # Add csatorna
     if lw and lw.consumption and tc:
         monthly_total += lw.consumption * tc.rate_huf
+    # Add gas
+    if lg and lg.cost_huf:
+        monthly_total += lg.cost_huf
 
     return jsonify({
         'property': property_to_dict(prop),
         'last_villany': reading_summary(lv),
         'last_viz': reading_summary(lw),
+        'last_gaz': reading_summary(lg),
+        'has_gas': has_gas,
+        'common_fees': common_fees_data,
         'tariffs': {
             'villany': {'rate_huf': tv.rate_huf, 'unit': tv.unit} if tv else None,
             'viz': {'rate_huf': tw.rate_huf, 'unit': tw.unit} if tw else None,
             'csatorna': {'rate_huf': tc.rate_huf, 'unit': tc.unit} if tc else None,
+            'gaz': {'rate_huf': tg.rate_huf, 'unit': tg.unit} if tg else None,
         },
         'monthly_total': monthly_total,
         'sparklines': {
             'villany': get_sparkline('villany'),
             'viz': get_sparkline('viz'),
+            'gaz': get_sparkline('gaz'),
         },
     })
 
@@ -366,6 +392,35 @@ def tenant_profile():
     if not prop:
         return jsonify({'error': 'Ingatlan nem található!'}), 404
     return jsonify(property_to_dict(prop))
+
+
+# ============================================================
+# Tenant Common Fees (read-only)
+# ============================================================
+
+@api_bp.route('/tenant/common-fees')
+def tenant_common_fees():
+    """Tenant-facing: read-only common fee info for their property."""
+    property_id = session.get('property_id')
+    if not property_id:
+        return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
+
+    prop = Property.query.get(property_id)
+    if not prop:
+        return jsonify({'error': 'Ingatlan nem található!'}), 404
+
+    fees = CommonFee.query.filter_by(property_id=prop.id, is_active=True).all()
+    result = [{
+        'id': f.id,
+        'monthly_amount': f.monthly_amount,
+        'bank_account': f.bank_account,
+        'recipient': f.recipient,
+        'payment_memo': f.payment_memo,
+        'frequency': f.frequency,
+        'payment_day': f.payment_day,
+        'notes': f.notes,
+    } for f in fees]
+    return jsonify({'fees': result})
 
 
 # ============================================================
@@ -395,7 +450,7 @@ def tenant_reading():
         reading_date_str = data.get('reading_date', '')
         notes = data.get('notes', '').strip()
 
-    if not utility_type or utility_type not in ('villany', 'viz'):
+    if not utility_type or utility_type not in ('villany', 'viz', 'gaz'):
         return jsonify({'error': 'Válassz közüzemi típust!'}), 400
 
     try:

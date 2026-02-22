@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Droplets, ChevronRight, Check, Camera, CalendarDays, MessageSquare, ArrowLeft, ImagePlus } from "lucide-react";
+import { Zap, Droplets, Flame, ChevronRight, Check, Camera, CalendarDays, MessageSquare, ArrowLeft, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getTenantDashboard, submitReading, type TenantDashboardData } from "@/lib/api";
@@ -9,7 +9,7 @@ import { useI18n } from "@/lib/i18n";
 
 const MeterReading = () => {
   const [step, setStep] = useState(0);
-  const [selectedType, setSelectedType] = useState<{ id: 'villany' | 'viz'; label: string; Icon: typeof Zap; color: string; unit: string; desc: string } | null>(null);
+  const [selectedType, setSelectedType] = useState<{ id: 'villany' | 'viz' | 'gaz'; label: string; Icon: typeof Zap; color: string; unit: string; desc: string } | null>(null);
   const [value, setValue] = useState("");
   const [readingDate, setReadingDate] = useState(new Date().toISOString().split('T')[0]);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -25,6 +25,7 @@ const MeterReading = () => {
   const meterTypes = [
     { id: 'villany' as const, label: t('common.villany'), Icon: Zap, color: 'hsl(45, 93%, 47%)', unit: 'kWh', desc: t('reading.villanyDesc') },
     { id: 'viz' as const, label: t('common.viz'), Icon: Droplets, color: 'hsl(199, 89%, 48%)', unit: 'm\u00B3', desc: t('reading.vizDesc') },
+    ...(dashData?.has_gas ? [{ id: 'gaz' as const, label: t('common.gaz'), Icon: Flame, color: 'hsl(15, 90%, 55%)', unit: 'm\u00B3', desc: t('reading.gazDesc') }] : []),
   ];
 
   useEffect(() => {
@@ -32,7 +33,9 @@ const MeterReading = () => {
   }, []);
 
   const prevValue = selectedType && dashData
-    ? (selectedType.id === 'villany' ? dashData.last_villany?.value : dashData.last_viz?.value) || 0
+    ? (selectedType.id === 'villany' ? dashData.last_villany?.value
+      : selectedType.id === 'viz' ? dashData.last_viz?.value
+      : dashData.last_gaz?.value) || 0
     : 0;
 
   const currentValue = parseFloat(value) || 0;
@@ -41,7 +44,9 @@ const MeterReading = () => {
   const rate = selectedType && dashData?.tariffs
     ? (selectedType.id === 'villany'
         ? dashData.tariffs.villany?.rate_huf
-        : dashData.tariffs.viz?.rate_huf) || 0
+        : selectedType.id === 'viz'
+        ? dashData.tariffs.viz?.rate_huf
+        : dashData.tariffs.gaz?.rate_huf) || 0
     : 0;
 
   const estimatedCost = consumption * rate;
@@ -120,10 +125,14 @@ const MeterReading = () => {
           {meterTypes.map((type) => {
             const lastValue = type.id === 'villany'
               ? dashData?.last_villany?.value
-              : dashData?.last_viz?.value;
+              : type.id === 'viz'
+              ? dashData?.last_viz?.value
+              : dashData?.last_gaz?.value;
             const lastDate = type.id === 'villany'
               ? dashData?.last_villany?.reading_date
-              : dashData?.last_viz?.reading_date;
+              : type.id === 'viz'
+              ? dashData?.last_viz?.reading_date
+              : dashData?.last_gaz?.reading_date;
 
             return (
               <button

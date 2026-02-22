@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Zap, Droplets, Waves, TrendingUp, TrendingDown, LogOut, PlusCircle, ChevronRight, Calendar, ClipboardEdit } from "lucide-react";
+import { Zap, Droplets, Waves, Flame, Banknote, LogOut, PlusCircle, ChevronRight, Calendar, ClipboardEdit } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { getTenantDashboard, tenantLogout, type TenantDashboardData } from "@/lib/api";
 import { formatHuf, formatNumber, formatDateShort } from "@/lib/format";
@@ -52,15 +52,19 @@ const TenantDashboard = () => {
   const vizCost = data.last_viz?.cost_huf ?? 0;
   const csatornaRate = data.tariffs?.csatorna?.rate_huf ?? 0;
   const csatornaCost = vizConsumption * csatornaRate;
-  const monthlyTotal = data.monthly_total || (villanyCost + vizCost + csatornaCost);
+  const gazConsumption = data.last_gaz?.consumption ?? 0;
+  const gazCost = data.last_gaz?.cost_huf ?? 0;
+  const monthlyTotal = data.monthly_total || (villanyCost + vizCost + csatornaCost + gazCost);
 
   const villanySparkline = data.sparklines?.villany || [];
   const vizSparkline = data.sparklines?.viz || [];
+  const gazSparkline = data.sparklines?.gaz || [];
 
   const barData = villanySparkline.slice(-6).map((v, i) => ({
     label: `${i + 1}`,
     villany: v,
     viz: vizSparkline[vizSparkline.length - 6 + i] || 0,
+    ...(data.has_gas ? { gaz: gazSparkline[gazSparkline.length - 6 + i] || 0 } : {}),
   }));
 
   const statCards = [
@@ -103,6 +107,19 @@ const TenantDashboard = () => {
       sparkline: vizSparkline,
       date: data.last_viz?.reading_date,
     },
+    ...(data.has_gas ? [{
+      label: t('common.gaz'),
+      type: "gaz",
+      icon: Flame,
+      color: "hsl(15, 90%, 55%)",
+      bgColor: "hsl(15, 90%, 55%)",
+      consumption: gazConsumption,
+      cost: gazCost,
+      unit: "m\u00B3",
+      value: data.last_gaz?.value ?? null,
+      sparkline: gazSparkline,
+      date: data.last_gaz?.reading_date,
+    }] : []),
   ];
 
   return (
@@ -184,13 +201,20 @@ const TenantDashboard = () => {
                   {formatHuf(csatornaCost)}
                 </span>
               )}
+              {gazCost > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                  style={{ backgroundColor: "hsl(15, 90%, 55%, 0.12)", color: "hsl(15, 90%, 55%)" }}>
+                  <Flame className="h-3 w-3" />
+                  {formatHuf(gazCost)}
+                </span>
+              )}
             </div>
           </div>
         </div>
       </Link>
 
       {/* 3-column stat cards - clickable → history with type filter */}
-      <div className="grid grid-cols-3 gap-3 mb-5 animate-in-delay-1">
+      <div className={`grid ${statCards.length > 3 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-3 mb-5 animate-in-delay-1`}>
         {statCards.map((card) => (
           <Link key={card.label} to={`/tenant/history?type=${card.type}`} className="block">
             <div className="glass-card-hover p-3 text-center h-full">
@@ -214,7 +238,7 @@ const TenantDashboard = () => {
 
       {/* Utility detail cards with sparklines - clickable → history with type */}
       <div className="space-y-3 mb-5 animate-in-delay-2">
-        {statCards.filter(c => c.type !== "csatorna").map((card) => (
+        {statCards.filter(c => c.type !== "csatorna" && c.sparkline.length > 0).map((card) => (
           <Link key={card.label} to={`/tenant/history?type=${card.type}`} className="block">
             <div className="glass-card-hover p-4">
               <div className="flex items-center justify-between mb-3">
@@ -276,9 +300,9 @@ const TenantDashboard = () => {
                     {card.value != null ? `${formatNumber(card.value)} ${card.unit}` : "\u2014"}
                   </span>
                 </div>
-                {data.tariffs[card.type as 'villany' | 'viz'] && (
+                {data.tariffs[card.type as 'villany' | 'viz' | 'gaz'] && (
                   <div className="text-xs text-muted-foreground">
-                    {data.tariffs[card.type as 'villany' | 'viz']!.rate_huf.toLocaleString("hu-HU")} {t('common.ft')}/{card.unit}
+                    {data.tariffs[card.type as 'villany' | 'viz' | 'gaz']!.rate_huf.toLocaleString("hu-HU")} {t('common.ft')}/{card.unit}
                   </div>
                 )}
               </div>
@@ -310,13 +334,43 @@ const TenantDashboard = () => {
                   }}
                   formatter={(value: number, name: string) => [
                     `${formatNumber(value)} ${name === "villany" ? "kWh" : "m\u00B3"}`,
-                    name === "villany" ? t('common.villany') : t('common.viz'),
+                    name === "villany" ? t('common.villany') : name === "viz" ? t('common.viz') : t('common.gaz'),
                   ]}
                 />
                 <Bar dataKey="villany" fill="hsl(45, 93%, 47%)" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="viz" fill="hsl(199, 89%, 48%)" radius={[3, 3, 0, 0]} />
+                {data.has_gas && <Bar dataKey="gaz" fill="hsl(15, 90%, 55%)" radius={[3, 3, 0, 0]} />}
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Common Fees */}
+      {data.common_fees && data.common_fees.length > 0 && (
+        <div className="glass-card p-4 mb-5 animate-in-delay-3">
+          <div className="flex items-center gap-2 mb-3">
+            <Banknote className="h-4 w-4 text-muted-foreground" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('tenant.commonFees')}</p>
+          </div>
+          <div className="space-y-3">
+            {data.common_fees.map((fee) => (
+              <div key={fee.id} className="rounded-xl bg-accent/30 p-3">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-medium">{fee.recipient || t('tenant.commonFee')}</span>
+                  <span className="font-display font-bold text-primary format-hu">{formatHuf(fee.monthly_amount)}<span className="text-xs text-muted-foreground font-normal">/{fee.frequency === 'quarterly' ? t('tenant.quarter') : t('tenant.month')}</span></span>
+                </div>
+                {fee.bank_account && (
+                  <p className="text-xs text-muted-foreground">{t('tenant.bankAccount')}: <span className="font-mono text-foreground">{fee.bank_account}</span></p>
+                )}
+                {fee.payment_memo && (
+                  <p className="text-xs text-muted-foreground">{t('tenant.paymentMemo')}: <span className="text-foreground">{fee.payment_memo}</span></p>
+                )}
+                {fee.payment_day && (
+                  <p className="text-xs text-muted-foreground">{t('tenant.dueDay')}: <span className="text-foreground">{fee.payment_day}.</span></p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -324,7 +378,7 @@ const TenantDashboard = () => {
       {/* Tariff info - compact (stays static) */}
       <div className="glass-card p-4 animate-in-delay-3">
         <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">{t('tenant.currentTariffs')}</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {data.tariffs.villany && (
             <div className="text-center">
               <Zap className="h-3.5 w-3.5 mx-auto mb-1" style={{ color: "hsl(45, 93%, 47%)" }} />
@@ -344,6 +398,13 @@ const TenantDashboard = () => {
               <Waves className="h-3.5 w-3.5 mx-auto mb-1" style={{ color: "hsl(280, 60%, 55%)" }} />
               <p className="text-xs font-medium format-hu">{data.tariffs.csatorna.rate_huf.toLocaleString("hu-HU")} {t('common.ft')}</p>
               <p className="text-[10px] text-muted-foreground">/{data.tariffs.csatorna.unit}</p>
+            </div>
+          )}
+          {data.tariffs.gaz && (
+            <div className="text-center">
+              <Flame className="h-3.5 w-3.5 mx-auto mb-1" style={{ color: "hsl(15, 90%, 55%)" }} />
+              <p className="text-xs font-medium format-hu">{data.tariffs.gaz.rate_huf.toLocaleString("hu-HU")} {t('common.ft')}</p>
+              <p className="text-[10px] text-muted-foreground">/{data.tariffs.gaz.unit}</p>
             </div>
           )}
         </div>
