@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Tarifak - Admin{% endblock %}
+{% block body_class %}admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <nav class="admin-sidebar">
+        <div class="sidebar-header"><h2>Rezsi Figyelo</h2><span class="admin-badge">Admin</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
+            <li><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
+            <li><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
+            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
+            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
+            <li class="active"><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+        </ul>
+        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a></div>
+    </nav>
+
+    <main class="admin-main">
+        <div class="page-header">
+            <h1>Tarifak</h1>
+            <button class="btn btn-primary" onclick="document.getElementById('add-tariff-modal').style.display='flex'">
+                + Uj tarifa
+            </button>
+        </div>
+
+        {% for group in groups %}
+        <div class="section">
+            <h2>{{ group.name }} {% if group.description %}<small>- {{ group.description }}</small>{% endif %}</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Tipus</th>
+                        <th>Dij</th>
+                        <th>Egyseg</th>
+                        <th>Ervenyes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tariffs if t.tariff_group_id == group.id %}
+                    <tr>
+                        <td>{{ t.utility_type|capitalize }}</td>
+                        <td><strong>{{ "{:,.2f}".format(t.rate_huf) }} Ft</strong></td>
+                        <td>{{ t.unit }}</td>
+                        <td>{{ t.valid_from.strftime('%Y.%m.%d') }}-tol</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+
+        <!-- Add Tariff Modal -->
+        <div class="modal" id="add-tariff-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Uj tarifa</h2>
+                    <button class="modal-close" onclick="document.getElementById('add-tariff-modal').style.display='none'">&times;</button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.add_tariff') }}">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Tarifa csoport</label>
+                            <select name="tariff_group_id" required>
+                                {% for g in groups %}
+                                <option value="{{ g.id }}">{{ g.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Kozuzem tipus</label>
+                            <select name="utility_type" required>
+                                <option value="villany">Villany</option>
+                                <option value="viz">Viz</option>
+                                <option value="csatorna">Csatorna</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Dij (Ft)</label>
+                            <input type="number" name="rate_huf" step="0.01" required placeholder="pl. 212">
+                        </div>
+                        <div class="form-group">
+                            <label>Egyseg</label>
+                            <select name="unit" required>
+                                <option value="kWh">kWh</option>
+                                <option value="m3">m3</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Ervenyes ettol</label>
+                            <input type="date" name="valid_from">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Mentes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

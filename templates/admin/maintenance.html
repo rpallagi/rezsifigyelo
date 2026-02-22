@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Karbantartas - Admin{% endblock %}
+{% block body_class %}admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <nav class="admin-sidebar">
+        <div class="sidebar-header"><h2>Rezsi Figyelo</h2><span class="admin-badge">Admin</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
+            <li><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
+            <li><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
+            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
+            <li class="active"><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
+            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+        </ul>
+        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a></div>
+    </nav>
+
+    <main class="admin-main">
+        <div class="page-header">
+            <h1>Karbantartas naplo</h1>
+            <button class="btn btn-primary" onclick="document.getElementById('add-maint-modal').style.display='flex'">
+                + Uj bejegyzes
+            </button>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Ingatlan</th>
+                    <th>Leiras</th>
+                    <th>Kategoria</th>
+                    <th>Koltseg</th>
+                    <th>Vegzo</th>
+                    <th>Datum</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.property.name if log.property else 'Altalanos' }}</td>
+                    <td>{{ log.description }}</td>
+                    <td>{{ log.category or '-' }}</td>
+                    <td>{{ "{:,.0f}".format(log.cost_huf) if log.cost_huf else '0' }} Ft</td>
+                    <td>{{ log.performed_by or '-' }}</td>
+                    <td>{{ log.performed_date.strftime('%Y.%m.%d') if log.performed_date else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Add Maintenance Modal -->
+        <div class="modal" id="add-maint-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Uj karbantartas bejegyzes</h2>
+                    <button class="modal-close" onclick="document.getElementById('add-maint-modal').style.display='none'">&times;</button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.add_maintenance') }}">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Ingatlan (ures = altalanos)</label>
+                            <select name="property_id">
+                                <option value="">Altalanos</option>
+                                {% for p in properties %}
+                                <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Kategoria</label>
+                            <select name="category">
+                                <option value="">Valassz...</option>
+                                <option value="villanyszereles">Villanyszereles</option>
+                                <option value="vizszereles">Vizszereles</option>
+                                <option value="festes">Festes</option>
+                                <option value="lakatossag">Lakatossag</option>
+                                <option value="takaritas">Takaritas</option>
+                                <option value="kert">Kert</option>
+                                <option value="egyeb">Egyeb</option>
+                            </select>
+                        </div>
+                        <div class="form-group form-full">
+                            <label>Leiras *</label>
+                            <textarea name="description" required rows="3" placeholder="Mi tortent..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Koltseg (Ft)</label>
+                            <input type="number" name="cost_huf" step="1" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Ki vegezte</label>
+                            <input type="text" name="performed_by" placeholder="Nev">
+                        </div>
+                        <div class="form-group">
+                            <label>Datum</label>
+                            <input type="date" name="performed_date">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Mentes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

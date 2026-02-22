@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Elozmeny - {{ property.name }}{% endblock %}
+{% block body_class %}tenant-history{% endblock %}
+
+{% block content %}
+<div class="app-container">
+    <header class="app-header">
+        <a href="{{ url_for('tenant.dashboard') }}" class="back-btn">&larr;</a>
+        <h1>Elozmeny</h1>
+    </header>
+
+    <!-- Filter tabs -->
+    <div class="filter-tabs">
+        <a href="{{ url_for('tenant.history', type='all') }}"
+           class="tab {% if utility_type == 'all' %}active{% endif %}">Mind</a>
+        <a href="{{ url_for('tenant.history', type='villany') }}"
+           class="tab {% if utility_type == 'villany' %}active{% endif %}">&#9889; Villany</a>
+        <a href="{{ url_for('tenant.history', type='viz') }}"
+           class="tab {% if utility_type == 'viz' %}active{% endif %}">&#128167; Viz</a>
+        <a href="{{ url_for('tenant.history', type='csatorna') }}"
+           class="tab {% if utility_type == 'csatorna' %}active{% endif %}">&#128688; Csatorna</a>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-section">
+        <h2>Fogyasztas</h2>
+        <canvas id="consumptionChart" height="200"></canvas>
+    </div>
+    <div class="chart-section">
+        <h2>Koltseg (Ft)</h2>
+        <canvas id="costChart" height="200"></canvas>
+    </div>
+
+    <!-- Reading list -->
+    <div class="reading-list">
+        <h2>Osszes bejegyzes</h2>
+        {% if readings %}
+        {% for reading in readings %}
+        <div class="reading-item {{ reading.utility_type }}">
+            <div class="reading-header">
+                <span class="reading-type">
+                    {% if reading.utility_type == 'villany' %}&#9889;{% elif reading.utility_type == 'viz' %}&#128167;{% else %}&#128688;{% endif %}
+                    {{ reading.utility_type|capitalize }}
+                </span>
+                <span class="reading-date">{{ reading.reading_date.strftime('%Y.%m.%d') }}</span>
+            </div>
+            <div class="reading-body">
+                <div class="reading-value">
+                    {{ "%.1f"|format(reading.value) }}
+                    {{ 'kWh' if reading.utility_type == 'villany' else 'm&sup3;' }}
+                </div>
+                {% if reading.consumption is not none %}
+                <div class="reading-consumption">
+                    Fogyasztas: {{ "%.1f"|format(reading.consumption) }}
+                    {{ 'kWh' if reading.utility_type == 'villany' else 'm&sup3;' }}
+                </div>
+                {% endif %}
+                {% if reading.cost_huf is not none %}
+                <div class="reading-cost">{{ "{:,.0f}".format(reading.cost_huf) }} Ft</div>
+                {% endif %}
+            </div>
+            {% if reading.photo_filename %}
+            <div class="reading-photo">
+                <a href="{{ url_for('tenant.uploaded_photo', filename=reading.photo_filename) }}" target="_blank">
+                    <img src="{{ url_for('tenant.uploaded_photo', filename=reading.photo_filename) }}"
+                         alt="Meroora foto" loading="lazy">
+                </a>
+            </div>
+            {% endif %}
+            {% if reading.notes %}
+            <div class="reading-notes">{{ reading.notes }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <p>Meg nincsenek meroallasok.</p>
+            <a href="{{ url_for('tenant.reading') }}" class="btn btn-primary">Elso meroallas rogzites</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+    // Prepare chart data from readings
+    const readings = {{ readings | tojson }};
+    const chartType = '{{ utility_type }}';
+
+    // Filter and prepare data for charts
+    function prepareChartData(type) {
+        let filtered;
+        if (type === 'all') {
+            filtered = readings.filter(r => r.utility_type === 'villany' || r.utility_type === 'viz');
+        } else {
+            filtered = readings.filter(r => r.utility_type === type);
+        }
+        filtered = filtered.reverse(); // chronological order
+
+        return {
+            labels: filtered.map(r => r.reading_date),
+            consumption: filtered.map(r => r.consumption || 0),
+            costs: filtered.map(r => r.cost_huf || 0),
+        };
+    }
+
+    // Consumption chart
+    const data = prepareChartData(chartType);
+    if (data.labels.length > 0) {
+        new Chart(document.getElementById('consumptionChart'), {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'Fogyasztas',
+                    data: data.consumption,
+                    backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // Cost chart
+        new Chart(document.getElementById('costChart'), {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'Koltseg (Ft)',
+                    data: data.costs,
+                    fill: true,
+                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 2,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+</script>
+{% endblock %}

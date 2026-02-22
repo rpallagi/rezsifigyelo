@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Todo - Admin{% endblock %}
+{% block body_class %}admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <nav class="admin-sidebar">
+        <div class="sidebar-header"><h2>Rezsi Figyelo</h2><span class="admin-badge">Admin</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
+            <li><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
+            <li><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
+            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
+            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li class="active"><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
+            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+        </ul>
+        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a></div>
+    </nav>
+
+    <main class="admin-main">
+        <div class="page-header">
+            <h1>Todo lista</h1>
+            <button class="btn btn-primary" onclick="document.getElementById('add-todo-modal').style.display='flex'">
+                + Uj todo
+            </button>
+        </div>
+
+        <div class="todo-list">
+            {% for todo in todos %}
+            <div class="todo-item todo-{{ todo.status }} todo-priority-{{ todo.priority }}">
+                <form method="POST" action="{{ url_for('admin.toggle_todo', todo_id=todo.id) }}" class="todo-toggle">
+                    <button type="submit" class="todo-checkbox">
+                        {% if todo.status == 'done' %}&#9745;{% elif todo.status == 'in_progress' %}&#9634;{% else %}&#9744;{% endif %}
+                    </button>
+                </form>
+                <div class="todo-content">
+                    <div class="todo-title">{{ todo.title }}</div>
+                    {% if todo.description %}<div class="todo-desc">{{ todo.description }}</div>{% endif %}
+                    <div class="todo-meta">
+                        <span class="badge badge-{{ todo.priority }}">{{ todo.priority }}</span>
+                        {% if todo.property %}<span>{{ todo.property.name }}</span>{% endif %}
+                        {% if todo.due_date %}<span>Hatarido: {{ todo.due_date.strftime('%Y.%m.%d') }}</span>{% endif %}
+                    </div>
+                </div>
+                <form method="POST" action="{{ url_for('admin.delete_todo', todo_id=todo.id) }}" class="todo-delete">
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Torles?')">&#128465;</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if not todos %}
+        <div class="empty-state"><p>Nincs todo.</p></div>
+        {% endif %}
+
+        <!-- Add Todo Modal -->
+        <div class="modal" id="add-todo-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Uj todo</h2>
+                    <button class="modal-close" onclick="document.getElementById('add-todo-modal').style.display='none'">&times;</button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.add_todo') }}">
+                    <div class="form-grid">
+                        <div class="form-group form-full">
+                            <label>Cim *</label>
+                            <input type="text" name="title" required placeholder="Mit kell csinalni...">
+                        </div>
+                        <div class="form-group form-full">
+                            <label>Leiras</label>
+                            <textarea name="description" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Prioritas</label>
+                            <select name="priority">
+                                <option value="low">Alacsony</option>
+                                <option value="medium" selected>Kozepes</option>
+                                <option value="high">Magas</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Ingatlan (opcionalis)</label>
+                            <select name="property_id">
+                                <option value="">Altalanos</option>
+                                {% for p in properties %}
+                                <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Hatarido</label>
+                            <input type="date" name="due_date">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Mentes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

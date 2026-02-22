@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Fizetesek - Admin{% endblock %}
+{% block body_class %}admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <nav class="admin-sidebar">
+        <div class="sidebar-header"><h2>Rezsi Figyelo</h2><span class="admin-badge">Admin</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
+            <li><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
+            <li><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
+            <li class="active"><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
+            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
+            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+        </ul>
+        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a></div>
+    </nav>
+
+    <main class="admin-main">
+        <div class="page-header">
+            <h1>Fizetesek</h1>
+            <button class="btn btn-primary" onclick="document.getElementById('add-payment-modal').style.display='flex'">
+                + Uj fizetes
+            </button>
+        </div>
+
+        <!-- Filter -->
+        <form class="filter-bar" method="GET">
+            <select name="property_id">
+                <option value="">Minden ingatlan</option>
+                {% for p in properties %}
+                <option value="{{ p.id }}" {% if selected_property_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-secondary">Szures</button>
+        </form>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Ingatlan</th>
+                    <th>Osszeg</th>
+                    <th>Mod</th>
+                    <th>Datum</th>
+                    <th>Megjegyzes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td>{{ p.property.name if p.property else '-' }}</td>
+                    <td><strong>{{ "{:,.0f}".format(p.amount_huf) }} Ft</strong></td>
+                    <td>{{ p.payment_method or '-' }}</td>
+                    <td>{{ p.payment_date.strftime('%Y.%m.%d') }}</td>
+                    <td>{{ p.notes or '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Add Payment Modal -->
+        <div class="modal" id="add-payment-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Uj fizetes</h2>
+                    <button class="modal-close" onclick="document.getElementById('add-payment-modal').style.display='none'">&times;</button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.add_payment') }}">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Ingatlan *</label>
+                            <select name="property_id" required>
+                                {% for p in properties %}
+                                <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Osszeg (Ft) *</label>
+                            <input type="number" name="amount_huf" required step="1" placeholder="pl. 50000">
+                        </div>
+                        <div class="form-group">
+                            <label>Fizetes modja</label>
+                            <select name="payment_method">
+                                <option value="keszpenz">Keszpenz</option>
+                                <option value="atutalas">Atutalas</option>
+                                <option value="kartya">Kartya</option>
+                                <option value="egyeb">Egyeb</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Datum</label>
+                            <input type="date" name="payment_date" value="{{ today }}">
+                        </div>
+                        <div class="form-group form-full">
+                            <label>Megjegyzes</label>
+                            <textarea name="notes" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Mentes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

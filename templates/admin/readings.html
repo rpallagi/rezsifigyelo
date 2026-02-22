@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Meroallasok - Admin{% endblock %}
+{% block body_class %}admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <nav class="admin-sidebar">
+        <div class="sidebar-header"><h2>Rezsi Figyelo</h2><span class="admin-badge">Admin</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
+            <li><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
+            <li class="active"><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
+            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
+            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
+            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+        </ul>
+        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a></div>
+    </nav>
+
+    <main class="admin-main">
+        <h1>Meroallasok</h1>
+
+        <!-- Filters -->
+        <form class="filter-bar" method="GET">
+            <select name="property_id">
+                <option value="">Minden ingatlan</option>
+                {% for p in properties %}
+                <option value="{{ p.id }}" {% if selected_property_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="utility_type">
+                <option value="">Minden tipus</option>
+                <option value="villany" {% if selected_utility_type == 'villany' %}selected{% endif %}>Villany</option>
+                <option value="viz" {% if selected_utility_type == 'viz' %}selected{% endif %}>Viz</option>
+                <option value="csatorna" {% if selected_utility_type == 'csatorna' %}selected{% endif %}>Csatorna</option>
+            </select>
+            <button type="submit" class="btn btn-secondary">Szures</button>
+        </form>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Ingatlan</th>
+                    <th>Tipus</th>
+                    <th>Meroallas</th>
+                    <th>Fogyasztas</th>
+                    <th>Koltseg</th>
+                    <th>Datum</th>
+                    <th>Foto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in readings %}
+                <tr>
+                    <td>{{ r.property.name if r.property else '-' }}</td>
+                    <td>{{ r.utility_type|capitalize }}</td>
+                    <td>{{ "%.1f"|format(r.value) }} {{ 'kWh' if r.utility_type == 'villany' else 'm3' }}</td>
+                    <td>{{ "%.1f"|format(r.consumption) if r.consumption is not none else '-' }}</td>
+                    <td>{{ "{:,.0f}".format(r.cost_huf) if r.cost_huf is not none else '-' }} Ft</td>
+                    <td>{{ r.reading_date.strftime('%Y.%m.%d') }}</td>
+                    <td>
+                        {% if r.photo_filename %}
+                        <a href="{{ url_for('tenant.uploaded_photo', filename=r.photo_filename) }}" target="_blank">&#128247;</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </main>
+</div>
+{% endblock %}

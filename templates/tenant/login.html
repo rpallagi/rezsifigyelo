@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Bejelentkezes - Rezsi Figyelo{% endblock %}
+{% block body_class %}tenant-login{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h1>Rezsi Figyelo</h1>
+            <p>Kozuzemi meroallas rogzites</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('tenant.login') }}" class="login-form">
+            <div class="form-group">
+                <label for="property_id">Ingatlan kivalasztasa</label>
+                <select name="property_id" id="property_id" required>
+                    <option value="">-- Valassz ingatlant --</option>
+                    {% for prop in properties %}
+                    <option value="{{ prop.id }}">{{ prop.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="pin">PIN kod</label>
+                <input type="password" name="pin" id="pin" inputmode="numeric"
+                       pattern="[0-9]*" maxlength="6" placeholder="PIN" required
+                       autocomplete="off">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">
+                Bejelentkezes
+            </button>
+        </form>
+
+        {% if not properties %}
+        <div class="empty-state">
+            <p>Meg nincsenek ingatlanok felvetel.</p>
+            <p>Az admin feluleten tudsz ingatlanokat hozzaadni.</p>
+        </div>
+        {% endif %}
+
+        <div class="login-footer">
+            <a href="{{ url_for('admin.admin_login') }}">Admin bejelentkezes</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

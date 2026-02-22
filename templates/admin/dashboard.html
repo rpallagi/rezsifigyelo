@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard - Rezsi Figyelo{% endblock %}
+{% block body_class %}admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <!-- Sidebar -->
+    <nav class="admin-sidebar">
+        <div class="sidebar-header">
+            <h2>Rezsi Figyelo</h2>
+            <span class="admin-badge">Admin</span>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="active"><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
+            <li><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
+            <li><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
+            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
+            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
+            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="admin-main">
+        <h1>Dashboard</h1>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ total_properties }}</div>
+                <div class="stat-label">Ingatlan</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ total_readings }}</div>
+                <div class="stat-label">Meroallas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ "{:,.0f}".format(total_payments) }} Ft</div>
+                <div class="stat-label">Osszes befizetes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ pending_todos }}</div>
+                <div class="stat-label">Nyitott Todo</div>
+            </div>
+        </div>
+
+        <!-- Recent readings -->
+        <div class="section">
+            <h2>Legutobb rogzitett meroallasok</h2>
+            {% if recent_readings %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Ingatlan</th>
+                        <th>Tipus</th>
+                        <th>Ertek</th>
+                        <th>Fogyasztas</th>
+                        <th>Koltseg</th>
+                        <th>Datum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in recent_readings %}
+                    <tr>
+                        <td>{{ r.property.name if r.property else '-' }}</td>
+                        <td>{{ r.utility_type|capitalize }}</td>
+                        <td>{{ "%.1f"|format(r.value) }}</td>
+                        <td>{{ "%.1f"|format(r.consumption) if r.consumption is not none else '-' }}</td>
+                        <td>{{ "{:,.0f}".format(r.cost_huf) if r.cost_huf is not none else '-' }} Ft</td>
+                        <td>{{ r.reading_date.strftime('%Y.%m.%d') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-text">Meg nincs meroallas.</p>
+            {% endif %}
+        </div>
+
+        <!-- Property overview -->
+        <div class="section">
+            <h2>Ingatlanok attekintes</h2>
+            <div class="property-grid">
+                {% for prop in properties %}
+                <div class="property-card">
+                    <h3>{{ prop.name }}</h3>
+                    <span class="badge badge-{{ prop.property_type }}">{{ prop.property_type|capitalize }}</span>
+                    {% if prop.contact_name %}
+                    <div class="prop-contact">{{ prop.contact_name }}</div>
+                    {% endif %}
+                    {% if prop.monthly_rent %}
+                    <div class="prop-rent">{{ "{:,.0f}".format(prop.monthly_rent) }} Ft/ho</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

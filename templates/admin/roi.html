@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}ROI - Admin{% endblock %}
+{% block body_class %}admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <nav class="admin-sidebar">
+        <div class="sidebar-header"><h2>Rezsi Figyelo</h2><span class="admin-badge">Admin</span></div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
+            <li><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
+            <li><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
+            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
+            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
+            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li class="active"><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+        </ul>
+        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a></div>
+    </nav>
+
+    <main class="admin-main">
+        <h1>ROI - Megtherules kalkulator</h1>
+
+        {% if roi_data %}
+        <div class="roi-grid">
+            {% for item in roi_data %}
+            <div class="roi-card">
+                <h3>{{ item.property.name }}</h3>
+                <div class="roi-stats">
+                    <div class="roi-row">
+                        <span>Veteli ar:</span>
+                        <strong>{{ "{:,.0f}".format(item.property.purchase_price) }} Ft</strong>
+                    </div>
+                    <div class="roi-row">
+                        <span>Havi berlet:</span>
+                        <strong>{{ "{:,.0f}".format(item.property.monthly_rent) }} Ft</strong>
+                    </div>
+                    <div class="roi-row">
+                        <span>Osszes befizetes:</span>
+                        <strong>{{ "{:,.0f}".format(item.total_rent) }} Ft</strong>
+                    </div>
+                    <div class="roi-row">
+                        <span>Karbantartas koltseg:</span>
+                        <strong class="text-danger">{{ "{:,.0f}".format(item.total_maintenance) }} Ft</strong>
+                    </div>
+                    <hr>
+                    <div class="roi-row">
+                        <span>Netto bevetel:</span>
+                        <strong class="{{ 'text-success' if item.net_income >= 0 else 'text-danger' }}">
+                            {{ "{:,.0f}".format(item.net_income) }} Ft
+                        </strong>
+                    </div>
+                    <div class="roi-row">
+                        <span>ROI:</span>
+                        <strong>{{ "%.1f"|format(item.roi_percent) }}%</strong>
+                    </div>
+                    {% if item.breakeven_months %}
+                    <div class="roi-row roi-highlight">
+                        <span>Megterules:</span>
+                        <strong>{{ "%.0f"|format(item.breakeven_months) }} honap ({{ "%.1f"|format(item.breakeven_months / 12) }} ev)</strong>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Mini breakeven chart -->
+                <canvas class="roi-chart" id="roi-chart-{{ item.property.id }}" height="150"></canvas>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>Nincs ingatlan veteli arral es berleti dijjal.</p>
+            <p>Az Ingatlanok oldalon add meg a veteli arat es berleti dijat!</p>
+        </div>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+    // Generate breakeven charts
+    {% for item in roi_data %}
+    {% if item.breakeven_months %}
+    (function() {
+        const months = Math.min({{ item.breakeven_months|int + 12 }}, 360);
+        const labels = [];
+        const invested = [];
+        const income = [];
+        const monthlyRent = {{ item.property.monthly_rent }};
+        const purchasePrice = {{ item.property.purchase_price }};
+
+        for (let i = 0; i <= months; i++) {
+            labels.push(i);
+            invested.push(purchasePrice);
+            income.push(i * monthlyRent);
+        }
+
+        new Chart(document.getElementById('roi-chart-{{ item.property.id }}'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Veteli ar',
+                        data: invested,
+                        borderColor: '#ef4444',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false,
+                    },
+                    {
+                        label: 'Bevetel',
+                        data: income,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: true,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    title: { display: true, text: 'Megterules' }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Honapok' } },
+                    y: { title: { display: true, text: 'Ft' },
+                         ticks: { callback: v => (v/1e6).toFixed(1) + 'M' } }
+                }
+            }
+        });
+    })();
+    {% endif %}
+    {% endfor %}
+</script>
+{% endblock %}

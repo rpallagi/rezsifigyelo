@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Meroallas rogzites - {{ property.name }}{% endblock %}
+{% block body_class %}tenant-reading{% endblock %}
+
+{% block content %}
+<div class="app-container">
+    <header class="app-header">
+        <a href="{{ url_for('tenant.dashboard') }}" class="back-btn">&larr;</a>
+        <h1>Meroallas rogzites</h1>
+    </header>
+
+    <form method="POST" action="{{ url_for('tenant.reading') }}" enctype="multipart/form-data" class="reading-form">
+        <!-- Utility Type Selection -->
+        <div class="form-group">
+            <label>Kozuzemi tipus</label>
+            <div class="radio-group">
+                <label class="radio-card">
+                    <input type="radio" name="utility_type" value="villany" checked>
+                    <span class="radio-card-content">
+                        <span class="radio-icon">&#9889;</span>
+                        <span>Villany (kWh)</span>
+                    </span>
+                </label>
+                <label class="radio-card">
+                    <input type="radio" name="utility_type" value="viz">
+                    <span class="radio-card-content">
+                        <span class="radio-icon">&#128167;</span>
+                        <span>Viz (m&sup3;)</span>
+                    </span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Current Value -->
+        <div class="form-group">
+            <label for="value">Aktualis meroallas</label>
+            <input type="number" name="value" id="value" step="0.1" min="0"
+                   placeholder="pl. 12345.6" required class="input-lg" inputmode="decimal">
+            <div class="form-help" id="last-reading-info">
+                {% if last_villany %}
+                Utolso villany: {{ "%.1f"|format(last_villany.value) }} kWh
+                ({{ last_villany.reading_date.strftime('%Y.%m.%d') }})
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Auto calculation preview -->
+        <div class="calc-preview" id="calc-preview" style="display:none;">
+            <div class="calc-row">
+                <span>Fogyasztas:</span>
+                <strong id="calc-consumption">-</strong>
+            </div>
+            <div class="calc-row">
+                <span>Becsult koltseg:</span>
+                <strong id="calc-cost">-</strong>
+            </div>
+        </div>
+
+        <!-- Date -->
+        <div class="form-group">
+            <label for="reading_date">Meres datuma</label>
+            <input type="date" name="reading_date" id="reading_date" value="{{ today }}">
+        </div>
+
+        <!-- Photo -->
+        <div class="form-group">
+            <label for="photo">Meroora foto (opcionalis)</label>
+            <div class="photo-upload">
+                <input type="file" name="photo" id="photo" accept="image/*" capture="environment">
+                <div class="photo-preview" id="photo-preview"></div>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="form-group">
+            <label for="notes">Megjegyzes (opcionalis)</label>
+            <textarea name="notes" id="notes" rows="2" placeholder="pl. Merocsere volt"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full btn-lg">
+            Meroallas mentese
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Store last reading values for auto-calculation
+    const lastReadings = {
+        villany: {{ last_villany.value if last_villany else 'null' }},
+        viz: {{ last_viz.value if last_viz else 'null' }}
+    };
+    const tariffs = {
+        villany: 212.0,
+        viz: 758.19,
+        csatorna: 1160.78
+    };
+
+    // Update last reading info when switching utility type
+    document.querySelectorAll('input[name="utility_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const type = this.value;
+            const last = lastReadings[type];
+            const info = document.getElementById('last-reading-info');
+            if (last !== null) {
+                const unit = type === 'villany' ? 'kWh' : 'm\u00b3';
+                info.textContent = `Utolso ${type}: ${last} ${unit}`;
+            } else {
+                info.textContent = `Nincs elozo meroallas (${type})`;
+            }
+            updateCalc();
+        });
+    });
+
+    // Auto-calculate consumption and cost
+    document.getElementById('value').addEventListener('input', updateCalc);
+
+    function updateCalc() {
+        const type = document.querySelector('input[name="utility_type"]:checked').value;
+        const value = parseFloat(document.getElementById('value').value);
+        const last = lastReadings[type];
+        const preview = document.getElementById('calc-preview');
+
+        if (!isNaN(value) && last !== null) {
+            const consumption = value - last;
+            const unit = type === 'villany' ? 'kWh' : 'm\u00b3';
+            let cost = consumption * tariffs[type];
+            if (type === 'viz') {
+                cost += consumption * tariffs.csatorna;
+            }
+
+            document.getElementById('calc-consumption').textContent =
+                `${consumption.toFixed(1)} ${unit}`;
+            document.getElementById('calc-cost').textContent =
+                `${Math.round(cost).toLocaleString('hu')} Ft` +
+                (type === 'viz' ? ' (viz + csatorna)' : '');
+
+            preview.style.display = 'block';
+            preview.style.color = consumption >= 0 ? '' : 'red';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
+    // Photo preview
+    document.getElementById('photo').addEventListener('change', function(e) {
+        const preview = document.getElementById('photo-preview');
+        preview.innerHTML = '';
+        if (this.files && this.files[0]) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(this.files[0]);
+            img.onload = () => URL.revokeObjectURL(img.src);
+            preview.appendChild(img);
+        }
+    });
+</script>
+{% endblock %}
