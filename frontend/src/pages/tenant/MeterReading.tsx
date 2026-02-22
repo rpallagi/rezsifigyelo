@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Droplets, ChevronRight, Check, Camera, CalendarDays, MessageSquare, ArrowLeft } from "lucide-react";
+import { Zap, Droplets, ChevronRight, Check, Camera, CalendarDays, MessageSquare, ArrowLeft, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getTenantDashboard, submitReading, type TenantDashboardData } from "@/lib/api";
@@ -17,10 +17,12 @@ const MeterReading = () => {
   const [value, setValue] = useState("");
   const [readingDate, setReadingDate] = useState(new Date().toISOString().split('T')[0]);
   const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [dashData, setDashData] = useState<TenantDashboardData | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,6 +45,18 @@ const MeterReading = () => {
   const estimatedCost = consumption * rate;
   const csatornaRate = dashData?.tariffs?.csatorna?.rate_huf || 0;
   const csatornaCost = selectedType?.id === 'viz' ? consumption * csatornaRate : 0;
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setPhoto(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setPhotoPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setPhotoPreview(null);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!selectedType) return;
@@ -192,6 +206,76 @@ const MeterReading = () => {
           )}
 
           <div className="space-y-3">
+            {/* Photo - prominent camera button */}
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <Camera className="h-4 w-4 text-muted-foreground" />
+                <label className="text-sm text-muted-foreground">Foto a merorarol</label>
+              </div>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+
+              {!photo ? (
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (fileInputRef.current) {
+                        fileInputRef.current.setAttribute('capture', 'environment');
+                        fileInputRef.current.click();
+                      }
+                    }}
+                    className="flex-1 h-20 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all flex flex-col items-center justify-center gap-1.5 active:scale-[0.98]"
+                  >
+                    <Camera className="h-7 w-7 text-primary" />
+                    <span className="text-xs font-medium text-primary">Foto keszitese</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (fileInputRef.current) {
+                        fileInputRef.current.removeAttribute('capture');
+                        fileInputRef.current.click();
+                      }
+                    }}
+                    className="flex-1 h-20 rounded-xl border-2 border-dashed border-border hover:bg-accent/50 hover:border-accent-foreground/20 transition-all flex flex-col items-center justify-center gap-1.5 active:scale-[0.98]"
+                  >
+                    <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">Galeria</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <div className="rounded-xl overflow-hidden border border-border">
+                    {photoPreview && (
+                      <img src={photoPreview} alt="Meroora foto" className="w-full h-32 object-cover" />
+                    )}
+                    <div className="p-2 flex items-center justify-between bg-accent/30">
+                      <span className="text-xs text-success font-medium flex items-center gap-1.5">
+                        <Check className="h-3.5 w-3.5" />
+                        {photo.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => { setPhoto(null); setPhotoPreview(null); }}
+                        className="text-xs text-destructive hover:underline"
+                      >
+                        Torles
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="glass-card p-4">
               <div className="flex items-center gap-3 mb-2">
                 <CalendarDays className="h-4 w-4 text-muted-foreground" />
@@ -201,22 +285,8 @@ const MeterReading = () => {
             </div>
             <div className="glass-card p-4">
               <div className="flex items-center gap-3 mb-2">
-                <Camera className="h-4 w-4 text-muted-foreground" />
-                <label className="text-sm text-muted-foreground">Foto a merorarol</label>
-              </div>
-              <Input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(e) => setPhoto(e.target.files?.[0] || null)}
-                className="file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-xs file:font-medium"
-              />
-              {photo && <p className="text-xs text-success mt-2">Foto kivalasztva: {photo.name}</p>}
-            </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-3 mb-2">
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <label className="text-sm text-muted-foreground">Megjegyzes (opcionalis)</label>
+                <label className="text-sm text-muted-foreground">Megjegyzes (nem kotelezo)</label>
               </div>
               <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Megjegyzes..." />
             </div>
@@ -271,6 +341,13 @@ const MeterReading = () => {
               </div>
             </div>
           </div>
+
+          {/* Photo preview in confirmation */}
+          {photoPreview && (
+            <div className="glass-card p-3 animate-in">
+              <img src={photoPreview} alt="Meroora foto" className="w-full h-40 object-cover rounded-lg" />
+            </div>
+          )}
 
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1 h-12" onClick={() => setStep(1)}>

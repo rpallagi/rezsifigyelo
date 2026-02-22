@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Zap, Droplets, Waves, TrendingUp, TrendingDown, LogOut, PlusCircle, ChevronRight, Calendar } from "lucide-react";
+import { Zap, Droplets, Waves, TrendingUp, TrendingDown, LogOut, PlusCircle, ChevronRight, Calendar, ClipboardEdit } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { getTenantDashboard, tenantLogout, type TenantDashboardData } from "@/lib/api";
 import { formatHuf, formatNumber, formatDateShort } from "@/lib/format";
@@ -29,13 +29,13 @@ const TenantDashboard = () => {
     return (
       <div className="p-4 max-w-lg mx-auto space-y-4 pt-6">
         <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-24 w-full rounded-2xl" />
         <Skeleton className="h-32 w-full rounded-2xl" />
         <div className="grid grid-cols-3 gap-3">
           <Skeleton className="h-24 rounded-2xl" />
           <Skeleton className="h-24 rounded-2xl" />
           <Skeleton className="h-24 rounded-2xl" />
         </div>
-        <Skeleton className="h-40 w-full rounded-2xl" />
         <Skeleton className="h-40 w-full rounded-2xl" />
       </div>
     );
@@ -51,11 +51,9 @@ const TenantDashboard = () => {
   const csatornaCost = vizConsumption * csatornaRate;
   const monthlyTotal = data.monthly_total || (villanyCost + vizCost + csatornaCost);
 
-  // Build sparkline chart data from both utility types
   const villanySparkline = data.sparklines?.villany || [];
   const vizSparkline = data.sparklines?.viz || [];
 
-  // Build combined bar data for quick overview
   const barData = villanySparkline.slice(-6).map((v, i) => ({
     label: `${i + 1}`,
     villany: v,
@@ -65,6 +63,7 @@ const TenantDashboard = () => {
   const statCards = [
     {
       label: "Villany",
+      type: "villany",
       icon: Zap,
       color: "hsl(45, 93%, 47%)",
       bgColor: "hsl(45, 93%, 47%)",
@@ -77,6 +76,7 @@ const TenantDashboard = () => {
     },
     {
       label: "Viz",
+      type: "viz",
       icon: Droplets,
       color: "hsl(199, 89%, 48%)",
       bgColor: "hsl(199, 89%, 48%)",
@@ -89,6 +89,7 @@ const TenantDashboard = () => {
     },
     {
       label: "Csatorna",
+      type: "csatorna",
       icon: Waves,
       color: "hsl(280, 60%, 55%)",
       bgColor: "hsl(280, 60%, 55%)",
@@ -104,7 +105,7 @@ const TenantDashboard = () => {
   return (
     <div className="p-4 max-w-lg mx-auto">
       {/* Header */}
-      <div className="pt-2 mb-6 animate-in flex items-start justify-between">
+      <div className="pt-2 mb-5 animate-in flex items-start justify-between">
         <div>
           <p className="text-muted-foreground text-sm">Udv,</p>
           <h1 className="font-display text-2xl font-bold">{data.property.name}</h1>
@@ -120,135 +121,165 @@ const TenantDashboard = () => {
         </div>
       </div>
 
-      {/* Hero: Monthly Total Card */}
-      <div className="glass-card p-6 mb-5 animate-in-delay-1 relative overflow-hidden">
-        <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-[0.07]"
-          style={{ background: "var(--gradient-primary)" }} />
-        <div className="relative">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-muted-foreground font-medium">Havi becsult koltseg</span>
-            {data.last_villany?.reading_date && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {formatDateShort(data.last_villany.reading_date)}
-              </span>
-            )}
-          </div>
-          <p className="font-display text-4xl font-extrabold tracking-tight format-hu mb-4">
-            {formatHuf(monthlyTotal)}
-          </p>
-
-          {/* Mini breakdown pills */}
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-              style={{ backgroundColor: "hsl(45, 93%, 47%, 0.12)", color: "hsl(45, 93%, 47%)" }}>
-              <Zap className="h-3 w-3" />
-              {formatHuf(villanyCost)}
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-              style={{ backgroundColor: "hsl(199, 89%, 48%, 0.12)", color: "hsl(199, 89%, 48%)" }}>
-              <Droplets className="h-3 w-3" />
-              {formatHuf(vizCost)}
-            </span>
-            {csatornaCost > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-                style={{ backgroundColor: "hsl(280, 60%, 55%, 0.12)", color: "hsl(280, 60%, 55%)" }}>
-                <Waves className="h-3 w-3" />
-                {formatHuf(csatornaCost)}
-              </span>
-            )}
+      {/* ★ PRIMARY ACTION: New Meter Reading - TOP of page */}
+      <Link to="/tenant/reading" className="block mb-5 animate-in">
+        <div className="relative overflow-hidden rounded-2xl gradient-primary-bg p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]">
+          <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-white/10" />
+          <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-white/5" />
+          <div className="relative flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+              <ClipboardEdit className="h-7 w-7 text-primary-foreground" />
+            </div>
+            <div className="flex-1">
+              <p className="font-display font-bold text-lg text-primary-foreground">Meroallas rogzites</p>
+              <p className="text-primary-foreground/70 text-sm mt-0.5">Villany vagy viz meroallas felvitele</p>
+            </div>
+            <ChevronRight className="h-6 w-6 text-primary-foreground/60 flex-shrink-0" />
           </div>
         </div>
-      </div>
+      </Link>
 
-      {/* 3-column stat cards */}
-      <div className="grid grid-cols-3 gap-3 mb-5 animate-in-delay-1">
-        {statCards.map((card) => (
-          <div key={card.label} className="glass-card p-3 text-center">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-2"
-              style={{ backgroundColor: `${card.bgColor}20` }}
-            >
-              <card.icon className="h-4 w-4" style={{ color: card.color }} />
-            </div>
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-0.5">{card.label}</p>
-            <p className="font-display font-bold text-sm format-hu">
-              {formatNumber(card.consumption)} {card.unit}
-            </p>
-            <p className="text-[10px] text-muted-foreground format-hu">
-              {formatHuf(card.cost)}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* Utility detail cards with sparklines */}
-      <div className="space-y-3 mb-5 animate-in-delay-2">
-        {statCards.filter(c => c.label !== "Csatorna").map((card) => (
-          <div key={card.label} className="glass-card p-4">
+      {/* Hero: Monthly Total Card - clickable → history */}
+      <Link to="/tenant/history" className="block mb-5 animate-in-delay-1">
+        <div className="glass-card-hover p-6 relative overflow-hidden">
+          <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-[0.07]"
+            style={{ background: "var(--gradient-primary)" }} />
+          <div className="relative">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: `${card.bgColor}15` }}
-                >
-                  <card.icon className="h-5 w-5" style={{ color: card.color }} />
-                </div>
-                <div>
-                  <p className="font-display font-semibold text-sm">{card.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {card.date ? formatDateShort(card.date) : "Nincs adat"}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-display font-bold format-hu">{formatHuf(card.cost)}</p>
-                <p className="text-xs text-muted-foreground format-hu">
-                  {formatNumber(card.consumption)} {card.unit}
-                </p>
+              <span className="text-sm text-muted-foreground font-medium">Havi becsult koltseg</span>
+              <div className="flex items-center gap-2">
+                {data.last_villany?.reading_date && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {formatDateShort(data.last_villany.reading_date)}
+                  </span>
+                )}
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
+            <p className="font-display text-4xl font-extrabold tracking-tight format-hu mb-4">
+              {formatHuf(monthlyTotal)}
+            </p>
 
-            {/* Sparkline */}
-            {card.sparkline.length > 1 && (
-              <div className="h-16 -mx-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={card.sparkline.map((v, i) => ({ v, i }))}>
-                    <defs>
-                      <linearGradient id={`spark-${card.label}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={card.color} stopOpacity={0.2} />
-                        <stop offset="100%" stopColor={card.color} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <Area
-                      type="monotone"
-                      dataKey="v"
-                      stroke={card.color}
-                      strokeWidth={2}
-                      fill={`url(#spark-${card.label})`}
-                      dot={false}
-                      animationDuration={1200}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Reading details */}
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-              <div className="text-xs text-muted-foreground">
-                <span>Meroallas: </span>
-                <span className="font-medium text-foreground">
-                  {card.value != null ? `${formatNumber(card.value)} ${card.unit}` : "\u2014"}
+            {/* Mini breakdown pills */}
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                style={{ backgroundColor: "hsl(45, 93%, 47%, 0.12)", color: "hsl(45, 93%, 47%)" }}>
+                <Zap className="h-3 w-3" />
+                {formatHuf(villanyCost)}
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                style={{ backgroundColor: "hsl(199, 89%, 48%, 0.12)", color: "hsl(199, 89%, 48%)" }}>
+                <Droplets className="h-3 w-3" />
+                {formatHuf(vizCost)}
+              </span>
+              {csatornaCost > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                  style={{ backgroundColor: "hsl(280, 60%, 55%, 0.12)", color: "hsl(280, 60%, 55%)" }}>
+                  <Waves className="h-3 w-3" />
+                  {formatHuf(csatornaCost)}
                 </span>
-              </div>
-              {data.tariffs[card.label.toLowerCase() as 'villany' | 'viz'] && (
-                <div className="text-xs text-muted-foreground">
-                  {data.tariffs[card.label.toLowerCase() as 'villany' | 'viz']!.rate_huf.toLocaleString("hu-HU")} Ft/{card.unit}
-                </div>
               )}
             </div>
           </div>
+        </div>
+      </Link>
+
+      {/* 3-column stat cards - clickable → history with type filter */}
+      <div className="grid grid-cols-3 gap-3 mb-5 animate-in-delay-1">
+        {statCards.map((card) => (
+          <Link key={card.label} to={`/tenant/history?type=${card.type}`} className="block">
+            <div className="glass-card-hover p-3 text-center h-full">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-2"
+                style={{ backgroundColor: `${card.bgColor}20` }}
+              >
+                <card.icon className="h-4 w-4" style={{ color: card.color }} />
+              </div>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-0.5">{card.label}</p>
+              <p className="font-display font-bold text-sm format-hu">
+                {formatNumber(card.consumption)} {card.unit}
+              </p>
+              <p className="text-[10px] text-muted-foreground format-hu">
+                {formatHuf(card.cost)}
+              </p>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Utility detail cards with sparklines - clickable → history with type */}
+      <div className="space-y-3 mb-5 animate-in-delay-2">
+        {statCards.filter(c => c.label !== "Csatorna").map((card) => (
+          <Link key={card.label} to={`/tenant/history?type=${card.type}`} className="block">
+            <div className="glass-card-hover p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: `${card.bgColor}15` }}
+                  >
+                    <card.icon className="h-5 w-5" style={{ color: card.color }} />
+                  </div>
+                  <div>
+                    <p className="font-display font-semibold text-sm">{card.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {card.date ? formatDateShort(card.date) : "Nincs adat"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <p className="font-display font-bold format-hu">{formatHuf(card.cost)}</p>
+                    <p className="text-xs text-muted-foreground format-hu">
+                      {formatNumber(card.consumption)} {card.unit}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                </div>
+              </div>
+
+              {/* Sparkline */}
+              {card.sparkline.length > 1 && (
+                <div className="h-16 -mx-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={card.sparkline.map((v, i) => ({ v, i }))}>
+                      <defs>
+                        <linearGradient id={`spark-${card.label}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={card.color} stopOpacity={0.2} />
+                          <stop offset="100%" stopColor={card.color} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <Area
+                        type="monotone"
+                        dataKey="v"
+                        stroke={card.color}
+                        strokeWidth={2}
+                        fill={`url(#spark-${card.label})`}
+                        dot={false}
+                        animationDuration={1200}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Reading details */}
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+                <div className="text-xs text-muted-foreground">
+                  <span>Meroallas: </span>
+                  <span className="font-medium text-foreground">
+                    {card.value != null ? `${formatNumber(card.value)} ${card.unit}` : "\u2014"}
+                  </span>
+                </div>
+                {data.tariffs[card.type as 'villany' | 'viz'] && (
+                  <div className="text-xs text-muted-foreground">
+                    {data.tariffs[card.type as 'villany' | 'viz']!.rate_huf.toLocaleString("hu-HU")} Ft/{card.unit}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Link>
         ))}
       </div>
 
@@ -286,22 +317,8 @@ const TenantDashboard = () => {
         </div>
       )}
 
-      {/* Quick action: New Reading */}
-      <Link to="/tenant/reading" className="block animate-in-delay-3">
-        <div className="glass-card-hover p-4 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl gradient-primary-bg flex items-center justify-center flex-shrink-0">
-            <PlusCircle className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <div className="flex-1">
-            <p className="font-display font-semibold text-sm">Uj meroallas rogzitese</p>
-            <p className="text-xs text-muted-foreground">Villany vagy viz meroallas felvitele</p>
-          </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-        </div>
-      </Link>
-
-      {/* Tariff info - compact */}
-      <div className="mt-5 glass-card p-4 animate-in-delay-3">
+      {/* Tariff info - compact (stays static) */}
+      <div className="glass-card p-4 animate-in-delay-3">
         <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Aktualis tarifak</p>
         <div className="grid grid-cols-3 gap-3">
           {data.tariffs.villany && (

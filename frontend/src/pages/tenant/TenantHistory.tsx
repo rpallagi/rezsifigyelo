@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Zap, Droplets, Waves, Camera } from "lucide-react";
 import { getTenantHistory, getTenantChartData, type ReadingItem } from "@/lib/api";
 import { formatHuf, formatDate, formatDateShort, formatNumber } from "@/lib/format";
@@ -7,6 +8,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recha
 const tabs = ["Osszes", "Villany", "Viz", "Csatorna"] as const;
 type Tab = typeof tabs[number];
 const typeMap: Record<Tab, string> = { "Osszes": "all", "Villany": "villany", "Viz": "viz", "Csatorna": "csatorna" };
+const reverseTypeMap: Record<string, Tab> = { "villany": "Villany", "viz": "Viz", "csatorna": "Csatorna" };
 
 const utilityIcon = (type: string) => {
   if (type === 'villany') return <Zap className="h-3.5 w-3.5" style={{ color: "hsl(45, 93%, 47%)" }} />;
@@ -21,7 +23,11 @@ const utilityColor = (type: string) => {
 };
 
 const TenantHistory = () => {
-  const [activeTab, setActiveTab] = useState<Tab>("Osszes");
+  const [searchParams] = useSearchParams();
+  const initialType = searchParams.get('type');
+  const [activeTab, setActiveTab] = useState<Tab>(
+    initialType && reverseTypeMap[initialType] ? reverseTypeMap[initialType] : "Osszes"
+  );
   const [readings, setReadings] = useState<ReadingItem[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +63,7 @@ const TenantHistory = () => {
   return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="pt-2 mb-6 animate-in">
-        <h1 className="font-display text-2xl font-bold">Elozmenyekk</h1>
+        <h1 className="font-display text-2xl font-bold">Elozmenyem</h1>
         <p className="text-muted-foreground text-sm mt-1">Fogyasztas es koltsegek attekintese</p>
       </div>
 
