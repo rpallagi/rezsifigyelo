@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Production environment - VPS deployment with nginx + SSL
 services:
   postgres:
