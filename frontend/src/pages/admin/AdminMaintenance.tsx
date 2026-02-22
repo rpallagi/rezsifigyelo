@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Wrench, Plus, Calendar, User, Tag } from "lucide-react";
+import { Wrench, Plus, Calendar, User, Tag, Pencil, Trash2 } from "lucide-react";
 import {
-  getAdminMaintenance, addMaintenance, getAdminProperties,
+  getAdminMaintenance, addMaintenance, editMaintenance, deleteMaintenance, getAdminProperties,
   type MaintenanceItem, type AdminProperty,
 } from "@/lib/api";
 import { formatHuf, formatDate } from "@/lib/format";
@@ -16,6 +16,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { useI18n } from "@/lib/i18n";
 
 const categoryColor: Record<string, string> = {
@@ -33,6 +37,8 @@ const AdminMaintenance = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingMaint, setEditingMaint] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
   const categoryLabels: Record<string, string> = {
     javitas: t('maint.catRepair'),
@@ -72,26 +78,56 @@ const AdminMaintenance = () => {
       performed_by: "",
       performed_date: new Date().toISOString().split("T")[0],
     });
+    setEditingMaint(null);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (log: MaintenanceItem) => {
+    setForm({
+      property_id: log.property_id ? String(log.property_id) : "",
+      description: log.description,
+      category: log.category || "karbantartas",
+      cost_huf: log.cost_huf != null ? String(log.cost_huf) : "",
+      performed_by: log.performed_by || "",
+      performed_date: log.performed_date || new Date().toISOString().split("T")[0],
+    });
+    setEditingMaint(log.id);
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await addMaintenance({
+      const payload = {
         property_id: form.property_id ? Number(form.property_id) : null,
         description: form.description,
         category: form.category,
         cost_huf: form.cost_huf ? Number(form.cost_huf) : null,
         performed_by: form.performed_by || null,
         performed_date: form.performed_date || null,
-      });
+      };
+      if (editingMaint) {
+        await editMaintenance(editingMaint, payload);
+      } else {
+        await addMaintenance(payload);
+      }
       setDialogOpen(false);
+      setEditingMaint(null);
       loadLogs();
     } catch (e: any) {
       alert(e.message || t('common.error'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteMaintenance(id);
+      setDeleteConfirm(null);
+      loadLogs();
+    } catch (e: any) {
+      alert(e.message || t('common.error'));
     }
   };
 
@@ -162,6 +198,14 @@ const AdminMaintenance = () => {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(log)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteConfirm(log.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                   {log.cost_huf != null && (
                     <p className="font-display font-bold text-sm format-hu">{formatHuf(log.cost_huf)}</p>
                   )}
@@ -176,7 +220,7 @@ const AdminMaintenance = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display">{t('maint.newTitle')}</DialogTitle>
+            <DialogTitle className="font-display">{editingMaint ? t('maint.editTitle') : t('maint.newTitle')}</DialogTitle>
             <DialogDescription>{t('maint.newDesc')}</DialogDescription>
           </DialogHeader>
 
@@ -186,7 +230,7 @@ const AdminMaintenance = () => {
               <Select value={form.property_id} onValueChange={(v) => set("property_id", v)}>
                 <SelectTrigger><SelectValue placeholder={t('maint.selectProperty')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nincs megadva</SelectItem>
+                  <SelectItem value="">{t('common.notSpecified')}</SelectItem>
                   {properties.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
                   ))}
@@ -224,7 +268,7 @@ const AdminMaintenance = () => {
                 type="number"
                 value={form.cost_huf}
                 onChange={(e) => set("cost_huf", e.target.value)}
-                placeholder="pl. 25000"
+                placeholder={t('maint.costPlaceholder')}
               />
             </div>
 
@@ -233,7 +277,7 @@ const AdminMaintenance = () => {
               <Input
                 value={form.performed_by}
                 onChange={(e) => set("performed_by", e.target.value)}
-                placeholder="pl. Kovács János"
+                placeholder={t('maint.performedByPlaceholder')}
               />
             </div>
 
@@ -255,6 +299,21 @@ const AdminMaintenance = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteConfirm !== null} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">{t('common.confirmDelete')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('maint.deleteConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { BarChart3, Plus } from "lucide-react";
+import { BarChart3, Pencil, Plus, Trash2 } from "lucide-react";
 import {
-  getAdminTariffs, addTariff,
+  getAdminTariffs, addTariff, editTariff, deleteTariff,
   type TariffGroupDetail,
 } from "@/lib/api";
 import { formatHuf, formatDate, utilityLabel } from "@/lib/format";
@@ -18,6 +18,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { useI18n } from "@/lib/i18n";
 
 const AdminTariffs = () => {
@@ -26,6 +30,8 @@ const AdminTariffs = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingTariff, setEditingTariff] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     tariff_group_id: "",
@@ -45,6 +51,7 @@ const AdminTariffs = () => {
   useEffect(() => { load(); }, []);
 
   const openNew = () => {
+    setEditingTariff(null);
     setForm({
       tariff_group_id: groups.length > 0 ? String(groups[0].id) : "",
       utility_type: "villany",
@@ -55,22 +62,50 @@ const AdminTariffs = () => {
     setDialogOpen(true);
   };
 
+  const openEdit = (tariff: { id: number; utility_type: string; rate_huf: number; unit: string; valid_from: string }, groupId: number) => {
+    setForm({
+      tariff_group_id: String(groupId),
+      utility_type: tariff.utility_type,
+      rate_huf: String(tariff.rate_huf),
+      unit: tariff.unit,
+      valid_from: tariff.valid_from,
+    });
+    setEditingTariff(tariff.id);
+    setDialogOpen(true);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await addTariff({
+      const payload = {
         tariff_group_id: Number(form.tariff_group_id),
         utility_type: form.utility_type,
         rate_huf: Number(form.rate_huf),
         unit: form.unit,
         valid_from: form.valid_from,
-      });
+      };
+      if (editingTariff) {
+        await editTariff(editingTariff, payload);
+      } else {
+        await addTariff(payload);
+      }
       setDialogOpen(false);
+      setEditingTariff(null);
       load();
     } catch (e: any) {
       alert(e.message || t('common.error'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteTariff(id);
+      setDeleteConfirm(null);
+      load();
+    } catch (e: any) {
+      alert(e.message || t('common.error'));
     }
   };
 
@@ -143,6 +178,7 @@ const AdminTariffs = () => {
                       <TableHead className="text-right">{t('tariffs.rate')}</TableHead>
                       <TableHead>{t('tariffs.unit')}</TableHead>
                       <TableHead>{t('tariffs.validFrom')}</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -162,6 +198,16 @@ const AdminTariffs = () => {
                         <TableCell className="text-sm text-muted-foreground">
                           {formatDate(tar.valid_from)}
                         </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(tar, group.id)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(tar.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -176,7 +222,7 @@ const AdminTariffs = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display">{t('tariffs.newTitle')}</DialogTitle>
+            <DialogTitle className="font-display">{editingTariff ? t('tariffs.editTitle') : t('tariffs.newTitle')}</DialogTitle>
             <DialogDescription>{t('tariffs.newDesc')}</DialogDescription>
           </DialogHeader>
 
@@ -243,6 +289,22 @@ const AdminTariffs = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteConfirm !== null} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">{t('common.confirmDelete')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('tariffs.deleteConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

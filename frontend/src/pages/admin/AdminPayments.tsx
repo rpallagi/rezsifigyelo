@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { CreditCard, Plus, Banknote, Calendar, FileText } from "lucide-react";
+import { CreditCard, Plus, Banknote, Calendar, FileText, Pencil, Trash2 } from "lucide-react";
 import {
-  getAdminPayments, addPayment, getAdminProperties,
+  getAdminPayments, addPayment, editPayment, deletePayment, getAdminProperties,
   type PaymentItem, type AdminProperty,
 } from "@/lib/api";
 import { formatHuf, formatDate, formatDateShort } from "@/lib/format";
@@ -17,6 +17,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { useI18n } from "@/lib/i18n";
@@ -29,6 +33,8 @@ const AdminPayments = () => {
   const [filterProperty, setFilterProperty] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     property_id: "",
@@ -64,13 +70,28 @@ const AdminPayments = () => {
       period_to: "",
       notes: "",
     });
+    setEditingPayment(null);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (p: PaymentItem) => {
+    setForm({
+      property_id: String(p.property_id),
+      amount_huf: String(p.amount_huf),
+      payment_date: p.payment_date,
+      payment_method: p.payment_method || "atutalas",
+      period_from: p.period_from || "",
+      period_to: p.period_to || "",
+      notes: p.notes || "",
+    });
+    setEditingPayment(p.id);
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await addPayment({
+      const payload = {
         property_id: Number(form.property_id),
         amount_huf: Number(form.amount_huf),
         payment_date: form.payment_date,
@@ -78,13 +99,29 @@ const AdminPayments = () => {
         period_from: form.period_from || null,
         period_to: form.period_to || null,
         notes: form.notes || null,
-      });
+      };
+      if (editingPayment) {
+        await editPayment(editingPayment, payload);
+      } else {
+        await addPayment(payload);
+      }
       setDialogOpen(false);
+      setEditingPayment(null);
       loadPayments();
     } catch (e: any) {
       alert(e.message || t('common.error'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deletePayment(id);
+      setDeleteConfirm(null);
+      loadPayments();
+    } catch (e: any) {
+      alert(e.message || t('common.error'));
     }
   };
 
@@ -152,6 +189,7 @@ const AdminPayments = () => {
                 <TableHead>{t('payments.paymentMethod')}</TableHead>
                 <TableHead>{t('payments.periodFrom')}</TableHead>
                 <TableHead>{t('payments.notes')}</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -173,6 +211,16 @@ const AdminPayments = () => {
                   <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
                     {p.notes || "—"}
                   </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm(p.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -184,7 +232,7 @@ const AdminPayments = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display">{t('payments.newTitle')}</DialogTitle>
+            <DialogTitle className="font-display">{editingPayment ? t('payments.editTitle') : t('payments.newTitle')}</DialogTitle>
             <DialogDescription>{t('payments.newDesc')}</DialogDescription>
           </DialogHeader>
 
@@ -257,6 +305,21 @@ const AdminPayments = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteConfirm !== null} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">{t('common.confirmDelete')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('payments.deleteConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

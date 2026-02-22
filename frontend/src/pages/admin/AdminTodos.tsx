@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { ListTodo, Plus, Trash2, ArrowRightCircle, Calendar, Building2 } from "lucide-react";
+import { ListTodo, Plus, Trash2, ArrowRightCircle, Calendar, Building2, Pencil } from "lucide-react";
 import {
-  getAdminTodos, addTodo, toggleTodo, deleteTodo, getAdminProperties,
+  getAdminTodos, addTodo, editTodo, toggleTodo, deleteTodo, getAdminProperties,
   type TodoItem, type AdminProperty,
 } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -31,6 +31,7 @@ const AdminTodos = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<number | null>(null);
 
   const priorityLabel: Record<string, string> = {
     low: t('todos.low'),
@@ -72,20 +73,39 @@ const AdminTodos = () => {
       property_id: "",
       due_date: "",
     });
+    setEditingTodo(null);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (todo: TodoItem) => {
+    setForm({
+      title: todo.title,
+      description: todo.description || "",
+      priority: todo.priority,
+      property_id: todo.property_id ? String(todo.property_id) : "",
+      due_date: todo.due_date || "",
+    });
+    setEditingTodo(todo.id);
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await addTodo({
+      const payload = {
         title: form.title,
         description: form.description || null,
         priority: form.priority,
         property_id: form.property_id ? Number(form.property_id) : null,
         due_date: form.due_date || null,
-      });
+      };
+      if (editingTodo) {
+        await editTodo(editingTodo, payload);
+      } else {
+        await addTodo(payload);
+      }
       setDialogOpen(false);
+      setEditingTodo(null);
       loadTodos();
     } catch (e: any) {
       alert(e.message || t('common.error'));
@@ -198,6 +218,14 @@ const AdminTodos = () => {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
+                          onClick={() => openEdit(todo)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
                           onClick={() => handleToggle(todo.id)}
                         >
                           <ArrowRightCircle className="h-4 w-4" />
@@ -224,7 +252,7 @@ const AdminTodos = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display">{t('todos.newTitle')}</DialogTitle>
+            <DialogTitle className="font-display">{editingTodo ? t('todos.editTitle') : t('todos.newTitle')}</DialogTitle>
             <DialogDescription>{t('todos.newDesc')}</DialogDescription>
           </DialogHeader>
 
@@ -265,7 +293,7 @@ const AdminTodos = () => {
               <Select value={form.property_id} onValueChange={(v) => set("property_id", v)}>
                 <SelectTrigger><SelectValue placeholder={t('todos.selectProperty')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nincs megadva</SelectItem>
+                  <SelectItem value="">{t('common.notSpecified')}</SelectItem>
                   {properties.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
                   ))}

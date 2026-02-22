@@ -31,7 +31,7 @@ export const utilityLabel = (type: string, locale?: 'hu' | 'en'): string => {
   const labels: Record<string, Record<string, string>> = {
     hu: {
       villany: 'Villany',
-      viz: 'Viz',
+      viz: 'Víz',
       csatorna: 'Csatorna',
     },
     en: {

@@ -39,6 +39,8 @@ const hu: Record<string, string> = {
   'common.logout': 'Kijelentkezés',
   'common.login': 'Bejelentkezés',
   'common.register': 'Regisztráció',
+  'common.confirmDelete': 'Törlés megerősítése',
+  'common.notSpecified': 'Nincs megadva',
 
   // --- Landing ---
   'landing.tagline': 'Közüzemi nyilvántartás, egyszerűen',
@@ -99,6 +101,14 @@ const hu: Record<string, string> = {
   'adminLogin.loginBtn': 'Bejelentkezés',
   'adminLogin.loggingIn': 'Bejelentkezés...',
   'adminLogin.tenantLogin': 'Bérlő belépés',
+
+  // --- PIN Login ---
+  'pinLogin.desc': 'Válassz ingatlant és add meg a PIN kódodat',
+  'pinLogin.selectPlaceholder': 'Válassz ingatlant...',
+  'pinLogin.loadError': 'Nem sikerült betölteni az ingatlanokat',
+  'pinLogin.selectError': 'Válassz ingatlant!',
+  'pinLogin.pinTooShort': 'Legalább 4 jegyű PIN kód szükséges!',
+  'pinLogin.pinError': 'Hibás PIN kód!',
 
   // --- Property Select ---
   'propSelect.title': 'Válassz ingatlant',
@@ -244,6 +254,7 @@ const hu: Record<string, string> = {
   'payments.periodTo': 'Időszak vége',
   'payments.notes': 'Megjegyzés',
   'payments.notesPlaceholder': 'Opcionális megjegyzés...',
+  'payments.deleteConfirm': 'Biztosan törölni szeretnéd ezt a befizetést?',
 
   // --- Admin Maintenance ---
   'maint.title': 'Karbantartás',
@@ -263,7 +274,9 @@ const hu: Record<string, string> = {
   'maint.catRenovation': 'Felújítás',
   'maint.catReplacement': 'Csere',
   'maint.cost': 'Költség (Ft)',
+  'maint.costPlaceholder': 'pl. 25 000',
   'maint.performedBy': 'Ki végezte',
+  'maint.performedByPlaceholder': 'pl. Kovács János',
   'maint.date': 'Dátum',
   'maint.deleteTitle': 'Bejegyzés törlése',
   'maint.deleteConfirm': 'Biztosan törölni szeretnéd ezt a karbantartási bejegyzést?',
@@ -407,6 +420,8 @@ const en: Record<string, string> = {
   'common.logout': 'Logout',
   'common.login': 'Login',
   'common.register': 'Register',
+  'common.confirmDelete': 'Confirm deletion',
+  'common.notSpecified': 'Not specified',
 
   // --- Landing ---
   'landing.tagline': 'Utility tracking, simplified',
@@ -467,6 +482,14 @@ const en: Record<string, string> = {
   'adminLogin.loginBtn': 'Login',
   'adminLogin.loggingIn': 'Logging in...',
   'adminLogin.tenantLogin': 'Tenant login',
+
+  // --- PIN Login ---
+  'pinLogin.desc': 'Select a property and enter your PIN code',
+  'pinLogin.selectPlaceholder': 'Select property...',
+  'pinLogin.loadError': 'Failed to load properties',
+  'pinLogin.selectError': 'Please select a property!',
+  'pinLogin.pinTooShort': 'PIN must be at least 4 digits!',
+  'pinLogin.pinError': 'Invalid PIN code!',
 
   // --- Property Select ---
   'propSelect.title': 'Select property',
@@ -612,6 +635,7 @@ const en: Record<string, string> = {
   'payments.periodTo': 'Period end',
   'payments.notes': 'Notes',
   'payments.notesPlaceholder': 'Optional notes...',
+  'payments.deleteConfirm': 'Are you sure you want to delete this payment?',
 
   // --- Admin Maintenance ---
   'maint.title': 'Maintenance',
@@ -631,7 +655,9 @@ const en: Record<string, string> = {
   'maint.catRenovation': 'Renovation',
   'maint.catReplacement': 'Replacement',
   'maint.cost': 'Cost (HUF)',
+  'maint.costPlaceholder': 'e.g. 25,000',
   'maint.performedBy': 'Performed by',
+  'maint.performedByPlaceholder': 'e.g. John Smith',
   'maint.date': 'Date',
   'maint.deleteTitle': 'Delete entry',
   'maint.deleteConfirm': 'Are you sure you want to delete this maintenance entry?',

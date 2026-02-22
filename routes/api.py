@@ -715,6 +715,34 @@ def admin_payment_add():
     return jsonify({'success': True})
 
 
+@api_bp.route('/admin/payments/<int:payment_id>', methods=['PUT'])
+@login_required
+def admin_payment_edit(payment_id):
+    p = Payment.query.get_or_404(payment_id)
+    data = request.get_json()
+    if data.get('property_id'):
+        p.property_id = int(data['property_id'])
+    if data.get('amount_huf') is not None:
+        p.amount_huf = float(data['amount_huf'])
+    if data.get('payment_date'):
+        p.payment_date = date.fromisoformat(data['payment_date'])
+    p.payment_method = data.get('payment_method', p.payment_method)
+    p.period_from = date.fromisoformat(data['period_from']) if data.get('period_from') else p.period_from
+    p.period_to = date.fromisoformat(data['period_to']) if data.get('period_to') else p.period_to
+    p.notes = data.get('notes', p.notes)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/payments/<int:payment_id>', methods=['DELETE'])
+@login_required
+def admin_payment_delete(payment_id):
+    p = Payment.query.get_or_404(payment_id)
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
 # ============================================================
 # Admin Maintenance
 # ============================================================
@@ -750,6 +778,33 @@ def admin_maintenance_add():
         performed_date=date.fromisoformat(data['performed_date']) if data.get('performed_date') else None,
     )
     db.session.add(m)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/maintenance/<int:maint_id>', methods=['PUT'])
+@login_required
+def admin_maintenance_edit(maint_id):
+    m = MaintenanceLog.query.get_or_404(maint_id)
+    data = request.get_json()
+    if data.get('property_id') is not None:
+        m.property_id = int(data['property_id']) if data['property_id'] else None
+    m.description = data.get('description', m.description)
+    m.category = data.get('category', m.category)
+    if data.get('cost_huf') is not None:
+        m.cost_huf = float(data['cost_huf']) if data['cost_huf'] else 0
+    m.performed_by = data.get('performed_by', m.performed_by)
+    if data.get('performed_date'):
+        m.performed_date = date.fromisoformat(data['performed_date'])
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/maintenance/<int:maint_id>', methods=['DELETE'])
+@login_required
+def admin_maintenance_delete(maint_id):
+    m = MaintenanceLog.query.get_or_404(maint_id)
+    db.session.delete(m)
     db.session.commit()
     return jsonify({'success': True})
 
@@ -796,6 +851,22 @@ def admin_todo_add():
         due_date=date.fromisoformat(data['due_date']) if data.get('due_date') else None,
     )
     db.session.add(t)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/todos/<int:todo_id>', methods=['PUT'])
+@login_required
+def admin_todo_edit(todo_id):
+    t = Todo.query.get_or_404(todo_id)
+    data = request.get_json()
+    t.title = data.get('title', t.title)
+    t.description = data.get('description', t.description)
+    t.priority = data.get('priority', t.priority)
+    if data.get('property_id') is not None:
+        t.property_id = int(data['property_id']) if data['property_id'] else None
+    if data.get('due_date') is not None:
+        t.due_date = date.fromisoformat(data['due_date']) if data['due_date'] else None
     db.session.commit()
     return jsonify({'success': True})
 
@@ -859,6 +930,31 @@ def admin_tariff_add():
         valid_from=date.fromisoformat(data['valid_from']) if data.get('valid_from') else date.today(),
     )
     db.session.add(t)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/tariffs/<int:tariff_id>', methods=['PUT'])
+@login_required
+def admin_tariff_edit(tariff_id):
+    t = Tariff.query.get_or_404(tariff_id)
+    data = request.get_json()
+    t.utility_type = data.get('utility_type', t.utility_type)
+    t.rate_huf = float(data.get('rate_huf', t.rate_huf))
+    t.unit = data.get('unit', t.unit)
+    if data.get('valid_from'):
+        t.valid_from = date.fromisoformat(data['valid_from'])
+    if data.get('tariff_group_id'):
+        t.tariff_group_id = int(data['tariff_group_id'])
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/tariffs/<int:tariff_id>', methods=['DELETE'])
+@login_required
+def admin_tariff_delete(tariff_id):
+    t = Tariff.query.get_or_404(tariff_id)
+    db.session.delete(t)
     db.session.commit()
     return jsonify({'success': True})
 

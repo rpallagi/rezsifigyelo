@@ -124,6 +124,15 @@ export const addPayment = (data: Record<string, any>) =>
     body: JSON.stringify(data),
   });
 
+export const editPayment = (id: number, data: Record<string, any>) =>
+  request<{ success: boolean }>(`/admin/payments/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+
+export const deletePayment = (id: number) =>
+  request<{ success: boolean }>(`/admin/payments/${id}`, { method: 'DELETE' });
+
 export const getAdminMaintenance = () =>
   request<{ logs: MaintenanceItem[] }>('/admin/maintenance');
 
@@ -133,12 +142,27 @@ export const addMaintenance = (data: Record<string, any>) =>
     body: JSON.stringify(data),
   });
 
+export const editMaintenance = (id: number, data: Record<string, any>) =>
+  request<{ success: boolean }>(`/admin/maintenance/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+
+export const deleteMaintenance = (id: number) =>
+  request<{ success: boolean }>(`/admin/maintenance/${id}`, { method: 'DELETE' });
+
 export const getAdminTodos = () =>
   request<{ todos: TodoItem[] }>('/admin/todos');
 
 export const addTodo = (data: Record<string, any>) =>
   request<{ success: boolean }>('/admin/todos', {
     method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const editTodo = (id: number, data: Record<string, any>) =>
+  request<{ success: boolean }>(`/admin/todos/${id}`, {
+    method: 'PUT',
     body: JSON.stringify(data),
   });
 
@@ -156,6 +180,15 @@ export const addTariff = (data: Record<string, any>) =>
     method: 'POST',
     body: JSON.stringify(data),
   });
+
+export const editTariff = (id: number, data: Record<string, any>) =>
+  request<{ success: boolean }>(`/admin/tariffs/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+
+export const deleteTariff = (id: number) =>
+  request<{ success: boolean }>(`/admin/tariffs/${id}`, { method: 'DELETE' });
 
 export const getAdminROI = () =>
   request<{ properties: ROIProperty[] }>('/admin/roi');

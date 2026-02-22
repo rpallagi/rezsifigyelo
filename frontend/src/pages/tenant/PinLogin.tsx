@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { Delete, Zap } from "lucide-react";
 import { getProperties, tenantLogin, type PropertyItem } from "@/lib/api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n";
 
 const PinLogin = () => {
+  const { t } = useI18n();
   const [pin, setPin] = useState("");
   const [properties, setProperties] = useState<PropertyItem[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<string>("");
@@ -16,7 +18,7 @@ const PinLogin = () => {
   useEffect(() => {
     getProperties()
       .then((data) => setProperties(data.properties))
-      .catch(() => setError("Nem sikerült betölteni az ingatlanokat"));
+      .catch(() => setError(t('pinLogin.loadError')));
   }, []);
 
   const handleDigit = (digit: string) => {
@@ -34,11 +36,11 @@ const PinLogin = () => {
 
   const handleSubmit = async () => {
     if (!selectedProperty) {
-      setError("Válassz ingatlant!");
+      setError(t('pinLogin.selectError'));
       return;
     }
     if (pin.length < 4) {
-      setError("Legalább 4 jegyű PIN kód szükséges!");
+      setError(t('pinLogin.pinTooShort'));
       return;
     }
 
@@ -47,7 +49,7 @@ const PinLogin = () => {
       await tenantLogin(parseInt(selectedProperty), pin);
       navigate("/tenant");
     } catch (e: any) {
-      setError(e.message || "Hibás PIN kód!");
+      setError(e.message || t('pinLogin.pinError'));
       setPin("");
     } finally {
       setLoading(false);
@@ -67,20 +69,20 @@ const PinLogin = () => {
         <div className="w-16 h-16 rounded-2xl gradient-tenant-bg flex items-center justify-center mx-auto mb-5">
           <Zap className="h-8 w-8 text-primary-foreground" />
         </div>
-        <h1 className="font-display text-2xl font-bold mb-2">Rezsi Követés</h1>
-        <p className="text-muted-foreground">Válassz ingatlant és add meg a PIN kódodat</p>
+        <h1 className="font-display text-2xl font-bold mb-2">{t('common.appName')}</h1>
+        <p className="text-muted-foreground">{t('pinLogin.desc')}</p>
       </div>
 
       {/* Property selector */}
       <div className="w-full max-w-xs mb-6 animate-in-delay-1">
         <Select value={selectedProperty} onValueChange={setSelectedProperty}>
           <SelectTrigger className="h-12 text-base">
-            <SelectValue placeholder="Válassz ingatlant..." />
+            <SelectValue placeholder={t('pinLogin.selectPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
             {properties.map((p) => (
               <SelectItem key={p.id} value={String(p.id)}>
-                {p.name} {p.property_type === 'uzlet' ? '🏪' : '🏠'}
+                {p.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -129,7 +131,7 @@ const PinLogin = () => {
       </div>
 
       <p className="text-muted-foreground text-xs mt-8">
-        <a href="/admin/login" className="text-primary hover:underline">Bérbeadó belépés →</a>
+        <a href="/admin/login" className="text-primary hover:underline">{t('tenantLogin.landlordLogin')} →</a>
       </p>
     </div>
   );
