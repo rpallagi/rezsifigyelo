@@ -337,6 +337,13 @@ const hu: Record<string, string> = {
   'roi.breakevenDate': 'Megtérülés dátuma',
   'roi.months': 'hónap',
   'roi.years': 'év',
+  'roi.totalCollected': 'Összesen beszedett',
+  'roi.progress': 'Megtérülés haladás',
+  'roi.monthlyIncome': 'Havi bevétel (12 hó)',
+  'roi.netIncome': 'Nettó bevétel',
+  'roi.viewProperty': 'Ingatlan megtekintése',
+  'roi.viewMaintenance': 'Karbantartás',
+  'roi.viewPayments': 'Befizetések',
 
   // --- Admin System ---
   'system.title': 'Rendszer',
@@ -719,6 +726,13 @@ const en: Record<string, string> = {
   'roi.breakevenDate': 'Break-even date',
   'roi.months': 'months',
   'roi.years': 'years',
+  'roi.totalCollected': 'Total collected',
+  'roi.progress': 'Recovery progress',
+  'roi.monthlyIncome': 'Monthly income (12 mo)',
+  'roi.netIncome': 'Net income',
+  'roi.viewProperty': 'View property',
+  'roi.viewMaintenance': 'Maintenance',
+  'roi.viewPayments': 'Payments',
 
   // --- Admin System ---
   'system.title': 'System',

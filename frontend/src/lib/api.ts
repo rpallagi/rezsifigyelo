@@ -362,9 +362,12 @@ export interface ROIProperty {
   purchase_price: number;
   monthly_rent: number;
   total_maintenance: number;
+  total_rent_collected: number;
   annual_yield: number;
   breakeven_months: number;
   breakeven_date: string;
+  monthly_payments: number[];
+  progress_pct: number;
 }
 
 export interface SystemInfo {

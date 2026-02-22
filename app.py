@@ -159,6 +159,24 @@ def seed_initial_data(app):
             tg.name = fixes[tg.name]
         if tg.description in fixes:
             tg.description = fixes[tg.description]
+
+    # Fix accent issues in existing property names
+    for p in Property.query.all():
+        import re
+        name = p.name
+        # Fix common accent-less patterns in property names
+        name = re.sub(r'\bLakas\b', 'Lakás', name)
+        name = re.sub(r'\bUzlet\b', 'Üzlet', name)
+        name = re.sub(r'\bBerlo\b', 'Bérlő', name)
+        if name != p.name:
+            p.name = name
+        # Fix contact_name
+        if p.contact_name:
+            cn = p.contact_name
+            cn = re.sub(r'\bBerlo\b', 'Bérlő', cn)
+            if cn != p.contact_name:
+                p.contact_name = cn
+
     db.session.commit()
 
     # Create demo tenant user if none exists

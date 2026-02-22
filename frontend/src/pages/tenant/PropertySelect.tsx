@@ -59,7 +59,7 @@ const PropertySelect = () => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-display font-bold">{p.name}</p>
-              <p className="text-sm text-muted-foreground capitalize">{p.property_type}</p>
+              <p className="text-sm text-muted-foreground">{p.property_type === 'uzlet' ? t('common.uzlet') : p.property_type === 'lakas' ? t('common.lakas') : t('common.egyeb')}</p>
             </div>
             <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
           </button>

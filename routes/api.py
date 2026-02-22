@@ -979,12 +979,31 @@ def admin_roi():
             property_id=p.id
         ).scalar() or 0
 
+        total_rent_collected = db.session.query(db.func.sum(Payment.amount_huf)).filter_by(
+            property_id=p.id
+        ).scalar() or 0
+
         annual_rent = p.monthly_rent * 12
         annual_yield = ((annual_rent - total_maint) / p.purchase_price * 100) if p.purchase_price else 0
         breakeven_months = int(p.purchase_price / p.monthly_rent) if p.monthly_rent else 0
 
         from dateutil.relativedelta import relativedelta
         breakeven_date = (datetime.now() + relativedelta(months=breakeven_months)).strftime('%Y-%m-%d')
+
+        # Monthly payment data for sparkline (last 12 months)
+        from sqlalchemy import extract
+        monthly_payments = []
+        for m_offset in range(11, -1, -1):
+            target = datetime.now() - relativedelta(months=m_offset)
+            month_total = db.session.query(db.func.sum(Payment.amount_huf)).filter(
+                Payment.property_id == p.id,
+                extract('year', Payment.payment_date) == target.year,
+                extract('month', Payment.payment_date) == target.month,
+            ).scalar() or 0
+            monthly_payments.append(month_total)
+
+        # Progress toward break-even (percentage of purchase price recovered)
+        progress_pct = round((total_rent_collected / p.purchase_price * 100), 1) if p.purchase_price else 0
 
         result.append({
             'id': p.id,
@@ -993,9 +1012,12 @@ def admin_roi():
             'purchase_price': p.purchase_price,
             'monthly_rent': p.monthly_rent,
             'total_maintenance': total_maint,
+            'total_rent_collected': total_rent_collected,
             'annual_yield': round(annual_yield, 1),
             'breakeven_months': breakeven_months,
             'breakeven_date': breakeven_date,
+            'monthly_payments': monthly_payments,
+            'progress_pct': min(progress_pct, 100),
         })
 
     return jsonify({'properties': result})
