@@ -388,6 +388,63 @@ const hu: Record<string, string> = {
   // --- Not Found ---
   'notFound.title': 'Az oldal nem található',
   'notFound.back': 'Vissza a főoldalra',
+
+  // --- Property Detail Page ---
+  'propDetail.backToList': 'Vissza az ingatlanokhoz',
+  'propDetail.tabs.basic': 'Alapadatok',
+  'propDetail.tabs.readings': 'Mérőállások',
+  'propDetail.tabs.payments': 'Kifizetések',
+  'propDetail.tabs.maintenance': 'Karbantartás',
+  'propDetail.tabs.documents': 'Dokumentumok',
+  'propDetail.tabs.marketing': 'Marketing',
+  'propDetail.totalReadings': 'Összes leolvasás',
+  'propDetail.totalPayments': 'Összes befizetés',
+  'propDetail.totalMaintenance': 'Karbantartás költség',
+  'propDetail.totalDocuments': 'Dokumentum',
+  'propDetail.currentTenant': 'Jelenlegi bérlő',
+  'propDetail.noTenant': 'Nincs bérlő',
+  'propDetail.avatarUpload': 'Fotó feltöltése',
+  'propDetail.changeAvatar': 'Fotó módosítása',
+
+  // --- Admin Readings Improvements ---
+  'adminReadings.newReading': 'Új mérőállás',
+  'adminReadings.submitReading': 'Mérőállás rögzítése',
+  'adminReadings.selectProperty': 'Válassz ingatlant',
+  'adminReadings.enterValue': 'Írd be az aktuális mérőállást',
+  'adminReadings.changeVsPrev': 'Változás',
+  'adminReadings.increase': 'növekedés',
+  'adminReadings.decrease': 'csökkenés',
+
+  // --- Documents Section ---
+  'docs.title': 'Dokumentumok',
+  'docs.upload': 'Feltöltés',
+  'docs.uploadFile': 'Fájl feltöltése',
+  'docs.category': 'Kategória',
+  'docs.atadas': 'Átadás-átvétel',
+  'docs.szerzodes': 'Szerződés',
+  'docs.marketingCat': 'Marketing',
+  'docs.egyeb': 'Egyéb',
+  'docs.notes': 'Megjegyzés',
+  'docs.noFiles': 'Nincsenek dokumentumok',
+  'docs.fileSize': 'Méret',
+  'docs.deleteConfirm': 'Biztosan törlöd ezt a dokumentumot?',
+  'docs.uploaded': 'Feltöltve',
+
+  // --- Marketing Section ---
+  'marketing.title': 'Marketing',
+  'marketing.listingTitle': 'Hirdetés címe',
+  'marketing.listingDesc': 'Hirdetés szövege',
+  'marketing.listingUrl': 'Ingatlan.com link',
+  'marketing.photos': 'Marketing fotók',
+  'marketing.uploadPhoto': 'Fotó feltöltése',
+  'marketing.noPhotos': 'Nincsenek marketing fotók',
+  'marketing.save': 'Mentés',
+  'marketing.saved': 'Marketing tartalom mentve!',
+  'marketing.listingPlaceholder': 'Írj egy vonzó hirdetés szöveget...',
+
+  // --- Property List Filter ---
+  'props.filterAll': 'Összes típus',
+  'props.filterType': 'Szűrés típus szerint',
 };
 
 
@@ -777,6 +834,63 @@ const en: Record<string, string> = {
   // --- Not Found ---
   'notFound.title': 'Page not found',
   'notFound.back': 'Back to homepage',
+
+  // --- Property Detail Page ---
+  'propDetail.backToList': 'Back to properties',
+  'propDetail.tabs.basic': 'Basic info',
+  'propDetail.tabs.readings': 'Meter readings',
+  'propDetail.tabs.payments': 'Payments',
+  'propDetail.tabs.maintenance': 'Maintenance',
+  'propDetail.tabs.documents': 'Documents',
+  'propDetail.tabs.marketing': 'Marketing',
+  'propDetail.totalReadings': 'Total readings',
+  'propDetail.totalPayments': 'Total payments',
+  'propDetail.totalMaintenance': 'Maintenance cost',
+  'propDetail.totalDocuments': 'Documents',
+  'propDetail.currentTenant': 'Current tenant',
+  'propDetail.noTenant': 'No tenant',
+  'propDetail.avatarUpload': 'Upload photo',
+  'propDetail.changeAvatar': 'Change photo',
+
+  // --- Admin Readings Improvements ---
+  'adminReadings.newReading': 'New reading',
+  'adminReadings.submitReading': 'Submit reading',
+  'adminReadings.selectProperty': 'Select property',
+  'adminReadings.enterValue': 'Enter current meter reading',
+  'adminReadings.changeVsPrev': 'Change',
+  'adminReadings.increase': 'increase',
+  'adminReadings.decrease': 'decrease',
+
+  // --- Documents Section ---
+  'docs.title': 'Documents',
+  'docs.upload': 'Upload',
+  'docs.uploadFile': 'Upload file',
+  'docs.category': 'Category',
+  'docs.atadas': 'Handover',
+  'docs.szerzodes': 'Contract',
+  'docs.marketingCat': 'Marketing',
+  'docs.egyeb': 'Other',
+  'docs.notes': 'Notes',
+  'docs.noFiles': 'No documents',
+  'docs.fileSize': 'Size',
+  'docs.deleteConfirm': 'Are you sure you want to delete this document?',
+  'docs.uploaded': 'Uploaded',
+
+  // --- Marketing Section ---
+  'marketing.title': 'Marketing',
+  'marketing.listingTitle': 'Listing title',
+  'marketing.listingDesc': 'Listing description',
+  'marketing.listingUrl': 'Ingatlan.com link',
+  'marketing.photos': 'Marketing photos',
+  'marketing.uploadPhoto': 'Upload photo',
+  'marketing.noPhotos': 'No marketing photos',
+  'marketing.save': 'Save',
+  'marketing.saved': 'Marketing content saved!',
+  'marketing.listingPlaceholder': 'Write an attractive listing description...',
+
+  // --- Property List Filter ---
+  'props.filterAll': 'All types',
+  'props.filterType': 'Filter by type',
 };
 
 // ============================================================

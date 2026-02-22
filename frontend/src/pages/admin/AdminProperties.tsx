@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Building2, Plus, Pencil, Trash2, MapPin, Phone, Mail, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Building2, Plus, Pencil, Trash2, MapPin, Phone, Mail, User, ChevronRight } from "lucide-react";
 import {
   getAdminProperties, addProperty, editProperty, deleteProperty,
   type AdminProperty, type TariffGroupItem,
@@ -38,6 +39,7 @@ const emptyForm = {
 
 const AdminProperties = () => {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [properties, setProperties] = useState<AdminProperty[]>([]);
   const [tariffGroups, setTariffGroups] = useState<TariffGroupItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,7 @@ const AdminProperties = () => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [filterType, setFilterType] = useState<string>("all");
 
   const load = () => {
     setLoading(true);
@@ -62,24 +65,6 @@ const AdminProperties = () => {
   const openNew = () => {
     setEditingId(null);
     setForm(emptyForm);
-    setDialogOpen(true);
-  };
-
-  const openEdit = (p: AdminProperty) => {
-    setEditingId(p.id);
-    setForm({
-      name: p.name,
-      property_type: p.property_type,
-      address: p.address || "",
-      contact_name: p.contact_name || "",
-      contact_phone: p.contact_phone || "",
-      contact_email: p.contact_email || "",
-      monthly_rent: p.monthly_rent != null ? String(p.monthly_rent) : "",
-      purchase_price: p.purchase_price != null ? String(p.purchase_price) : "",
-      tariff_group_id: String(p.tariff_group_id),
-      pin: "",
-      notes: p.notes || "",
-    });
     setDialogOpen(true);
   };
 
@@ -125,15 +110,37 @@ const AdminProperties = () => {
     }
   };
 
+  const typeBadgeClickable = (type: string, active: boolean) => {
+    const base = "text-xs cursor-pointer transition-all";
+    if (type === "lakas")
+      return <Badge variant="outline" className={`bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800 ${base} ${active ? 'ring-2 ring-blue-400 ring-offset-1' : 'hover:ring-1 hover:ring-blue-300'}`}>{t('common.lakas')}</Badge>;
+    if (type === "uzlet")
+      return <Badge variant="outline" className={`bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800 ${base} ${active ? 'ring-2 ring-amber-400 ring-offset-1' : 'hover:ring-1 hover:ring-amber-300'}`}>{t('common.uzlet')}</Badge>;
+    return <Badge variant="outline" className={`${base} ${active ? 'ring-2 ring-gray-400 ring-offset-1' : 'hover:ring-1 hover:ring-gray-300'}`}>{t('common.egyeb')}</Badge>;
+  };
+
   const typeBadge = (type: string) => {
     if (type === "lakas")
-      return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 text-xs">{t('common.lakas')}</Badge>;
+      return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800 text-xs">{t('common.lakas')}</Badge>;
     if (type === "uzlet")
-      return <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-xs">{t('common.uzlet')}</Badge>;
+      return <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800 text-xs">{t('common.uzlet')}</Badge>;
     return <Badge variant="outline" className="text-xs">{t('common.egyeb')}</Badge>;
   };
 
   const set = (key: string, val: string) => setForm((f) => ({ ...f, [key]: val }));
+
+  // Filter properties by type
+  const filteredProperties = filterType === "all"
+    ? properties
+    : properties.filter(p => p.property_type === filterType);
+
+  // Count by type
+  const countByType = {
+    all: properties.length,
+    lakas: properties.filter(p => p.property_type === "lakas").length,
+    uzlet: properties.filter(p => p.property_type === "uzlet").length,
+    egyeb: properties.filter(p => p.property_type === "egyeb").length,
+  };
 
   if (loading) {
     return (
@@ -151,33 +158,77 @@ const AdminProperties = () => {
       <div className="flex items-center justify-between animate-in">
         <div>
           <h1 className="font-display text-2xl font-bold">{t('props.title')}</h1>
-          <p className="text-muted-foreground text-sm mt-1">{properties.length} {t('props.subtitle')}</p>
+          <p className="text-muted-foreground text-sm mt-1">{filteredProperties.length} {t('props.subtitle')}</p>
         </div>
         <Button onClick={openNew} className="gradient-primary-bg border-0">
           <Plus className="h-4 w-4 mr-2" /> {t('props.new')}
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-in-delay-1">
-        {properties.map((p) => (
-          <div key={p.id} className="glass-card-hover p-5 flex flex-col gap-3">
+      {/* Type filter badges */}
+      <div className="flex flex-wrap gap-2 animate-in-delay-1">
+        <button onClick={() => setFilterType("all")}>
+          <Badge variant={filterType === "all" ? "default" : "outline"} className="text-xs cursor-pointer">
+            {t('props.filterAll')} ({countByType.all})
+          </Badge>
+        </button>
+        {countByType.lakas > 0 && (
+          <button onClick={() => setFilterType(filterType === "lakas" ? "all" : "lakas")}>
+            {typeBadgeClickable("lakas", filterType === "lakas")}
+          </button>
+        )}
+        {countByType.uzlet > 0 && (
+          <button onClick={() => setFilterType(filterType === "uzlet" ? "all" : "uzlet")}>
+            {typeBadgeClickable("uzlet", filterType === "uzlet")}
+          </button>
+        )}
+        {countByType.egyeb > 0 && (
+          <button onClick={() => setFilterType(filterType === "egyeb" ? "all" : "egyeb")}>
+            {typeBadgeClickable("egyeb", filterType === "egyeb")}
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-in-delay-2">
+        {filteredProperties.map((p) => (
+          <div
+            key={p.id}
+            className="glass-card-hover p-5 flex flex-col gap-3 cursor-pointer group"
+            onClick={() => navigate(`/admin/properties/${p.id}`)}
+          >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-                  <Building2 className="h-5 w-5 text-accent-foreground" />
+                {/* Avatar or icon */}
+                <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {(p as any).avatar_filename ? (
+                    <img
+                      src={`/uploads/${(p as any).avatar_filename}`}
+                      alt={p.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Building2 className="h-6 w-6 text-accent-foreground" />
+                  )}
                 </div>
                 <div>
                   <h3 className="font-display font-bold text-sm">{p.name}</h3>
                   {typeBadge(p.property_type)}
                 </div>
               </div>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); navigate(`/admin/properties/${p.id}?tab=basic`); }}
+                >
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(p.id)}>
+                <Button
+                  variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); setDeleteId(p.id); }}
+                >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
+                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
               </div>
             </div>
 
@@ -200,13 +251,13 @@ const AdminProperties = () => {
               <div>
                 <p className="text-xs text-muted-foreground">{t('props.monthlyRent')}</p>
                 <p className="font-display font-bold format-hu">
-                  {p.monthly_rent ? formatHuf(p.monthly_rent) : "—"}
+                  {p.monthly_rent ? formatHuf(p.monthly_rent) : "\u2014"}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">{t('props.purchasePrice')}</p>
                 <p className="font-display font-bold format-hu">
-                  {p.purchase_price ? formatHuf(p.purchase_price) : "—"}
+                  {p.purchase_price ? formatHuf(p.purchase_price) : "\u2014"}
                 </p>
               </div>
             </div>
@@ -220,7 +271,7 @@ const AdminProperties = () => {
         ))}
       </div>
 
-      {/* Add / Edit Dialog */}
+      {/* Add / Edit Dialog (only used for NEW property now; edit goes to detail page) */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -298,7 +349,7 @@ const AdminProperties = () => {
               <label className="text-sm text-muted-foreground block mb-1">
                 {t('props.pin')} {editingId && `(${t('props.pinHint')})`}
               </label>
-              <Input value={form.pin} onChange={(e) => set("pin", e.target.value)} placeholder="4-6 jegyű kód" />
+              <Input value={form.pin} onChange={(e) => set("pin", e.target.value)} placeholder="4-6 jegy\u0171 k\u00f3d" />
             </div>
 
             <div>

@@ -14,8 +14,9 @@ from flask import (
 from flask_login import login_user, logout_user, login_required, current_user
 from models import (
     db, AdminUser, TenantUser, Property, TariffGroup, Tariff,
-    MeterReading, Payment, MaintenanceLog, Todo
+    MeterReading, Payment, MaintenanceLog, Todo, Document, MarketingContent
 )
+import uuid
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
 
@@ -55,6 +56,7 @@ def property_to_dict(p, include_readings=False):
         'monthly_rent': p.monthly_rent,
         'tariff_group_id': p.tariff_group_id,
         'tariff_group_name': p.tariff_group.name if p.tariff_group else None,
+        'avatar_filename': p.avatar_filename,
     }
     if include_readings:
         lv = get_last_reading(p.id, 'villany')
@@ -93,6 +95,11 @@ def reading_to_dict(r):
 
 def allowed_file(filename):
     allowed = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
+
+
+def allowed_document(filename):
+    allowed = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'csv'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
 
@@ -1021,6 +1028,469 @@ def admin_roi():
         })
 
     return jsonify({'properties': result})
+
+
+# ============================================================
+# Admin Property Detail
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/detail')
+@login_required
+def admin_property_detail(prop_id):
+    prop = Property.query.get_or_404(prop_id)
+    total_readings = MeterReading.query.filter_by(property_id=prop_id).count()
+    total_payments = db.session.query(db.func.sum(Payment.amount_huf)).filter_by(
+        property_id=prop_id
+    ).scalar() or 0
+    total_maintenance = db.session.query(db.func.sum(MaintenanceLog.cost_huf)).filter_by(
+        property_id=prop_id
+    ).scalar() or 0
+    total_documents = Document.query.filter_by(property_id=prop_id).count()
+
+    # Current tenant
+    current_tenant = None
+    tenants = prop.tenants.all() if prop.tenants else []
+    if tenants:
+        t = tenants[0]
+        current_tenant = {'name': t.name, 'email': t.email}
+
+    return jsonify({
+        'property': property_to_dict(prop, include_readings=True),
+        'stats': {
+            'total_readings': total_readings,
+            'total_payments': total_payments,
+            'total_maintenance': total_maintenance,
+            'total_documents': total_documents,
+            'current_tenant': current_tenant,
+        },
+    })
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/avatar', methods=['PUT', 'POST'])
+@login_required
+def admin_property_avatar(prop_id):
+    prop = Property.query.get_or_404(prop_id)
+    if 'avatar' not in request.files:
+        return jsonify({'error': 'Nincs fájl!'}), 400
+    file = request.files['avatar']
+    if not file or not file.filename or not allowed_file(file.filename):
+        return jsonify({'error': 'Nem támogatott fájlformátum!'}), 400
+
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    avatar_filename = f"avatar_{prop_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], avatar_filename)
+    file.save(filepath)
+    resize_photo(filepath, max_size=512)
+
+    # Delete old avatar file if exists
+    if prop.avatar_filename:
+        old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], prop.avatar_filename)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    prop.avatar_filename = avatar_filename
+    db.session.commit()
+    return jsonify({'success': True, 'avatar_filename': avatar_filename})
+
+
+# ============================================================
+# Admin Property Readings (property-specific with trends)
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/readings')
+@login_required
+def admin_property_readings(prop_id):
+    readings = MeterReading.query.filter_by(property_id=prop_id).order_by(
+        MeterReading.reading_date.desc()
+    ).limit(100).all()
+
+    # Trends: compare latest 2 readings per utility type
+    def get_trend(utility_type):
+        last_two = MeterReading.query.filter_by(
+            property_id=prop_id, utility_type=utility_type
+        ).filter(MeterReading.consumption.isnot(None)).order_by(
+            MeterReading.reading_date.desc()
+        ).limit(2).all()
+        if len(last_two) < 2:
+            return None
+        current = last_two[0].consumption or 0
+        previous = last_two[1].consumption or 0
+        change_pct = ((current - previous) / previous * 100) if previous != 0 else 0
+        return {
+            'current': current,
+            'previous': previous,
+            'change_pct': round(change_pct, 1),
+        }
+
+    # Sparklines: last 12 consumption values (ascending for chart)
+    def get_sparkline(utility_type):
+        spark_readings = MeterReading.query.filter_by(
+            property_id=prop_id, utility_type=utility_type
+        ).filter(MeterReading.consumption.isnot(None)).order_by(
+            MeterReading.reading_date.asc()
+        ).limit(12).all()
+        return [r.consumption or 0 for r in spark_readings]
+
+    return jsonify({
+        'readings': [reading_to_dict(r) for r in readings],
+        'trends': {
+            'villany': get_trend('villany'),
+            'viz': get_trend('viz'),
+        },
+        'sparklines': {
+            'villany': get_sparkline('villany'),
+            'viz': get_sparkline('viz'),
+        },
+    })
+
+
+@api_bp.route('/admin/readings', methods=['POST'])
+@login_required
+def admin_reading_submit():
+    """Admin submits a meter reading (same logic as tenant)."""
+    if request.content_type and 'multipart' in request.content_type:
+        property_id = request.form.get('property_id', type=int)
+        utility_type = request.form.get('utility_type')
+        value_str = request.form.get('value', '').replace(',', '.')
+        reading_date_str = request.form.get('reading_date', '')
+        notes = request.form.get('notes', '').strip()
+    else:
+        data = request.get_json()
+        property_id = data.get('property_id')
+        utility_type = data.get('utility_type')
+        value_str = str(data.get('value', '')).replace(',', '.')
+        reading_date_str = data.get('reading_date', '')
+        notes = data.get('notes', '').strip()
+
+    if not property_id:
+        return jsonify({'error': 'Válassz ingatlant!'}), 400
+    prop = Property.query.get_or_404(property_id)
+
+    if not utility_type or utility_type not in ('villany', 'viz'):
+        return jsonify({'error': 'Válassz közüzemi típust!'}), 400
+
+    try:
+        value = float(value_str)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Érvénytelen mérőállás érték!'}), 400
+
+    try:
+        reading_date = date.fromisoformat(reading_date_str) if reading_date_str else date.today()
+    except ValueError:
+        reading_date = date.today()
+
+    last = get_last_reading(prop.id, utility_type)
+    prev_value = last.value if last else None
+    consumption = (value - prev_value) if prev_value is not None else None
+
+    tariff = get_active_tariff(prop.tariff_group_id, utility_type)
+    cost_huf = None
+    if tariff and consumption is not None and consumption >= 0:
+        cost_huf = consumption * tariff.rate_huf
+
+    # Photo
+    photo_filename = None
+    if 'photo' in request.files:
+        file = request.files['photo']
+        if file and file.filename and allowed_file(file.filename):
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            photo_filename = f"{prop.id}_{utility_type}_{timestamp}.{ext}"
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], photo_filename)
+            file.save(filepath)
+            resize_photo(filepath)
+
+    reading_obj = MeterReading(
+        property_id=prop.id,
+        utility_type=utility_type,
+        value=value,
+        prev_value=prev_value,
+        consumption=consumption,
+        tariff_id=tariff.id if tariff else None,
+        cost_huf=cost_huf,
+        photo_filename=photo_filename,
+        reading_date=reading_date,
+        notes=notes or 'Admin rögzítette',
+    )
+    db.session.add(reading_obj)
+
+    # Auto csatorna
+    if utility_type == 'viz' and consumption is not None and consumption >= 0:
+        csatorna_tariff = get_active_tariff(prop.tariff_group_id, 'csatorna')
+        if csatorna_tariff:
+            csatorna_reading = MeterReading(
+                property_id=prop.id,
+                utility_type='csatorna',
+                value=value,
+                prev_value=prev_value,
+                consumption=consumption,
+                tariff_id=csatorna_tariff.id,
+                cost_huf=consumption * csatorna_tariff.rate_huf,
+                reading_date=reading_date,
+                notes='Automatikusan számolva víz alapján',
+            )
+            db.session.add(csatorna_reading)
+
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'reading_id': reading_obj.id,
+        'consumption': consumption,
+        'cost_huf': cost_huf,
+    })
+
+
+# ============================================================
+# Admin Property Payments (property-specific)
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/payments')
+@login_required
+def admin_property_payments(prop_id):
+    payments = Payment.query.filter_by(property_id=prop_id).order_by(
+        Payment.payment_date.desc()
+    ).all()
+    return jsonify({
+        'payments': [{
+            'id': p.id,
+            'property_id': p.property_id,
+            'property_name': p.property.name if p.property else None,
+            'amount_huf': p.amount_huf,
+            'payment_date': p.payment_date.isoformat() if p.payment_date else None,
+            'payment_method': p.payment_method,
+            'period_from': p.period_from.isoformat() if p.period_from else None,
+            'period_to': p.period_to.isoformat() if p.period_to else None,
+            'notes': p.notes,
+        } for p in payments]
+    })
+
+
+# ============================================================
+# Admin Property Maintenance (property-specific)
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/maintenance')
+@login_required
+def admin_property_maintenance(prop_id):
+    logs = MaintenanceLog.query.filter_by(property_id=prop_id).order_by(
+        MaintenanceLog.created_at.desc()
+    ).all()
+    return jsonify({
+        'maintenance': [{
+            'id': l.id,
+            'property_id': l.property_id,
+            'property_name': l.property.name if l.property else None,
+            'description': l.description,
+            'category': l.category,
+            'cost_huf': l.cost_huf,
+            'performed_by': l.performed_by,
+            'performed_date': l.performed_date.isoformat() if l.performed_date else None,
+        } for l in logs]
+    })
+
+
+# ============================================================
+# Admin Documents (property-specific)
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/documents', methods=['GET'])
+@login_required
+def admin_property_documents(prop_id):
+    docs = Document.query.filter_by(property_id=prop_id).order_by(
+        Document.uploaded_at.desc()
+    ).all()
+    return jsonify({
+        'documents': [{
+            'id': d.id,
+            'property_id': d.property_id,
+            'filename': d.filename,
+            'stored_filename': d.stored_filename,
+            'category': d.category,
+            'notes': d.notes,
+            'file_size': d.file_size,
+            'mime_type': d.mime_type,
+            'uploaded_at': d.uploaded_at.isoformat() if d.uploaded_at else None,
+        } for d in docs]
+    })
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/documents', methods=['POST'])
+@login_required
+def admin_property_document_upload(prop_id):
+    Property.query.get_or_404(prop_id)
+    if 'file' not in request.files:
+        return jsonify({'error': 'Nincs fájl!'}), 400
+    file = request.files['file']
+    if not file or not file.filename:
+        return jsonify({'error': 'Nincs fájl!'}), 400
+    if not allowed_document(file.filename):
+        return jsonify({'error': 'Nem támogatott fájlformátum!'}), 400
+
+    category = request.form.get('category', 'egyeb')
+    notes = request.form.get('notes', '').strip() or None
+
+    original_filename = secure_filename(file.filename)
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    stored_filename = f"{prop_id}_{uuid.uuid4().hex[:12]}.{ext}"
+
+    # Save to uploads/docs/
+    docs_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'docs')
+    os.makedirs(docs_dir, exist_ok=True)
+    filepath = os.path.join(docs_dir, stored_filename)
+    file.save(filepath)
+
+    # Get file size
+    file_size = os.path.getsize(filepath)
+
+    doc = Document(
+        property_id=prop_id,
+        filename=original_filename,
+        stored_filename=stored_filename,
+        category=category,
+        notes=notes,
+        file_size=file_size,
+        mime_type=file.content_type,
+    )
+    db.session.add(doc)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'document': {
+            'id': doc.id,
+            'property_id': doc.property_id,
+            'filename': doc.filename,
+            'stored_filename': doc.stored_filename,
+            'category': doc.category,
+            'notes': doc.notes,
+            'file_size': doc.file_size,
+            'mime_type': doc.mime_type,
+            'uploaded_at': doc.uploaded_at.isoformat() if doc.uploaded_at else None,
+        }
+    })
+
+
+@api_bp.route('/admin/documents/<int:doc_id>', methods=['DELETE'])
+@login_required
+def admin_document_delete(doc_id):
+    doc = Document.query.get_or_404(doc_id)
+    # Delete file from disk
+    docs_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'docs')
+    filepath = os.path.join(docs_dir, doc.stored_filename)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+    db.session.delete(doc)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+# ============================================================
+# Admin Marketing (property-specific)
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/marketing', methods=['GET'])
+@login_required
+def admin_property_marketing_get(prop_id):
+    Property.query.get_or_404(prop_id)
+    mc = MarketingContent.query.filter_by(property_id=prop_id).first()
+    photos = Document.query.filter_by(
+        property_id=prop_id, category='marketing'
+    ).order_by(Document.uploaded_at.desc()).all()
+
+    return jsonify({
+        'marketing': {
+            'id': mc.id if mc else None,
+            'listing_title': mc.listing_title if mc else None,
+            'listing_description': mc.listing_description if mc else None,
+            'listing_url': mc.listing_url if mc else None,
+        },
+        'photos': [{
+            'id': d.id,
+            'property_id': d.property_id,
+            'filename': d.filename,
+            'stored_filename': d.stored_filename,
+            'category': d.category,
+            'notes': d.notes,
+            'file_size': d.file_size,
+            'mime_type': d.mime_type,
+            'uploaded_at': d.uploaded_at.isoformat() if d.uploaded_at else None,
+        } for d in photos],
+    })
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/marketing', methods=['PUT'])
+@login_required
+def admin_property_marketing_save(prop_id):
+    Property.query.get_or_404(prop_id)
+    data = request.get_json()
+    mc = MarketingContent.query.filter_by(property_id=prop_id).first()
+    if not mc:
+        mc = MarketingContent(property_id=prop_id)
+        db.session.add(mc)
+    mc.listing_title = data.get('listing_title') or None
+    mc.listing_description = data.get('listing_description') or None
+    mc.listing_url = data.get('listing_url') or None
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/marketing/photos', methods=['POST'])
+@login_required
+def admin_property_marketing_photo_upload(prop_id):
+    Property.query.get_or_404(prop_id)
+    if 'file' not in request.files:
+        return jsonify({'error': 'Nincs fájl!'}), 400
+    file = request.files['file']
+    if not file or not file.filename or not allowed_file(file.filename):
+        return jsonify({'error': 'Nem támogatott fájlformátum!'}), 400
+
+    original_filename = secure_filename(file.filename)
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    stored_filename = f"mkt_{prop_id}_{uuid.uuid4().hex[:8]}.{ext}"
+
+    docs_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'docs')
+    os.makedirs(docs_dir, exist_ok=True)
+    filepath = os.path.join(docs_dir, stored_filename)
+    file.save(filepath)
+    resize_photo(filepath, max_size=1920)
+
+    file_size = os.path.getsize(filepath)
+
+    doc = Document(
+        property_id=prop_id,
+        filename=original_filename,
+        stored_filename=stored_filename,
+        category='marketing',
+        file_size=file_size,
+        mime_type=file.content_type,
+    )
+    db.session.add(doc)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'document': {
+            'id': doc.id,
+            'property_id': doc.property_id,
+            'filename': doc.filename,
+            'stored_filename': doc.stored_filename,
+            'category': doc.category,
+            'notes': doc.notes,
+            'file_size': doc.file_size,
+            'mime_type': doc.mime_type,
+            'uploaded_at': doc.uploaded_at.isoformat() if doc.uploaded_at else None,
+        }
+    })
+
+
+# ============================================================
+# Serve uploaded documents
+# ============================================================
+
+@api_bp.route('/uploads/docs/<filename>')
+def uploaded_document(filename):
+    docs_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'docs')
+    return send_from_directory(docs_dir, filename)
 
 
 # ============================================================

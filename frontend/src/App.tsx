@@ -23,6 +23,7 @@ import AdminTariffs from "./pages/admin/AdminTariffs";
 import AdminROI from "./pages/admin/AdminROI";
 import AdminSystem from "./pages/admin/AdminSystem";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminPropertyDetail from "./pages/admin/AdminPropertyDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -51,6 +52,7 @@ const App = () => (
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="properties" element={<AdminProperties />} />
+            <Route path="properties/:id" element={<AdminPropertyDetail />} />
             <Route path="readings" element={<AdminReadings />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="maintenance" element={<AdminMaintenance />} />

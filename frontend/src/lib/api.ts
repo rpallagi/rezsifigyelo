@@ -22,6 +22,20 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+/** Multipart upload (no Content-Type header - browser sets boundary) */
+async function requestMultipart<T>(path: string, formData: FormData): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || err.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 // ============ Auth ============
 
 export const tenantLogin = (email: string, password: string) =>
@@ -396,3 +410,104 @@ export interface TenantSessionResponse {
   needs_property_select?: boolean;
   properties?: PropertyItem[];
 }
+
+// ============ Property Detail Types ============
+
+export interface PropertyDetailData {
+  property: AdminProperty & { avatar_filename: string | null };
+  stats: {
+    total_readings: number;
+    total_payments: number;
+    total_maintenance: number;
+    total_documents: number;
+    current_tenant: { name: string | null; email: string } | null;
+  };
+}
+
+export interface PropertyReadingsData {
+  readings: ReadingItem[];
+  trends: {
+    villany: { current: number; previous: number; change_pct: number } | null;
+    viz: { current: number; previous: number; change_pct: number } | null;
+  };
+  sparklines: {
+    villany: number[];
+    viz: number[];
+  };
+}
+
+export interface DocumentItem {
+  id: number;
+  property_id: number;
+  filename: string;
+  stored_filename: string;
+  category: string;
+  notes: string | null;
+  file_size: number | null;
+  mime_type: string | null;
+  uploaded_at: string;
+}
+
+export interface MarketingData {
+  marketing: {
+    id: number | null;
+    listing_title: string | null;
+    listing_description: string | null;
+    listing_url: string | null;
+  };
+  photos: DocumentItem[];
+}
+
+// ============ Property Detail API ============
+
+export const getPropertyDetail = (id: number) =>
+  request<PropertyDetailData>(`/admin/properties/${id}/detail`);
+
+export const uploadPropertyAvatar = (id: number, file: File) => {
+  const fd = new FormData();
+  fd.append('avatar', file);
+  return requestMultipart<{ success: boolean; avatar_filename: string }>(`/admin/properties/${id}/avatar`, fd);
+};
+
+export const getPropertyReadings = (id: number) =>
+  request<PropertyReadingsData>(`/admin/properties/${id}/readings`);
+
+export const getPropertyPayments = (id: number) =>
+  request<{ payments: PaymentItem[] }>(`/admin/properties/${id}/payments`);
+
+export const getPropertyMaintenance = (id: number) =>
+  request<{ maintenance: MaintenanceItem[] }>(`/admin/properties/${id}/maintenance`);
+
+export const adminSubmitReading = (data: FormData) =>
+  requestMultipart<{ success: boolean; reading_id: number; consumption: number | null; cost_huf: number | null }>(
+    '/admin/readings', data
+  );
+
+export const getPropertyDocuments = (id: number) =>
+  request<{ documents: DocumentItem[] }>(`/admin/properties/${id}/documents`);
+
+export const uploadPropertyDocument = (id: number, file: File, category: string, notes?: string) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('category', category);
+  if (notes) fd.append('notes', notes);
+  return requestMultipart<{ success: boolean; document: DocumentItem }>(`/admin/properties/${id}/documents`, fd);
+};
+
+export const deleteDocument = (id: number) =>
+  request<{ success: boolean }>(`/admin/documents/${id}`, { method: 'DELETE' });
+
+export const getPropertyMarketing = (id: number) =>
+  request<MarketingData>(`/admin/properties/${id}/marketing`);
+
+export const savePropertyMarketing = (id: number, data: { listing_title?: string; listing_description?: string; listing_url?: string }) =>
+  request<{ success: boolean }>(`/admin/properties/${id}/marketing`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+
+export const uploadMarketingPhoto = (id: number, file: File) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return requestMultipart<{ success: boolean; document: DocumentItem }>(`/admin/properties/${id}/marketing/photos`, fd);
+};

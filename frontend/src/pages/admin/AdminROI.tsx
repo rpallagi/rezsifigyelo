@@ -77,7 +77,7 @@ const AdminROI = () => {
                 {/* Header - clickable → properties page */}
                 <div
                   className="p-5 flex items-center gap-3 cursor-pointer hover:bg-accent/30 transition-colors group"
-                  onClick={() => navigate('/admin/properties')}
+                  onClick={() => navigate(`/admin/properties/${p.id}`)}
                 >
                   <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center flex-shrink-0">
                     <Building2 className="h-5 w-5 text-accent-foreground" />
@@ -139,7 +139,7 @@ const AdminROI = () => {
                 <div className="grid grid-cols-2 gap-px bg-border/50">
                   <div
                     className="bg-card p-3 cursor-pointer hover:bg-accent/30 transition-colors"
-                    onClick={() => navigate('/admin/properties')}
+                    onClick={() => navigate(`/admin/properties/${p.id}`)}
                   >
                     <div className="flex items-center gap-1.5 mb-1">
                       <Banknote className="h-3.5 w-3.5 text-muted-foreground" />
@@ -150,7 +150,7 @@ const AdminROI = () => {
 
                   <div
                     className="bg-card p-3 cursor-pointer hover:bg-accent/30 transition-colors"
-                    onClick={() => navigate('/admin/properties')}
+                    onClick={() => navigate(`/admin/properties/${p.id}`)}
                   >
                     <div className="flex items-center gap-1.5 mb-1">
                       <Banknote className="h-3.5 w-3.5 text-muted-foreground" />
@@ -214,7 +214,7 @@ const AdminROI = () => {
                 <div className="grid grid-cols-3 gap-px bg-border/50 border-t border-border/50">
                   <button
                     className="bg-card p-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors flex items-center justify-center gap-1"
-                    onClick={() => navigate('/admin/properties')}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/admin/properties/${p.id}`); }}
                   >
                     <Building2 className="h-3 w-3" />
                     {t('roi.viewProperty')}

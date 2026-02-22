@@ -124,6 +124,9 @@ class Property(db.Model):
     purchase_price = db.Column(db.Float, nullable=True)  # Ft
     monthly_rent = db.Column(db.Float, nullable=True)  # Ft/hó
 
+    # Ingatlan fotó (avatar)
+    avatar_filename = db.Column(db.String(255), nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -134,6 +137,9 @@ class Property(db.Model):
                                order_by='Payment.payment_date.desc()')
     maintenance_logs = db.relationship('MaintenanceLog', backref='property', lazy='dynamic')
     todos = db.relationship('Todo', backref='property', lazy='dynamic')
+    documents = db.relationship('Document', backref='property', lazy='dynamic',
+                                order_by='Document.uploaded_at.desc()')
+    marketing = db.relationship('MarketingContent', backref='property', uselist=False)
 
     def __repr__(self):
         return f'<Property {self.name}>'
@@ -230,3 +236,45 @@ class Todo(db.Model):
 
     def __repr__(self):
         return f'<Todo {self.title}>'
+
+
+# ============================================================
+# Dokumentumok (feltöltött fájlok ingatlanhoz)
+# ============================================================
+
+class Document(db.Model):
+    """Feltöltött dokumentum egy ingatlanhoz."""
+    __tablename__ = 'documents'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)        # eredeti fájlnév
+    stored_filename = db.Column(db.String(255), nullable=False)  # UUID-s tárolt név
+    category = db.Column(db.String(50), nullable=False, default='egyeb')
+    # category értékek: atadas_atvetel / szerzodes / marketing / egyeb
+    notes = db.Column(db.Text, nullable=True)
+    file_size = db.Column(db.Integer, nullable=True)
+    mime_type = db.Column(db.String(100), nullable=True)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Document {self.filename}>'
+
+
+# ============================================================
+# Marketing tartalom (hirdetés szöveg + fotók)
+# ============================================================
+
+class MarketingContent(db.Model):
+    """Marketing tartalom egy ingatlanhoz (ingatlan.com hirdetés stb.)."""
+    __tablename__ = 'marketing_contents'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False, unique=True)
+    listing_title = db.Column(db.String(200), nullable=True)
+    listing_description = db.Column(db.Text, nullable=True)
+    listing_url = db.Column(db.String(500), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<MarketingContent property_id={self.property_id}>'
