@@ -99,10 +99,31 @@ def create_app(config_name=None):
     # Create tables and seed data
     with app.app_context():
         db.create_all()
+        _run_migrations()
         seed_initial_data(app)
 
     app.logger.info(f"Rezsi Figyelo v{APP_VERSION} started ({config_name})")
     return app
+
+
+def _run_migrations():
+    """Run manual migrations for columns that db.create_all() cannot add to existing tables."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+
+    # v3.0: Add avatar_filename to properties table
+    if 'properties' in inspector.get_table_names():
+        columns = [c['name'] for c in inspector.get_columns('properties')]
+        if 'avatar_filename' not in columns:
+            db.session.execute(text('ALTER TABLE properties ADD COLUMN avatar_filename VARCHAR(255)'))
+            db.session.commit()
+            print("[MIGRATE] Added avatar_filename to properties table")
+
+    # v3.0: Create documents table if not exists (db.create_all handles this,
+    # but just in case)
+    # v3.0: Create marketing_contents table if not exists
+    # db.create_all() already handles new tables, so no action needed here.
 
 
 def seed_initial_data(app):
