@@ -37,14 +37,8 @@ COPY --from=frontend-build /static/dist /app/static/dist
 # Create upload directory
 RUN mkdir -p /app/uploads
 
-# Non-root user with docker group access
-RUN adduser --disabled-password --gecos '' appuser && \
-    chown -R appuser:appuser /app && \
-    groupadd -g 999 docker 2>/dev/null || true && \
-    usermod -aG docker appuser 2>/dev/null || true
-USER appuser
-
 EXPOSE 5003 5173
 
-# Dev: Flask + Vite dev server. Prod: gunicorn serves built React SPA.
-CMD ["sh", "-c", "if [ \"$FLASK_ENV\" = 'development' ]; then cd /app/frontend && npx vite --host 0.0.0.0 & python /app/app.py; else gunicorn -c gunicorn.conf.py 'app:create_app()'; fi"]
+# Dev: run as root (volume mount permissions), Prod: could use appuser
+# Dev: Flask + Vite dev server in parallel. Prod: gunicorn serves built React SPA.
+CMD ["sh", "-c", "if [ \"$FLASK_ENV\" = 'development' ]; then cd /app/frontend && npm install --production=false 2>/dev/null; npx vite --host 0.0.0.0 & python /app/app.py; else gunicorn -c gunicorn.conf.py 'app:create_app()'; fi"]
