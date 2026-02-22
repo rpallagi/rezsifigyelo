@@ -9,9 +9,10 @@ from flask_login import LoginManager
 from config import config
 from models import (db, AdminUser, TenantUser, Property, TariffGroup, Tariff,
                     PropertyTax, CommonFee, CommonFeePayment, RentalTaxConfig,
-                    TenantHistory, HandoverChecklist, ChatMessage, MeterInfo)
+                    TenantHistory, HandoverChecklist, ChatMessage, MeterInfo,
+                    SmartMeterDevice, SmartMeterLog)
 
-APP_VERSION = '3.1.0'
+APP_VERSION = '3.1.1'
 
 login_manager = LoginManager()
 
@@ -104,6 +105,17 @@ def create_app(config_name=None):
         _run_migrations()
         seed_initial_data(app)
 
+    # Start MQTT background client if enabled
+    if app.config.get('MQTT_ENABLED'):
+        try:
+            from services.mqtt_client import MQTTSmartMeterClient
+            mqtt_client = MQTTSmartMeterClient(app)
+            mqtt_client.start()
+            app.mqtt_client = mqtt_client
+            app.logger.info("MQTT smart meter client started")
+        except Exception as e:
+            app.logger.warning(f"MQTT client failed to start: {e}")
+
     app.logger.info(f"Rezsi Figyelo v{APP_VERSION} started ({config_name})")
     return app
 
@@ -139,6 +151,14 @@ def _run_migrations():
                 db.session.execute(text(sql))
             db.session.commit()
             print("[MIGRATE] Added tenant lifecycle fields to tenant_users")
+
+    # v3.1.1: Add source column to meter_readings
+    if 'meter_readings' in inspector.get_table_names():
+        columns = [c['name'] for c in inspector.get_columns('meter_readings')]
+        if 'source' not in columns:
+            db.session.execute(text("ALTER TABLE meter_readings ADD COLUMN source VARCHAR(20) DEFAULT 'manual'"))
+            db.session.commit()
+            print("[MIGRATE] Added source column to meter_readings")
 
 
 def seed_initial_data(app):

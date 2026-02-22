@@ -16,8 +16,10 @@ from models import (
     db, AdminUser, TenantUser, Property, TariffGroup, Tariff,
     MeterReading, Payment, MaintenanceLog, Todo, Document, MarketingContent,
     PropertyTax, CommonFee, CommonFeePayment, RentalTaxConfig,
-    TenantHistory, HandoverChecklist, ChatMessage, MeterInfo
+    TenantHistory, HandoverChecklist, ChatMessage, MeterInfo,
+    SmartMeterDevice, SmartMeterLog
 )
+import json
 import uuid
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
@@ -92,6 +94,7 @@ def reading_to_dict(r):
         'photo_filename': r.photo_filename,
         'reading_date': r.reading_date.isoformat() if r.reading_date else None,
         'notes': r.notes,
+        'source': getattr(r, 'source', 'manual'),
     }
 
 
@@ -2543,3 +2546,290 @@ def admin_roi_enhanced():
         })
 
     return jsonify({'properties': result})
+
+
+# ============================================================
+# Smart Meter — TTN Webhook
+# ============================================================
+
+@api_bp.route('/webhooks/ttn', methods=['POST'])
+def ttn_webhook():
+    """Receive uplink messages from The Things Network (TTN v3)."""
+    if not current_app.config.get('TTN_WEBHOOK_ENABLED', True):
+        return jsonify({'error': 'TTN webhook disabled'}), 503
+
+    # Verify Bearer token
+    expected_token = current_app.config.get('TTN_WEBHOOK_TOKEN', '')
+    if expected_token:
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer ') or auth_header[7:] != expected_token:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+    try:
+        payload = request.get_json(force=True)
+    except Exception:
+        return jsonify({'error': 'Invalid JSON'}), 400
+
+    # Extract device ID from TTN payload
+    device_id = None
+    try:
+        device_id = payload.get('end_device_ids', {}).get('device_id')
+    except Exception:
+        pass
+
+    if not device_id:
+        return jsonify({'error': 'Missing device_id in TTN payload'}), 400
+
+    # Extract decoded payload fields
+    decoded_payload = {}
+    try:
+        decoded_payload = payload.get('uplink_message', {}).get('decoded_payload', {})
+    except Exception:
+        pass
+
+    if not decoded_payload:
+        current_app.logger.warning(f"TTN webhook: no decoded_payload for device {device_id}")
+        return jsonify({'warning': 'No decoded_payload'}), 200
+
+    # Process through smart meter service
+    from services.smart_meter import process_smart_meter_reading, extract_value_from_payload
+
+    device = SmartMeterDevice.query.filter_by(device_id=device_id, is_active=True).first()
+    if not device:
+        current_app.logger.info(f"TTN webhook: unknown or inactive device {device_id}")
+        return jsonify({'warning': f'Unknown device: {device_id}'}), 200
+
+    raw_value = extract_value_from_payload(decoded_payload, device.value_field)
+    if raw_value is None:
+        current_app.logger.warning(f"TTN webhook: could not extract value from payload for {device_id}")
+        return jsonify({'warning': 'Could not extract value'}), 200
+
+    result = process_smart_meter_reading(
+        device_id=device_id,
+        raw_value=raw_value,
+        source='smart_ttn',
+        raw_payload=json.dumps(payload),
+        timestamp=datetime.utcnow()
+    )
+
+    return jsonify(result), 200
+
+
+# ============================================================
+# Smart Meter — Admin CRUD
+# ============================================================
+
+def smart_meter_to_dict(d):
+    """Convert SmartMeterDevice to dict."""
+    return {
+        'id': d.id,
+        'property_id': d.property_id,
+        'utility_type': d.utility_type,
+        'device_id': d.device_id,
+        'source': d.source,
+        'name': d.name,
+        'ttn_app_id': d.ttn_app_id,
+        'mqtt_topic': d.mqtt_topic,
+        'value_field': d.value_field or 'meter_value',
+        'multiplier': d.multiplier or 1.0,
+        'offset': d.offset or 0.0,
+        'device_unit': d.device_unit,
+        'is_active': d.is_active,
+        'min_interval_minutes': d.min_interval_minutes or 60,
+        'last_seen_at': d.last_seen_at.isoformat() if d.last_seen_at else None,
+        'last_raw_value': d.last_raw_value,
+        'last_error': d.last_error,
+        'meter_info_id': d.meter_info_id,
+        'created_at': d.created_at.isoformat() if d.created_at else None,
+    }
+
+
+def smart_meter_log_to_dict(log):
+    """Convert SmartMeterLog to dict."""
+    return {
+        'id': log.id,
+        'device_id': log.device_id,
+        'source': log.source,
+        'parsed_value': log.parsed_value,
+        'final_value': log.final_value,
+        'status': log.status,
+        'error_message': log.error_message,
+        'reading_id': log.reading_id,
+        'received_at': log.received_at.isoformat() if log.received_at else None,
+    }
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/smart-meters', methods=['GET'])
+@login_required
+def get_property_smart_meters(prop_id):
+    """List smart meter devices for a property."""
+    devices = SmartMeterDevice.query.filter_by(property_id=prop_id)\
+        .order_by(SmartMeterDevice.created_at.desc()).all()
+    return jsonify({'devices': [smart_meter_to_dict(d) for d in devices]})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/smart-meters', methods=['POST'])
+@login_required
+def add_smart_meter(prop_id):
+    """Add a new smart meter device to a property."""
+    data = request.get_json()
+    if not data or not data.get('device_id'):
+        return jsonify({'error': 'device_id is required'}), 400
+
+    # Check for duplicate device_id
+    existing = SmartMeterDevice.query.filter_by(device_id=data['device_id']).first()
+    if existing:
+        return jsonify({'error': f'Device ID {data["device_id"]} already registered'}), 409
+
+    device = SmartMeterDevice(
+        property_id=prop_id,
+        device_id=data['device_id'],
+        source=data.get('source', 'ttn'),
+        utility_type=data.get('utility_type', 'villany'),
+        name=data.get('name'),
+        ttn_app_id=data.get('ttn_app_id'),
+        mqtt_topic=data.get('mqtt_topic'),
+        value_field=data.get('value_field', 'meter_value'),
+        multiplier=float(data.get('multiplier', 1.0)),
+        offset=float(data.get('offset', 0.0)),
+        min_interval_minutes=int(data.get('min_interval_minutes', 60)),
+        is_active=data.get('is_active', True),
+    )
+    db.session.add(device)
+    db.session.commit()
+
+    # Refresh MQTT subscriptions if enabled
+    _refresh_mqtt_subscriptions()
+
+    return jsonify({'success': True, 'id': device.id}), 201
+
+
+@api_bp.route('/admin/smart-meters/<int:device_db_id>', methods=['PUT'])
+@login_required
+def edit_smart_meter(device_db_id):
+    """Update an existing smart meter device."""
+    device = SmartMeterDevice.query.get_or_404(device_db_id)
+    data = request.get_json()
+
+    if 'device_id' in data:
+        existing = SmartMeterDevice.query.filter(
+            SmartMeterDevice.device_id == data['device_id'],
+            SmartMeterDevice.id != device_db_id
+        ).first()
+        if existing:
+            return jsonify({'error': f'Device ID {data["device_id"]} already registered'}), 409
+        device.device_id = data['device_id']
+
+    if 'source' in data:
+        device.source = data['source']
+    if 'utility_type' in data:
+        device.utility_type = data['utility_type']
+    if 'name' in data:
+        device.name = data['name']
+    if 'ttn_app_id' in data:
+        device.ttn_app_id = data['ttn_app_id']
+    if 'mqtt_topic' in data:
+        device.mqtt_topic = data['mqtt_topic']
+    if 'value_field' in data:
+        device.value_field = data['value_field']
+    if 'multiplier' in data:
+        device.multiplier = float(data['multiplier'])
+    if 'offset' in data:
+        device.offset = float(data['offset'])
+    if 'min_interval_minutes' in data:
+        device.min_interval_minutes = int(data['min_interval_minutes'])
+    if 'is_active' in data:
+        device.is_active = data['is_active']
+
+    device.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    _refresh_mqtt_subscriptions()
+
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/smart-meters/<int:device_db_id>', methods=['DELETE'])
+@login_required
+def delete_smart_meter(device_db_id):
+    """Delete a smart meter device and its logs."""
+    device = SmartMeterDevice.query.get_or_404(device_db_id)
+    SmartMeterLog.query.filter_by(device_id=device.device_id).delete()
+    db.session.delete(device)
+    db.session.commit()
+
+    _refresh_mqtt_subscriptions()
+
+    return jsonify({'success': True})
+
+
+# ============================================================
+# Smart Meter — Status / Logs / Test
+# ============================================================
+
+@api_bp.route('/admin/smart-meters/status', methods=['GET'])
+@login_required
+def smart_meter_status():
+    """Get overall smart meter status."""
+    devices = SmartMeterDevice.query.order_by(SmartMeterDevice.created_at.desc()).all()
+
+    mqtt_connected = False
+    mqtt_enabled = current_app.config.get('MQTT_ENABLED', False)
+    if mqtt_enabled and hasattr(current_app, 'mqtt_client'):
+        mqtt_connected = current_app.mqtt_client.is_connected()
+
+    ttn_enabled = current_app.config.get('TTN_WEBHOOK_ENABLED', True)
+
+    return jsonify({
+        'devices': [smart_meter_to_dict(d) for d in devices],
+        'mqtt_connected': mqtt_connected,
+        'mqtt_enabled': mqtt_enabled,
+        'ttn_enabled': ttn_enabled,
+    })
+
+
+@api_bp.route('/admin/smart-meters/<int:device_db_id>/logs', methods=['GET'])
+@login_required
+def get_smart_meter_logs(device_db_id):
+    """Get recent logs for a smart meter device."""
+    device = SmartMeterDevice.query.get_or_404(device_db_id)
+    logs = SmartMeterLog.query.filter_by(device_id=device.device_id)\
+        .order_by(SmartMeterLog.received_at.desc()).limit(50).all()
+    return jsonify({'logs': [smart_meter_log_to_dict(l) for l in logs]})
+
+
+@api_bp.route('/admin/smart-meters/<int:device_db_id>/test', methods=['POST'])
+@login_required
+def test_smart_meter(device_db_id):
+    """Test smart meter data processing (dry-run)."""
+    device = SmartMeterDevice.query.get_or_404(device_db_id)
+    data = request.get_json()
+    test_payload = data.get('payload', {})
+
+    from services.smart_meter import extract_value_from_payload
+
+    raw_value = extract_value_from_payload(test_payload, device.value_field)
+    if raw_value is None:
+        return jsonify({
+            'success': False,
+            'error': f'Could not extract value using field "{device.value_field}"',
+        })
+
+    final_value = raw_value * (device.multiplier or 1.0) + (device.offset or 0.0)
+
+    return jsonify({
+        'success': True,
+        'parsed_value': raw_value,
+        'final_value': round(final_value, 4),
+        'multiplier': device.multiplier,
+        'offset': device.offset,
+    })
+
+
+def _refresh_mqtt_subscriptions():
+    """Refresh MQTT client subscriptions after device CRUD."""
+    try:
+        if current_app.config.get('MQTT_ENABLED') and hasattr(current_app, 'mqtt_client'):
+            current_app.mqtt_client.refresh_subscriptions()
+    except Exception as e:
+        current_app.logger.warning(f"Failed to refresh MQTT subscriptions: {e}")

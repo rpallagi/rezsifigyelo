@@ -170,6 +170,7 @@ class MeterReading(db.Model):
     photo_filename = db.Column(db.String(255), nullable=True)  # feltöltött fotó
     reading_date = db.Column(db.Date, nullable=False, default=date.today)
     notes = db.Column(db.Text, nullable=True)
+    source = db.Column(db.String(20), nullable=True, default='manual')  # manual/tenant/smart_ttn/smart_mqtt
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationship to tariff
@@ -500,3 +501,87 @@ class MeterInfo(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     property = db.relationship('Property', backref=db.backref('meters', lazy='dynamic'))
+
+
+# ============================================================
+# Okos mérő integráció (LoRaWAN/TTN/MQTT)
+# ============================================================
+
+class SmartMeterDevice(db.Model):
+    """Okos mérő eszköz — külső device_id <-> property + közmű leképezés."""
+    __tablename__ = 'smart_meter_devices'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+    utility_type = db.Column(db.String(20), nullable=False)  # villany / viz
+
+    # Külső eszköz azonosító (TTN device_id vagy MQTT topic azonosító)
+    device_id = db.Column(db.String(200), unique=True, nullable=False)
+
+    # Forrás: 'ttn' vagy 'mqtt'
+    source = db.Column(db.String(20), nullable=False, default='ttn')
+
+    # Eszköz neve (felhasználóbarát)
+    name = db.Column(db.String(200), nullable=True)
+
+    # TTN specifikus
+    ttn_app_id = db.Column(db.String(200), nullable=True)
+
+    # MQTT specifikus
+    mqtt_topic = db.Column(db.String(500), nullable=True)
+
+    # Payload dekódoló: melyik mező tartalmazza a mérőértéket
+    value_field = db.Column(db.String(100), nullable=False, default='meter_value')
+
+    # Szorzó/eltolás a nyers érték normalizáláshoz
+    # végső_érték = nyers_érték * multiplier + offset
+    multiplier = db.Column(db.Float, nullable=False, default=1.0)
+    offset = db.Column(db.Float, nullable=False, default=0.0)
+
+    # Eszköz mértékegység (kWh, m3, Wh, liter)
+    device_unit = db.Column(db.String(20), nullable=True)
+
+    # Aktív kapcsoló
+    is_active = db.Column(db.Boolean, default=True)
+
+    # Deduplikáció: ennyi percen belüli leolvasás elutasítása
+    min_interval_minutes = db.Column(db.Integer, default=60)
+
+    # Utolsó fogadott adat
+    last_seen_at = db.Column(db.DateTime, nullable=True)
+    last_raw_value = db.Column(db.Float, nullable=True)
+    last_error = db.Column(db.Text, nullable=True)
+
+    # Opcionális fizikai mérő linkje
+    meter_info_id = db.Column(db.Integer, db.ForeignKey('meter_info.id'), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    property = db.relationship('Property', backref=db.backref('smart_meters', lazy='dynamic'))
+    meter_info = db.relationship('MeterInfo', backref='smart_meter_device', uselist=False)
+
+    def __repr__(self):
+        return f'<SmartMeterDevice {self.device_id} → {self.property_id}/{self.utility_type}>'
+
+
+class SmartMeterLog(db.Model):
+    """Audit napló minden okos mérő üzenethez."""
+    __tablename__ = 'smart_meter_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.String(200), nullable=False)
+    source = db.Column(db.String(20), nullable=False)  # ttn / mqtt
+    raw_payload = db.Column(db.Text, nullable=True)
+    parsed_value = db.Column(db.Float, nullable=True)
+    final_value = db.Column(db.Float, nullable=True)  # multiplier+offset után
+
+    # Eredmény
+    status = db.Column(db.String(20), nullable=False)  # ok / rejected / error
+    error_message = db.Column(db.Text, nullable=True)
+    reading_id = db.Column(db.Integer, db.ForeignKey('meter_readings.id'), nullable=True)
+
+    received_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<SmartMeterLog {self.device_id} {self.status}>'

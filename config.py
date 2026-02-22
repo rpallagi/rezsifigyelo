@@ -45,6 +45,16 @@ class Config:
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
     CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-sonnet-4-20250514')
 
+    # Smart Meter / IoT integráció
+    TTN_WEBHOOK_TOKEN = os.environ.get('TTN_WEBHOOK_TOKEN', '')
+    TTN_WEBHOOK_ENABLED = os.environ.get('TTN_WEBHOOK_ENABLED', 'true').lower() == 'true'
+    MQTT_ENABLED = os.environ.get('MQTT_ENABLED', 'false').lower() == 'true'
+    MQTT_BROKER_HOST = os.environ.get('MQTT_BROKER_HOST', 'mosquitto')
+    MQTT_BROKER_PORT = int(os.environ.get('MQTT_BROKER_PORT', 1883))
+    MQTT_USERNAME = os.environ.get('MQTT_USERNAME', '')
+    MQTT_PASSWORD = os.environ.get('MQTT_PASSWORD', '')
+    MQTT_TOPIC_PREFIX = os.environ.get('MQTT_TOPIC_PREFIX', 'rezsi/#')
+
     # Admin
     ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
     ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin')

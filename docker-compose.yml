@@ -47,6 +47,14 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - TTN_WEBHOOK_TOKEN=${TTN_WEBHOOK_TOKEN:-}
+      - TTN_WEBHOOK_ENABLED=${TTN_WEBHOOK_ENABLED:-true}
+      - MQTT_ENABLED=${MQTT_ENABLED:-false}
+      - MQTT_BROKER_HOST=${MQTT_BROKER_HOST:-mosquitto}
+      - MQTT_BROKER_PORT=${MQTT_BROKER_PORT:-1883}
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - MQTT_TOPIC_PREFIX=${MQTT_TOPIC_PREFIX:-rezsi/#}
     volumes:
       - ./uploads:/app/uploads
       - .:/app
@@ -60,8 +68,25 @@ services:
     networks:
       - rezsi-net
 
+  # Opcionális MQTT broker okos mérő integrációhoz
+  # Indítás: docker compose --profile mqtt up -d
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: rezsi-mosquitto
+    restart: unless-stopped
+    profiles:
+      - mqtt
+    ports:
+      - "1883:1883"
+    volumes:
+      - mosquitto-data:/mosquitto/data
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    networks:
+      - rezsi-net
+
 volumes:
   postgres-data:
+  mosquitto-data:
 
 networks:
   rezsi-net:

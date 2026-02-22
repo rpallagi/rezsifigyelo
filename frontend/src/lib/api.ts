@@ -764,3 +764,62 @@ export const getPropertyTenantHistory = (propId: number) =>
 
 export const getAdminROIEnhanced = () =>
   request<{ properties: ROIPropertyEnhanced[] }>('/admin/roi-enhanced');
+
+// ============ Smart Meter Types ============
+
+export interface SmartMeterDeviceItem {
+  id: number;
+  property_id: number;
+  utility_type: string;
+  device_id: string;
+  source: string;
+  name: string | null;
+  ttn_app_id: string | null;
+  mqtt_topic: string | null;
+  value_field: string;
+  multiplier: number;
+  offset: number;
+  device_unit: string | null;
+  is_active: boolean;
+  min_interval_minutes: number;
+  last_seen_at: string | null;
+  last_raw_value: number | null;
+  last_error: string | null;
+  meter_info_id: number | null;
+  created_at: string | null;
+}
+
+export interface SmartMeterLogItem {
+  id: number;
+  device_id: string;
+  source: string;
+  parsed_value: number | null;
+  final_value: number | null;
+  status: string;
+  error_message: string | null;
+  reading_id: number | null;
+  received_at: string;
+}
+
+// ============ Smart Meter API ============
+
+export const getPropertySmartMeters = (propId: number) =>
+  request<{ devices: SmartMeterDeviceItem[] }>(`/admin/properties/${propId}/smart-meters`);
+export const addSmartMeter = (propId: number, data: any) =>
+  request<{ success: boolean; id: number }>(`/admin/properties/${propId}/smart-meters`, {
+    method: 'POST', body: JSON.stringify(data),
+  });
+export const editSmartMeter = (deviceDbId: number, data: any) =>
+  request<{ success: boolean }>(`/admin/smart-meters/${deviceDbId}`, {
+    method: 'PUT', body: JSON.stringify(data),
+  });
+export const deleteSmartMeter = (deviceDbId: number) =>
+  request<{ success: boolean }>(`/admin/smart-meters/${deviceDbId}`, { method: 'DELETE' });
+export const getSmartMeterLogs = (deviceDbId: number) =>
+  request<{ logs: SmartMeterLogItem[] }>(`/admin/smart-meters/${deviceDbId}/logs`);
+export const testSmartMeter = (deviceDbId: number, payload: any) =>
+  request<{ success: boolean; parsed_value?: number; final_value?: number; error?: string }>(
+    `/admin/smart-meters/${deviceDbId}/test`, { method: 'POST', body: JSON.stringify({ payload }) });
+export const getSmartMeterStatus = () =>
+  request<{ devices: SmartMeterDeviceItem[]; mqtt_connected: boolean; mqtt_enabled: boolean; ttn_enabled: boolean }>(
+    '/admin/smart-meters/status');
