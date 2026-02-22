@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Key, BarChart3, Camera, Calculator, TrendingUp, ArrowRight, Zap, Droplets, FileText, Receipt } from "lucide-react";
+import { Key, BarChart3, Camera, Calculator, TrendingUp, ArrowRight, Zap, Droplets, FileText, Receipt, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
@@ -120,7 +120,7 @@ const Landing = () => {
                 description: t('landing.feat5Desc'),
               },
               {
-                icon: FileText,
+                icon: Wifi,
                 title: t('landing.feat6'),
                 description: t('landing.feat6Desc'),
               },

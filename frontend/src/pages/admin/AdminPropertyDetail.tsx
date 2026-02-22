@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Building2, Zap, Droplets, CreditCard, Wrench, FileText, Megaphone,
+  Landmark, Building, MessageCircle,
 } from "lucide-react";
 import { getPropertyDetail, type PropertyDetailData } from "@/lib/api";
 import { formatHuf, formatNumber } from "@/lib/format";
@@ -17,6 +18,9 @@ import PropertyPayments from "./property-tabs/PropertyPayments";
 import PropertyMaintenance from "./property-tabs/PropertyMaintenance";
 import PropertyDocuments from "./property-tabs/PropertyDocuments";
 import PropertyMarketing from "./property-tabs/PropertyMarketing";
+import PropertyTax from "./property-tabs/PropertyTax";
+import PropertyCommonFees from "./property-tabs/PropertyCommonFees";
+import PropertyChat from "./property-tabs/PropertyChat";
 
 const tabs = [
   { key: "basic", icon: Building2, labelKey: "propDetail.tabs.basic" },
@@ -25,6 +29,9 @@ const tabs = [
   { key: "maintenance", icon: Wrench, labelKey: "propDetail.tabs.maintenance" },
   { key: "documents", icon: FileText, labelKey: "propDetail.tabs.documents" },
   { key: "marketing", icon: Megaphone, labelKey: "propDetail.tabs.marketing" },
+  { key: "tax", icon: Landmark, labelKey: "propDetail.tabs.tax" },
+  { key: "fees", icon: Building, labelKey: "propDetail.tabs.fees" },
+  { key: "chat", icon: MessageCircle, labelKey: "propDetail.tabs.chat" },
 ];
 
 const AdminPropertyDetail = () => {
@@ -164,6 +171,15 @@ const AdminPropertyDetail = () => {
         </TabsContent>
         <TabsContent value="marketing" className="mt-4">
           <PropertyMarketing propertyId={propertyId} />
+        </TabsContent>
+        <TabsContent value="tax" className="mt-4">
+          <PropertyTax propertyId={propertyId} />
+        </TabsContent>
+        <TabsContent value="fees" className="mt-4">
+          <PropertyCommonFees propertyId={propertyId} />
+        </TabsContent>
+        <TabsContent value="chat" className="mt-4">
+          <PropertyChat propertyId={propertyId} />
         </TabsContent>
       </Tabs>
     </div>

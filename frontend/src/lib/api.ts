@@ -511,3 +511,256 @@ export const uploadMarketingPhoto = (id: number, file: File) => {
   fd.append('file', file);
   return requestMultipart<{ success: boolean; document: DocumentItem }>(`/admin/properties/${id}/marketing/photos`, fd);
 };
+
+// ============ New Types ============
+
+// Property Tax
+export interface PropertyTaxItem {
+  id: number;
+  property_id: number;
+  year: number;
+  bank_account: string | null;
+  recipient: string | null;
+  annual_amount: number;
+  installment_amount: number | null;
+  payment_memo: string | null;
+  deadline_autumn: string | null;
+  deadline_spring: string | null;
+  autumn_paid: boolean;
+  autumn_paid_date: string | null;
+  spring_paid: boolean;
+  spring_paid_date: string | null;
+  document_id: number | null;
+  include_in_roi: boolean;
+  notes: string | null;
+}
+
+// Common Fee
+export interface CommonFeeItem {
+  id: number;
+  property_id: number;
+  bank_account: string | null;
+  recipient: string | null;
+  monthly_amount: number;
+  payment_memo: string | null;
+  frequency: string;
+  payment_day: number | null;
+  include_in_roi: boolean;
+  is_active: boolean;
+  valid_from: string | null;
+  valid_to: string | null;
+  notes: string | null;
+  payments: CommonFeePaymentItem[];
+}
+
+export interface CommonFeePaymentItem {
+  id: number;
+  period_date: string;
+  paid: boolean;
+  paid_date: string | null;
+  amount: number | null;
+}
+
+// Rental Tax Config
+export interface RentalTaxConfigItem {
+  id: number;
+  property_id: number;
+  tax_mode: string;
+  is_vat_registered: boolean;
+  vat_rate: number | null;
+  notes: string | null;
+}
+
+// Meter Info
+export interface MeterInfoItem {
+  id: number;
+  property_id: number;
+  utility_type: string;
+  serial_number: string | null;
+  location: string | null;
+  notes: string | null;
+}
+
+// Chat
+export interface ChatMessageItem {
+  id: number;
+  sender_type: string;
+  sender_id?: number;
+  message: string;
+  is_read: boolean;
+  created_at: string | null;
+}
+
+// Move-in/out workflow
+export interface WorkflowStep {
+  id: number;
+  step: string;
+  status: string;
+  data: string | null;
+  completed_at: string | null;
+}
+
+// Tenant History
+export interface TenantHistoryItem {
+  id: number;
+  tenant_name: string | null;
+  tenant_email: string | null;
+  move_in_date: string | null;
+  move_out_date: string | null;
+  deposit_amount: number | null;
+  deposit_returned: number | null;
+  deposit_deductions: number | null;
+  deposit_notes: string | null;
+  total_payments: number | null;
+}
+
+// Enhanced ROI
+export interface ROIPropertyEnhanced {
+  id: number;
+  name: string;
+  property_type: string;
+  purchase_price: number;
+  monthly_rent: number;
+  annual_yield: number;
+  total_rent_collected: number;
+  progress_pct: number;
+  breakeven_months: number;
+  breakeven_date: string;
+  cost_breakdown: {
+    maintenance: number;
+    property_tax: number;
+    common_fees: number;
+    rental_income_tax: number;
+  };
+  total_costs: number;
+  tax_mode: string | null;
+  monthly_payments: { month: number; amount: number }[];
+}
+
+// Reminder
+export interface ReminderItem {
+  property_name: string;
+  type: string;
+  deadline: string;
+  amount: number;
+  bank_account: string | null;
+  payment_memo: string | null;
+}
+
+// ============ AI Endpoints ============
+
+export const aiExtractTaxPdf = (file: File) => {
+  const fd = new FormData(); fd.append('file', file);
+  return requestMultipart<{ success: boolean; extracted: any }>('/admin/ai/extract-tax-pdf', fd);
+};
+export const aiExtractFeePdf = (file: File) => {
+  const fd = new FormData(); fd.append('file', file);
+  return requestMultipart<{ success: boolean; extracted: any }>('/admin/ai/extract-fee-pdf', fd);
+};
+export const ocrMeterReading = (photo: File) => {
+  const fd = new FormData(); fd.append('photo', photo);
+  return requestMultipart<{ success: boolean; value: number | null; confidence: string }>('/ai/ocr-reading', fd);
+};
+
+// ============ Property Tax ============
+
+export const getPropertyTaxes = (propId: number) =>
+  request<{ taxes: PropertyTaxItem[] }>(`/admin/properties/${propId}/taxes`);
+export const addPropertyTax = (propId: number, data: any) =>
+  request<{ success: boolean; id: number }>(`/admin/properties/${propId}/taxes`, { method: 'POST', body: JSON.stringify(data) });
+export const editPropertyTax = (taxId: number, data: any) =>
+  request<{ success: boolean }>(`/admin/taxes/${taxId}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deletePropertyTax = (taxId: number) =>
+  request<{ success: boolean }>(`/admin/taxes/${taxId}`, { method: 'DELETE' });
+export const markTaxPaid = (taxId: number, installment: string) =>
+  request<{ success: boolean }>(`/admin/taxes/${taxId}/mark-paid`, { method: 'POST', body: JSON.stringify({ installment }) });
+
+// ============ Common Fees ============
+
+export const getPropertyCommonFees = (propId: number) =>
+  request<{ fees: CommonFeeItem[] }>(`/admin/properties/${propId}/common-fees`);
+export const addCommonFee = (propId: number, data: any) =>
+  request<{ success: boolean; id: number }>(`/admin/properties/${propId}/common-fees`, { method: 'POST', body: JSON.stringify(data) });
+export const editCommonFee = (feeId: number, data: any) =>
+  request<{ success: boolean }>(`/admin/common-fees/${feeId}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteCommonFee = (feeId: number) =>
+  request<{ success: boolean }>(`/admin/common-fees/${feeId}`, { method: 'DELETE' });
+export const markCommonFeePaid = (feeId: number, periodDate: string) =>
+  request<{ success: boolean }>(`/admin/common-fees/${feeId}/mark-paid`, { method: 'POST', body: JSON.stringify({ period_date: periodDate }) });
+
+// ============ Rental Tax ============
+
+export const getRentalTaxConfig = (propId: number) =>
+  request<{ config: RentalTaxConfigItem | null }>(`/admin/properties/${propId}/rental-tax`);
+export const saveRentalTaxConfig = (propId: number, data: any) =>
+  request<{ success: boolean }>(`/admin/properties/${propId}/rental-tax`, { method: 'PUT', body: JSON.stringify(data) });
+
+// ============ Meter Info ============
+
+export const getPropertyMeters = (propId: number) =>
+  request<{ meters: MeterInfoItem[] }>(`/admin/properties/${propId}/meters`);
+export const addMeter = (propId: number, data: any) =>
+  request<{ success: boolean; id: number }>(`/admin/properties/${propId}/meters`, { method: 'POST', body: JSON.stringify(data) });
+export const editMeter = (meterId: number, data: any) =>
+  request<{ success: boolean }>(`/admin/meters/${meterId}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteMeter = (meterId: number) =>
+  request<{ success: boolean }>(`/admin/meters/${meterId}`, { method: 'DELETE' });
+
+// ============ Chat - Admin ============
+
+export const getAdminChat = (propId: number) =>
+  request<{ messages: ChatMessageItem[]; has_more: boolean }>(`/admin/properties/${propId}/chat`);
+export const sendAdminChat = (propId: number, message: string) =>
+  request<{ success: boolean; id: number }>(`/admin/properties/${propId}/chat`, { method: 'POST', body: JSON.stringify({ message }) });
+export const getAdminChatUnread = () =>
+  request<{ unread: Record<string, number> }>('/admin/chat/unread');
+export const markAdminChatRead = (propId: number) =>
+  request<{ success: boolean }>(`/admin/chat/mark-read/${propId}`, { method: 'POST' });
+
+// ============ Chat - Tenant ============
+
+export const getTenantChat = () =>
+  request<{ messages: ChatMessageItem[] }>('/tenant/chat');
+export const sendTenantChat = (message: string) =>
+  request<{ success: boolean; id: number }>('/tenant/chat', { method: 'POST', body: JSON.stringify({ message }) });
+export const getTenantChatUnread = () =>
+  request<{ count: number }>('/tenant/chat/unread');
+
+// ============ Reminders ============
+
+export const getTaxReminders = () =>
+  request<{ reminders: ReminderItem[] }>('/admin/tax-reminders');
+export const getCommonFeeReminders = () =>
+  request<{ reminders: ReminderItem[] }>('/admin/common-fee-reminders');
+
+// ============ Move-in Workflow ============
+
+export const startMoveIn = (propId: number, tenantId?: number) =>
+  request<{ success: boolean }>(`/admin/properties/${propId}/move-in/start`, { method: 'POST', body: JSON.stringify({ tenant_id: tenantId }) });
+export const getMoveInStatus = (propId: number) =>
+  request<{ steps: WorkflowStep[] }>(`/admin/properties/${propId}/move-in/status`);
+export const saveMoveInStep = (propId: number, step: string, data: any) =>
+  request<{ success: boolean }>(`/admin/properties/${propId}/move-in/${step}`, { method: 'POST', body: JSON.stringify({ data }) });
+export const completeMoveIn = (propId: number, data: any) =>
+  request<{ success: boolean }>(`/admin/properties/${propId}/move-in/complete`, { method: 'POST', body: JSON.stringify(data) });
+
+// ============ Move-out Workflow ============
+
+export const startMoveOut = (propId: number) =>
+  request<{ success: boolean }>(`/admin/properties/${propId}/move-out/start`, { method: 'POST' });
+export const getMoveOutStatus = (propId: number) =>
+  request<{ steps: WorkflowStep[] }>(`/admin/properties/${propId}/move-out/status`);
+export const saveMoveOutStep = (propId: number, step: string, data: any) =>
+  request<{ success: boolean }>(`/admin/properties/${propId}/move-out/${step}`, { method: 'POST', body: JSON.stringify({ data }) });
+export const completeMoveOut = (propId: number, data: any) =>
+  request<{ success: boolean }>(`/admin/properties/${propId}/move-out/complete`, { method: 'POST', body: JSON.stringify(data) });
+
+// ============ Tenant History (Admin) ============
+
+export const getPropertyTenantHistory = (propId: number) =>
+  request<{ history: TenantHistoryItem[] }>(`/admin/properties/${propId}/tenant-history`);
+
+// ============ Enhanced ROI ============
+
+export const getAdminROIEnhanced = () =>
+  request<{ properties: ROIPropertyEnhanced[] }>('/admin/roi-enhanced');

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Zap, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import { useAutofillDetection } from "@/hooks/useAutofillDetection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { tenantLogin, tenantRegister } from "@/lib/api";
@@ -19,6 +20,11 @@ const TenantLogin = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { t } = useI18n();
+  const formRef = useRef<HTMLFormElement>(null);
+  const autoSubmit = useCallback(() => {
+    if (mode === "login") formRef.current?.requestSubmit();
+  }, [mode]);
+  const { autoDetected } = useAutofillDetection(formRef, autoSubmit);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,6 +133,7 @@ const TenantLogin = () => {
 
       {/* Login/Register Form */}
       <form
+        ref={formRef}
         onSubmit={mode === "login" ? handleLogin : handleRegister}
         className="w-full max-w-sm space-y-4 animate-in-delay-2"
       >
@@ -174,6 +181,9 @@ const TenantLogin = () => {
           </button>
         </div>
 
+        {autoDetected && (
+          <p className="text-primary text-sm text-center animate-pulse">{t('login.autoDetected')}</p>
+        )}
         {error && <p className="text-destructive text-sm">{error}</p>}
         {success && <p className="text-success text-sm">{success}</p>}
 

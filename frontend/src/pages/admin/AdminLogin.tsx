@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Zap } from "lucide-react";
+import { useAutofillDetection } from "@/hooks/useAutofillDetection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminLogin } from "@/lib/api";
@@ -15,6 +16,9 @@ const AdminLogin = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const formRef = useRef<HTMLFormElement>(null);
+  const autoSubmit = useCallback(() => formRef.current?.requestSubmit(), []);
+  const { autoDetected } = useAutofillDetection(formRef, autoSubmit);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +45,7 @@ const AdminLogin = () => {
         <p className="text-muted-foreground">{t('adminLogin.title')}</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 animate-in-delay-1">
+      <form ref={formRef} onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 animate-in-delay-1">
         <div>
           <label className="text-sm text-muted-foreground block mb-1">{t('adminLogin.username')}</label>
           <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" autoFocus />
@@ -50,6 +54,9 @@ const AdminLogin = () => {
           <label className="text-sm text-muted-foreground block mb-1">{t('adminLogin.password')}</label>
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••" />
         </div>
+        {autoDetected && (
+          <p className="text-primary text-sm text-center animate-pulse">{t('login.autoDetected')}</p>
+        )}
         {error && <p className="text-destructive text-sm">{error}</p>}
         <Button type="submit" className="w-full gradient-primary-bg border-0" disabled={loading}>
           {loading ? t('adminLogin.loggingIn') : t('adminLogin.loginBtn')}

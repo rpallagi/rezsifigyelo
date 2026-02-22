@@ -46,6 +46,7 @@ services:
       - DATABASE_URL=postgresql://rezsi_user:${REZSI_DB_PASSWORD:-devpassword}@postgres:5432/rezsi_dev
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
       - ./uploads:/app/uploads
       - .:/app

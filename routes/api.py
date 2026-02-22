@@ -14,7 +14,9 @@ from flask import (
 from flask_login import login_user, logout_user, login_required, current_user
 from models import (
     db, AdminUser, TenantUser, Property, TariffGroup, Tariff,
-    MeterReading, Payment, MaintenanceLog, Todo, Document, MarketingContent
+    MeterReading, Payment, MaintenanceLog, Todo, Document, MarketingContent,
+    PropertyTax, CommonFee, CommonFeePayment, RentalTaxConfig,
+    TenantHistory, HandoverChecklist, ChatMessage, MeterInfo
 )
 import uuid
 from werkzeug.utils import secure_filename
@@ -1667,3 +1669,877 @@ def admin_tenant_delete(tenant_id):
     db.session.delete(tenant)
     db.session.commit()
     return jsonify({'success': True})
+
+
+# ============================================================
+# AI / Claude API Endpoints
+# ============================================================
+
+@api_bp.route('/admin/ai/extract-tax-pdf', methods=['POST'])
+@login_required
+def ai_extract_tax_pdf():
+    """Upload property tax PDF and extract data via Claude."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'Nincs fájl!'}), 400
+    file = request.files['file']
+    if not file or not file.filename:
+        return jsonify({'error': 'Nincs fájl!'}), 400
+
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+    temp_path = os.path.join(upload_folder, f'temp_tax_{uuid.uuid4().hex[:8]}.pdf')
+    file.save(temp_path)
+
+    try:
+        from services.claude_service import extract_property_tax_from_pdf
+        result = extract_property_tax_from_pdf(temp_path)
+        return jsonify({'success': True, 'extracted': result})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'AI feldolgozási hiba: {str(e)}'}), 500
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
+@api_bp.route('/admin/ai/extract-fee-pdf', methods=['POST'])
+@login_required
+def ai_extract_fee_pdf():
+    """Upload common fee PDF and extract data via Claude."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'Nincs fájl!'}), 400
+    file = request.files['file']
+    if not file or not file.filename:
+        return jsonify({'error': 'Nincs fájl!'}), 400
+
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+    temp_path = os.path.join(upload_folder, f'temp_fee_{uuid.uuid4().hex[:8]}.pdf')
+    file.save(temp_path)
+
+    try:
+        from services.claude_service import extract_common_fee_from_pdf
+        result = extract_common_fee_from_pdf(temp_path)
+        return jsonify({'success': True, 'extracted': result})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'AI feldolgozási hiba: {str(e)}'}), 500
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
+@api_bp.route('/ai/ocr-reading', methods=['POST'])
+def ai_ocr_reading():
+    """OCR meter reading from photo via Claude Vision."""
+    tenant_id = session.get('tenant_user_id')
+    if not tenant_id and not current_user.is_authenticated:
+        return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
+
+    if 'photo' not in request.files:
+        return jsonify({'error': 'Nincs fotó!'}), 400
+    file = request.files['photo']
+    if not file or not file.filename:
+        return jsonify({'error': 'Nincs fotó!'}), 400
+
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'jpg'
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+    temp_path = os.path.join(upload_folder, f'temp_ocr_{uuid.uuid4().hex[:8]}.{ext}')
+    file.save(temp_path)
+
+    try:
+        from services.claude_service import ocr_meter_reading
+        result = ocr_meter_reading(temp_path)
+        return jsonify({'success': True, **result})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'OCR hiba: {str(e)}'}), 500
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
+# ============================================================
+# Ingatlanadó (Property Tax) Endpoints
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/taxes')
+@login_required
+def admin_property_taxes(prop_id):
+    taxes = PropertyTax.query.filter_by(property_id=prop_id).order_by(PropertyTax.year.desc()).all()
+    return jsonify({'taxes': [{
+        'id': t.id, 'property_id': t.property_id, 'year': t.year,
+        'bank_account': t.bank_account, 'recipient': t.recipient,
+        'annual_amount': t.annual_amount, 'installment_amount': t.installment_amount,
+        'payment_memo': t.payment_memo,
+        'deadline_autumn': t.deadline_autumn.isoformat() if t.deadline_autumn else None,
+        'deadline_spring': t.deadline_spring.isoformat() if t.deadline_spring else None,
+        'autumn_paid': t.autumn_paid, 'autumn_paid_date': t.autumn_paid_date.isoformat() if t.autumn_paid_date else None,
+        'spring_paid': t.spring_paid, 'spring_paid_date': t.spring_paid_date.isoformat() if t.spring_paid_date else None,
+        'document_id': t.document_id, 'include_in_roi': t.include_in_roi,
+        'notes': t.notes,
+    } for t in taxes]})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/taxes', methods=['POST'])
+@login_required
+def admin_add_property_tax(prop_id):
+    data = request.get_json()
+    year = data.get('year', date.today().year)
+    tax = PropertyTax(
+        property_id=prop_id,
+        year=year,
+        bank_account=data.get('bank_account'),
+        recipient=data.get('recipient'),
+        annual_amount=data.get('annual_amount', 0),
+        installment_amount=data.get('installment_amount'),
+        payment_memo=data.get('payment_memo'),
+        deadline_autumn=date(year, 9, 15),
+        deadline_spring=date(year + 1, 3, 15),
+        include_in_roi=data.get('include_in_roi', True),
+        notes=data.get('notes'),
+    )
+    db.session.add(tax)
+    db.session.commit()
+    return jsonify({'success': True, 'id': tax.id})
+
+
+@api_bp.route('/admin/taxes/<int:tax_id>', methods=['PUT'])
+@login_required
+def admin_edit_tax(tax_id):
+    tax = db.session.get(PropertyTax, tax_id)
+    if not tax:
+        return jsonify({'error': 'Nem található!'}), 404
+    data = request.get_json()
+    for key in ['bank_account', 'recipient', 'annual_amount', 'installment_amount',
+                'payment_memo', 'include_in_roi', 'notes']:
+        if key in data:
+            setattr(tax, key, data[key])
+    if 'year' in data:
+        tax.year = data['year']
+        tax.deadline_autumn = date(data['year'], 9, 15)
+        tax.deadline_spring = date(data['year'] + 1, 3, 15)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/taxes/<int:tax_id>', methods=['DELETE'])
+@login_required
+def admin_delete_tax(tax_id):
+    tax = db.session.get(PropertyTax, tax_id)
+    if not tax:
+        return jsonify({'error': 'Nem található!'}), 404
+    db.session.delete(tax)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/taxes/<int:tax_id>/mark-paid', methods=['POST'])
+@login_required
+def admin_tax_mark_paid(tax_id):
+    tax = db.session.get(PropertyTax, tax_id)
+    if not tax:
+        return jsonify({'error': 'Nem található!'}), 404
+    data = request.get_json()
+    installment = data.get('installment')  # 'autumn' or 'spring'
+    if installment == 'autumn':
+        tax.autumn_paid = not tax.autumn_paid
+        tax.autumn_paid_date = date.today() if tax.autumn_paid else None
+    elif installment == 'spring':
+        tax.spring_paid = not tax.spring_paid
+        tax.spring_paid_date = date.today() if tax.spring_paid else None
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/tax-reminders')
+@login_required
+def admin_tax_reminders():
+    """Get upcoming tax deadlines within 2 weeks."""
+    from datetime import timedelta
+    today = date.today()
+    two_weeks = today + timedelta(days=14)
+    reminders = []
+
+    taxes = PropertyTax.query.all()
+    for t in taxes:
+        prop = db.session.get(Property, t.property_id)
+        prop_name = prop.name if prop else '?'
+        if t.deadline_autumn and not t.autumn_paid and today <= t.deadline_autumn <= two_weeks:
+            reminders.append({
+                'property_name': prop_name, 'type': 'tax',
+                'deadline': t.deadline_autumn.isoformat(),
+                'amount': t.installment_amount or (t.annual_amount / 2),
+                'bank_account': t.bank_account, 'payment_memo': t.payment_memo,
+            })
+        if t.deadline_spring and not t.spring_paid and today <= t.deadline_spring <= two_weeks:
+            reminders.append({
+                'property_name': prop_name, 'type': 'tax',
+                'deadline': t.deadline_spring.isoformat(),
+                'amount': t.installment_amount or (t.annual_amount / 2),
+                'bank_account': t.bank_account, 'payment_memo': t.payment_memo,
+            })
+    return jsonify({'reminders': reminders})
+
+
+# ============================================================
+# Közös Költség (Common Fees) Endpoints
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/common-fees')
+@login_required
+def admin_property_common_fees(prop_id):
+    fees = CommonFee.query.filter_by(property_id=prop_id).order_by(CommonFee.created_at.desc()).all()
+    result = []
+    for f in fees:
+        payments = [{
+            'id': p.id, 'period_date': p.period_date.isoformat(),
+            'paid': p.paid, 'paid_date': p.paid_date.isoformat() if p.paid_date else None,
+            'amount': p.amount,
+        } for p in f.payments_tracking.order_by(CommonFeePayment.period_date.desc()).limit(12).all()]
+        result.append({
+            'id': f.id, 'property_id': f.property_id,
+            'bank_account': f.bank_account, 'recipient': f.recipient,
+            'monthly_amount': f.monthly_amount, 'payment_memo': f.payment_memo,
+            'frequency': f.frequency, 'payment_day': f.payment_day,
+            'include_in_roi': f.include_in_roi, 'is_active': f.is_active,
+            'valid_from': f.valid_from.isoformat() if f.valid_from else None,
+            'valid_to': f.valid_to.isoformat() if f.valid_to else None,
+            'notes': f.notes, 'payments': payments,
+        })
+    return jsonify({'fees': result})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/common-fees', methods=['POST'])
+@login_required
+def admin_add_common_fee(prop_id):
+    data = request.get_json()
+    fee = CommonFee(
+        property_id=prop_id,
+        bank_account=data.get('bank_account'),
+        recipient=data.get('recipient'),
+        monthly_amount=data.get('monthly_amount', 0),
+        payment_memo=data.get('payment_memo'),
+        frequency=data.get('frequency', 'monthly'),
+        payment_day=data.get('payment_day'),
+        include_in_roi=data.get('include_in_roi', True),
+        notes=data.get('notes'),
+    )
+    db.session.add(fee)
+    db.session.commit()
+    return jsonify({'success': True, 'id': fee.id})
+
+
+@api_bp.route('/admin/common-fees/<int:fee_id>', methods=['PUT'])
+@login_required
+def admin_edit_common_fee(fee_id):
+    fee = db.session.get(CommonFee, fee_id)
+    if not fee:
+        return jsonify({'error': 'Nem található!'}), 404
+    data = request.get_json()
+    for key in ['bank_account', 'recipient', 'monthly_amount', 'payment_memo',
+                'frequency', 'payment_day', 'include_in_roi', 'is_active', 'notes']:
+        if key in data:
+            setattr(fee, key, data[key])
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/common-fees/<int:fee_id>', methods=['DELETE'])
+@login_required
+def admin_delete_common_fee(fee_id):
+    fee = db.session.get(CommonFee, fee_id)
+    if not fee:
+        return jsonify({'error': 'Nem található!'}), 404
+    CommonFeePayment.query.filter_by(common_fee_id=fee_id).delete()
+    db.session.delete(fee)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/common-fees/<int:fee_id>/mark-paid', methods=['POST'])
+@login_required
+def admin_common_fee_mark_paid(fee_id):
+    fee = db.session.get(CommonFee, fee_id)
+    if not fee:
+        return jsonify({'error': 'Nem található!'}), 404
+    data = request.get_json()
+    period_str = data.get('period_date')
+    if not period_str:
+        return jsonify({'error': 'period_date szükséges!'}), 400
+
+    period_date = date.fromisoformat(period_str)
+    payment = CommonFeePayment.query.filter_by(
+        common_fee_id=fee_id, period_date=period_date
+    ).first()
+
+    if payment:
+        payment.paid = not payment.paid
+        payment.paid_date = date.today() if payment.paid else None
+    else:
+        payment = CommonFeePayment(
+            common_fee_id=fee_id,
+            period_date=period_date,
+            paid=True,
+            paid_date=date.today(),
+            amount=fee.monthly_amount,
+        )
+        db.session.add(payment)
+
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/common-fee-reminders')
+@login_required
+def admin_common_fee_reminders():
+    """Get upcoming common fee deadlines within 1 week."""
+    from datetime import timedelta
+    today = date.today()
+    one_week = today + timedelta(days=7)
+    reminders = []
+
+    active_fees = CommonFee.query.filter_by(is_active=True).all()
+    for f in active_fees:
+        prop = db.session.get(Property, f.property_id)
+        prop_name = prop.name if prop else '?'
+        # Calculate next payment date
+        payment_day = f.payment_day or 15
+        # Check current month
+        try:
+            next_date = date(today.year, today.month, min(payment_day, 28))
+        except ValueError:
+            next_date = date(today.year, today.month, 28)
+        if next_date < today:
+            # Next month
+            if today.month == 12:
+                next_date = date(today.year + 1, 1, min(payment_day, 28))
+            else:
+                try:
+                    next_date = date(today.year, today.month + 1, min(payment_day, 28))
+                except ValueError:
+                    next_date = date(today.year, today.month + 1, 28)
+
+        if today <= next_date <= one_week:
+            # Check if already paid this period
+            period_start = date(next_date.year, next_date.month, 1)
+            existing = CommonFeePayment.query.filter_by(
+                common_fee_id=f.id, period_date=period_start, paid=True
+            ).first()
+            if not existing:
+                reminders.append({
+                    'property_name': prop_name, 'type': 'common_fee',
+                    'deadline': next_date.isoformat(),
+                    'amount': f.monthly_amount,
+                    'bank_account': f.bank_account, 'payment_memo': f.payment_memo,
+                })
+    return jsonify({'reminders': reminders})
+
+
+# ============================================================
+# Bérleti Jövedelem Adózás (Rental Tax Config) Endpoints
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/rental-tax')
+@login_required
+def admin_get_rental_tax(prop_id):
+    config = RentalTaxConfig.query.filter_by(property_id=prop_id).first()
+    if not config:
+        return jsonify({'config': None})
+    return jsonify({'config': {
+        'id': config.id, 'property_id': config.property_id,
+        'tax_mode': config.tax_mode,
+        'is_vat_registered': config.is_vat_registered,
+        'vat_rate': config.vat_rate, 'notes': config.notes,
+    }})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/rental-tax', methods=['PUT'])
+@login_required
+def admin_save_rental_tax(prop_id):
+    data = request.get_json()
+    config = RentalTaxConfig.query.filter_by(property_id=prop_id).first()
+    if not config:
+        config = RentalTaxConfig(property_id=prop_id)
+        db.session.add(config)
+    config.tax_mode = data.get('tax_mode', 'maganszemely_10pct')
+    config.is_vat_registered = data.get('is_vat_registered', False)
+    config.vat_rate = data.get('vat_rate')
+    config.notes = data.get('notes')
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+# ============================================================
+# Mérőóra Nyilvántartás (Meter Info) Endpoints
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/meters')
+@login_required
+def admin_property_meters(prop_id):
+    meters = MeterInfo.query.filter_by(property_id=prop_id).all()
+    return jsonify({'meters': [{
+        'id': m.id, 'property_id': m.property_id,
+        'utility_type': m.utility_type, 'serial_number': m.serial_number,
+        'location': m.location, 'notes': m.notes,
+    } for m in meters]})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/meters', methods=['POST'])
+@login_required
+def admin_add_meter(prop_id):
+    data = request.get_json()
+    meter = MeterInfo(
+        property_id=prop_id,
+        utility_type=data.get('utility_type', 'villany'),
+        serial_number=data.get('serial_number'),
+        location=data.get('location'),
+        notes=data.get('notes'),
+    )
+    db.session.add(meter)
+    db.session.commit()
+    return jsonify({'success': True, 'id': meter.id})
+
+
+@api_bp.route('/admin/meters/<int:meter_id>', methods=['PUT'])
+@login_required
+def admin_edit_meter(meter_id):
+    meter = db.session.get(MeterInfo, meter_id)
+    if not meter:
+        return jsonify({'error': 'Nem található!'}), 404
+    data = request.get_json()
+    for key in ['utility_type', 'serial_number', 'location', 'notes']:
+        if key in data:
+            setattr(meter, key, data[key])
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/meters/<int:meter_id>', methods=['DELETE'])
+@login_required
+def admin_delete_meter(meter_id):
+    meter = db.session.get(MeterInfo, meter_id)
+    if not meter:
+        return jsonify({'error': 'Nem található!'}), 404
+    db.session.delete(meter)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+# ============================================================
+# Chat Endpoints
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/chat')
+@login_required
+def admin_get_chat(prop_id):
+    page = request.args.get('page', 1, type=int)
+    per_page = 50
+    messages = ChatMessage.query.filter_by(property_id=prop_id) \
+        .order_by(ChatMessage.created_at.asc()) \
+        .paginate(page=page, per_page=per_page, error_out=False)
+    return jsonify({'messages': [{
+        'id': m.id, 'sender_type': m.sender_type, 'sender_id': m.sender_id,
+        'message': m.message, 'is_read': m.is_read,
+        'created_at': m.created_at.isoformat() if m.created_at else None,
+    } for m in messages.items],
+        'has_more': messages.has_next,
+    })
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/chat', methods=['POST'])
+@login_required
+def admin_send_chat(prop_id):
+    data = request.get_json()
+    msg = ChatMessage(
+        property_id=prop_id,
+        sender_type='admin',
+        sender_id=current_user.id,
+        message=data.get('message', ''),
+    )
+    db.session.add(msg)
+    db.session.commit()
+    return jsonify({'success': True, 'id': msg.id})
+
+
+@api_bp.route('/admin/chat/unread')
+@login_required
+def admin_chat_unread():
+    from sqlalchemy import func
+    counts = db.session.query(
+        ChatMessage.property_id,
+        func.count(ChatMessage.id)
+    ).filter(
+        ChatMessage.sender_type == 'tenant',
+        ChatMessage.is_read == False
+    ).group_by(ChatMessage.property_id).all()
+    return jsonify({'unread': {str(pid): cnt for pid, cnt in counts}})
+
+
+@api_bp.route('/admin/chat/mark-read/<int:prop_id>', methods=['POST'])
+@login_required
+def admin_mark_chat_read(prop_id):
+    ChatMessage.query.filter_by(
+        property_id=prop_id, sender_type='tenant', is_read=False
+    ).update({'is_read': True})
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/tenant/chat')
+def tenant_get_chat():
+    prop_id = session.get('property_id')
+    if not prop_id:
+        return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
+    messages = ChatMessage.query.filter_by(property_id=prop_id) \
+        .order_by(ChatMessage.created_at.asc()).all()
+    return jsonify({'messages': [{
+        'id': m.id, 'sender_type': m.sender_type,
+        'message': m.message, 'is_read': m.is_read,
+        'created_at': m.created_at.isoformat() if m.created_at else None,
+    } for m in messages]})
+
+
+@api_bp.route('/tenant/chat', methods=['POST'])
+def tenant_send_chat():
+    prop_id = session.get('property_id')
+    tenant_id = session.get('tenant_user_id')
+    if not prop_id or not tenant_id:
+        return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
+    data = request.get_json()
+    msg = ChatMessage(
+        property_id=prop_id,
+        sender_type='tenant',
+        sender_id=tenant_id,
+        message=data.get('message', ''),
+    )
+    db.session.add(msg)
+    # Mark admin messages as read
+    ChatMessage.query.filter_by(
+        property_id=prop_id, sender_type='admin', is_read=False
+    ).update({'is_read': True})
+    db.session.commit()
+    return jsonify({'success': True, 'id': msg.id})
+
+
+@api_bp.route('/tenant/chat/unread')
+def tenant_chat_unread():
+    prop_id = session.get('property_id')
+    if not prop_id:
+        return jsonify({'count': 0})
+    count = ChatMessage.query.filter_by(
+        property_id=prop_id, sender_type='admin', is_read=False
+    ).count()
+    return jsonify({'count': count})
+
+
+# ============================================================
+# Move-In / Move-Out Workflow Endpoints
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/move-in/start', methods=['POST'])
+@login_required
+def admin_move_in_start(prop_id):
+    """Initialize move-in workflow — create checklist entries."""
+    data = request.get_json()
+    tenant_id = data.get('tenant_id')
+
+    steps = ['meter_readings', 'handover_protocol', 'key_handover', 'contract_upload']
+    for step in steps:
+        existing = HandoverChecklist.query.filter_by(
+            property_id=prop_id, checklist_type='move_in', step=step
+        ).first()
+        if not existing:
+            item = HandoverChecklist(
+                property_id=prop_id,
+                tenant_user_id=tenant_id,
+                checklist_type='move_in',
+                step=step,
+            )
+            db.session.add(item)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/move-in/status')
+@login_required
+def admin_move_in_status(prop_id):
+    items = HandoverChecklist.query.filter_by(
+        property_id=prop_id, checklist_type='move_in'
+    ).all()
+    return jsonify({'steps': [{
+        'id': i.id, 'step': i.step, 'status': i.status,
+        'data': i.data_json,
+        'completed_at': i.completed_at.isoformat() if i.completed_at else None,
+    } for i in items]})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/move-in/<step>', methods=['POST'])
+@login_required
+def admin_move_in_step(prop_id, step):
+    """Save data for a move-in step."""
+    import json as json_mod
+    data = request.get_json()
+    item = HandoverChecklist.query.filter_by(
+        property_id=prop_id, checklist_type='move_in', step=step
+    ).first()
+    if not item:
+        item = HandoverChecklist(
+            property_id=prop_id, checklist_type='move_in', step=step
+        )
+        db.session.add(item)
+    item.data_json = json_mod.dumps(data.get('data', {}), ensure_ascii=False)
+    item.status = 'completed'
+    item.completed_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/move-in/complete', methods=['POST'])
+@login_required
+def admin_move_in_complete(prop_id):
+    """Finalize move-in: activate tenant, set date."""
+    data = request.get_json()
+    tenant_id = data.get('tenant_id')
+    move_in_date_str = data.get('move_in_date', date.today().isoformat())
+    deposit = data.get('deposit_amount')
+
+    if tenant_id:
+        tenant = db.session.get(TenantUser, tenant_id)
+        if tenant:
+            tenant.is_active = True
+            tenant.move_in_date = date.fromisoformat(move_in_date_str)
+            tenant.move_out_date = None
+            if deposit:
+                tenant.deposit_amount = deposit
+            # Ensure property access
+            prop = db.session.get(Property, prop_id)
+            if prop and prop not in tenant.properties:
+                tenant.properties.append(prop)
+
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/move-out/start', methods=['POST'])
+@login_required
+def admin_move_out_start(prop_id):
+    """Initialize move-out workflow."""
+    steps = ['final_readings', 'condition_assessment', 'deposit_settlement', 'key_return']
+    for step in steps:
+        existing = HandoverChecklist.query.filter_by(
+            property_id=prop_id, checklist_type='move_out', step=step
+        ).first()
+        if not existing:
+            item = HandoverChecklist(
+                property_id=prop_id, checklist_type='move_out', step=step
+            )
+            db.session.add(item)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/move-out/status')
+@login_required
+def admin_move_out_status(prop_id):
+    items = HandoverChecklist.query.filter_by(
+        property_id=prop_id, checklist_type='move_out'
+    ).all()
+    return jsonify({'steps': [{
+        'id': i.id, 'step': i.step, 'status': i.status,
+        'data': i.data_json,
+        'completed_at': i.completed_at.isoformat() if i.completed_at else None,
+    } for i in items]})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/move-out/<step>', methods=['POST'])
+@login_required
+def admin_move_out_step(prop_id, step):
+    """Save data for a move-out step."""
+    import json as json_mod
+    data = request.get_json()
+    item = HandoverChecklist.query.filter_by(
+        property_id=prop_id, checklist_type='move_out', step=step
+    ).first()
+    if not item:
+        item = HandoverChecklist(
+            property_id=prop_id, checklist_type='move_out', step=step
+        )
+        db.session.add(item)
+    item.data_json = json_mod.dumps(data.get('data', {}), ensure_ascii=False)
+    item.status = 'completed'
+    item.completed_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/move-out/complete', methods=['POST'])
+@login_required
+def admin_move_out_complete(prop_id):
+    """Finalize move-out: deactivate tenant, archive, remove access."""
+    data = request.get_json()
+    deposit_returned = data.get('deposit_returned', 0)
+    deposit_deductions = data.get('deposit_deductions', 0)
+    deposit_notes = data.get('deposit_notes', '')
+
+    prop = db.session.get(Property, prop_id)
+    if not prop:
+        return jsonify({'error': 'Ingatlan nem található!'}), 404
+
+    # Find active tenant for this property
+    tenant = TenantUser.query.filter(
+        TenantUser.is_active == True,
+        TenantUser.properties.any(Property.id == prop_id)
+    ).first()
+
+    if tenant:
+        # Calculate total payments during tenancy
+        total_pay = db.session.query(db.func.sum(Payment.amount_huf)).filter(
+            Payment.property_id == prop_id
+        ).scalar() or 0
+
+        # Archive tenant
+        history = TenantHistory(
+            property_id=prop_id,
+            tenant_user_id=tenant.id,
+            tenant_name=tenant.name,
+            tenant_email=tenant.email,
+            move_in_date=tenant.move_in_date,
+            move_out_date=date.today(),
+            deposit_amount=tenant.deposit_amount,
+            deposit_returned=deposit_returned,
+            deposit_deductions=deposit_deductions,
+            deposit_notes=deposit_notes,
+            total_payments=total_pay,
+        )
+        db.session.add(history)
+
+        # Deactivate
+        tenant.is_active = False
+        tenant.move_out_date = date.today()
+        # Remove property access
+        if prop in tenant.properties:
+            tenant.properties.remove(prop)
+
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/tenant-history')
+@login_required
+def admin_tenant_history(prop_id):
+    history = TenantHistory.query.filter_by(property_id=prop_id) \
+        .order_by(TenantHistory.move_out_date.desc()).all()
+    return jsonify({'history': [{
+        'id': h.id, 'tenant_name': h.tenant_name, 'tenant_email': h.tenant_email,
+        'move_in_date': h.move_in_date.isoformat() if h.move_in_date else None,
+        'move_out_date': h.move_out_date.isoformat() if h.move_out_date else None,
+        'deposit_amount': h.deposit_amount, 'deposit_returned': h.deposit_returned,
+        'deposit_deductions': h.deposit_deductions, 'deposit_notes': h.deposit_notes,
+        'total_payments': h.total_payments,
+    } for h in history]})
+
+
+# ============================================================
+# Enhanced ROI Endpoint (replaces original)
+# ============================================================
+
+@api_bp.route('/admin/roi-enhanced')
+@login_required
+def admin_roi_enhanced():
+    """Enhanced ROI with property tax, common fees, and rental income tax."""
+    from dateutil.relativedelta import relativedelta
+
+    props = Property.query.filter(
+        Property.purchase_price.isnot(None),
+        Property.monthly_rent.isnot(None),
+        Property.purchase_price > 0,
+        Property.monthly_rent > 0,
+    ).all()
+
+    result = []
+    for p in props:
+        annual_rent = p.monthly_rent * 12
+
+        # Maintenance costs
+        total_maint = db.session.query(db.func.sum(MaintenanceLog.cost_huf)).filter_by(
+            property_id=p.id
+        ).scalar() or 0
+
+        # Property tax (latest year, if include_in_roi)
+        latest_tax = PropertyTax.query.filter_by(
+            property_id=p.id, include_in_roi=True
+        ).order_by(PropertyTax.year.desc()).first()
+        annual_tax = latest_tax.annual_amount if latest_tax else 0
+
+        # Common fees (active, if include_in_roi)
+        active_fee = CommonFee.query.filter_by(
+            property_id=p.id, include_in_roi=True, is_active=True
+        ).first()
+        annual_common_fee = 0
+        if active_fee:
+            if active_fee.frequency == 'monthly':
+                annual_common_fee = active_fee.monthly_amount * 12
+            elif active_fee.frequency == 'quarterly':
+                annual_common_fee = active_fee.monthly_amount * 4
+
+        # Rental income tax estimation
+        rental_income_tax = 0
+        tax_config = RentalTaxConfig.query.filter_by(property_id=p.id).first()
+        if tax_config:
+            if tax_config.tax_mode == 'maganszemely_10pct':
+                # Jövedelem = bevétel × 90%, SZJA = jövedelem × 15%
+                rental_income_tax = annual_rent * 0.90 * 0.15
+            elif tax_config.tax_mode == 'maganszemely_teteles':
+                # Tételes: jövedelem = bevétel - költségek, SZJA = jöv × 15%
+                costs = total_maint + annual_tax + annual_common_fee
+                taxable = max(0, annual_rent - costs)
+                rental_income_tax = taxable * 0.15
+            elif tax_config.tax_mode == 'egyeni_vallalkozo_atalany':
+                # Átalányadó: 80% költséghányad, 15% SZJA + ~13% TB (nettó ~18.5%)
+                rental_income_tax = annual_rent * 0.20 * 0.15
+            elif tax_config.tax_mode == 'egyeni_vallalkozo_vszja':
+                # Vállalkozói SZJA: egyszerűsített becslés 9% TAO + 15% osztalékadó
+                rental_income_tax = annual_rent * 0.22  # ~ 9% + ~13% osztalék
+
+        total_costs = total_maint + annual_tax + annual_common_fee + rental_income_tax
+        annual_yield = ((annual_rent - total_costs) / p.purchase_price * 100)
+
+        total_rent = db.session.query(db.func.sum(Payment.amount_huf)).filter_by(
+            property_id=p.id
+        ).scalar() or 0
+        progress_pct = min(100, (total_rent / p.purchase_price * 100))
+        breakeven_months = int(p.purchase_price / max(p.monthly_rent, 1))
+
+        # Sparkline: last 12 months
+        from sqlalchemy import extract, func
+        monthly = db.session.query(
+            extract('month', Payment.payment_date).label('m'),
+            func.sum(Payment.amount_huf).label('total'),
+        ).filter(Payment.property_id == p.id) \
+            .group_by('m').order_by('m').limit(12).all()
+        sparkline = [{'month': int(m.m), 'amount': float(m.total)} for m in monthly]
+
+        result.append({
+            'id': p.id, 'name': p.name, 'property_type': p.property_type,
+            'purchase_price': p.purchase_price, 'monthly_rent': p.monthly_rent,
+            'annual_yield': round(annual_yield, 2),
+            'total_rent_collected': total_rent,
+            'progress_pct': round(progress_pct, 1),
+            'breakeven_months': breakeven_months,
+            'breakeven_date': (date.today() + relativedelta(
+                months=max(0, breakeven_months - int(total_rent / max(p.monthly_rent, 1)))
+            )).isoformat(),
+            'cost_breakdown': {
+                'maintenance': round(total_maint, 0),
+                'property_tax': round(annual_tax, 0),
+                'common_fees': round(annual_common_fee, 0),
+                'rental_income_tax': round(rental_income_tax, 0),
+            },
+            'total_costs': round(total_costs, 0),
+            'tax_mode': tax_config.tax_mode if tax_config else None,
+            'monthly_payments': sparkline,
+        })
+
+    return jsonify({'properties': result})

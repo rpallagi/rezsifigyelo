@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, PlusCircle, History, User } from "lucide-react";
+import { LayoutDashboard, PlusCircle, History, User, MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { tenantSession } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -14,6 +14,7 @@ const TenantLayout = () => {
     { to: "/tenant", icon: LayoutDashboard, label: t('nav.home') },
     { to: "/tenant/reading", icon: PlusCircle, label: t('nav.record') },
     { to: "/tenant/history", icon: History, label: t('nav.history') },
+    { to: "/tenant/chat", icon: MessageCircle, label: t('chat.title') },
     { to: "/tenant/profile", icon: User, label: t('nav.profile') },
   ];
 

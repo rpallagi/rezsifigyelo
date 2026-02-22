@@ -42,6 +42,12 @@ class TenantUser(db.Model):
     facebook_id = db.Column(db.String(255), unique=True, nullable=True)
     apple_id = db.Column(db.String(255), unique=True, nullable=True)
 
+    # Bérlő életciklus
+    is_active = db.Column(db.Boolean, default=True)
+    move_in_date = db.Column(db.Date, nullable=True)
+    move_out_date = db.Column(db.Date, nullable=True)
+    deposit_amount = db.Column(db.Float, nullable=True)  # kaució
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -278,3 +284,219 @@ class MarketingContent(db.Model):
 
     def __repr__(self):
         return f'<MarketingContent property_id={self.property_id}>'
+
+
+# ============================================================
+# Ingatlanadó (Property Tax)
+# ============================================================
+
+class PropertyTax(db.Model):
+    """Ingatlanadó nyilvántartás évenként."""
+    __tablename__ = 'property_taxes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+
+    # Fizetési adatok (határozatból)
+    bank_account = db.Column(db.String(50), nullable=True)
+    recipient = db.Column(db.String(200), nullable=True)
+    annual_amount = db.Column(db.Float, nullable=False)
+    installment_amount = db.Column(db.Float, nullable=True)
+    payment_memo = db.Column(db.String(200), nullable=True)
+
+    # Határidők (szept 15, márc 15)
+    deadline_autumn = db.Column(db.Date, nullable=True)
+    deadline_spring = db.Column(db.Date, nullable=True)
+
+    # Befizetés nyomkövetés
+    autumn_paid = db.Column(db.Boolean, default=False)
+    autumn_paid_date = db.Column(db.Date, nullable=True)
+    spring_paid = db.Column(db.Boolean, default=False)
+    spring_paid_date = db.Column(db.Date, nullable=True)
+
+    # Feltöltött határozat
+    document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), nullable=True)
+
+    # ROI integrálás
+    include_in_roi = db.Column(db.Boolean, default=True)
+
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    property = db.relationship('Property', backref=db.backref('property_taxes', lazy='dynamic'))
+    document = db.relationship('Document', backref='property_tax')
+
+    def __repr__(self):
+        return f'<PropertyTax property_id={self.property_id} year={self.year}>'
+
+
+# ============================================================
+# Közös Költség (Common/Condo Fees)
+# ============================================================
+
+class CommonFee(db.Model):
+    """Közös költség konfiguráció ingatlanonként."""
+    __tablename__ = 'common_fees'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+
+    bank_account = db.Column(db.String(50), nullable=True)
+    recipient = db.Column(db.String(200), nullable=True)
+    monthly_amount = db.Column(db.Float, nullable=False)
+    payment_memo = db.Column(db.String(200), nullable=True)
+    frequency = db.Column(db.String(20), default='monthly')  # monthly / quarterly
+    payment_day = db.Column(db.Integer, nullable=True)  # hónap napja
+
+    document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), nullable=True)
+    include_in_roi = db.Column(db.Boolean, default=True)
+    is_active = db.Column(db.Boolean, default=True)
+    valid_from = db.Column(db.Date, nullable=True)
+    valid_to = db.Column(db.Date, nullable=True)
+
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    property = db.relationship('Property', backref=db.backref('common_fees', lazy='dynamic'))
+    document = db.relationship('Document', backref='common_fee')
+
+
+class CommonFeePayment(db.Model):
+    """Közös költség befizetés nyomkövetés."""
+    __tablename__ = 'common_fee_payments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    common_fee_id = db.Column(db.Integer, db.ForeignKey('common_fees.id'), nullable=False)
+    period_date = db.Column(db.Date, nullable=False)
+    paid = db.Column(db.Boolean, default=False)
+    paid_date = db.Column(db.Date, nullable=True)
+    amount = db.Column(db.Float, nullable=True)  # override összeg
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    common_fee = db.relationship('CommonFee', backref=db.backref('payments_tracking', lazy='dynamic'))
+
+
+# ============================================================
+# Bérleti Jövedelem Adózás (Rental Income Tax Config)
+# ============================================================
+
+class RentalTaxConfig(db.Model):
+    """Bérleti jövedelem adózási konfiguráció ingatlanonként."""
+    __tablename__ = 'rental_tax_configs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False, unique=True)
+
+    # Adózási mód (NAV szerint)
+    # maganszemely_10pct:  Magánszemély + 10% költséghányad
+    # maganszemely_teteles: Magánszemély + tételes költségelszámolás
+    # egyeni_vallalkozo_atalany: EV + átalányadó
+    # egyeni_vallalkozo_vszja: EV + vállalkozói SZJA
+    tax_mode = db.Column(db.String(50), nullable=False, default='maganszemely_10pct')
+
+    # ÁFA státusz
+    is_vat_registered = db.Column(db.Boolean, default=False)
+    vat_rate = db.Column(db.Float, nullable=True)  # 0.27 (27%) vagy 0.05 (5% lakás)
+
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    property = db.relationship('Property', backref=db.backref('rental_tax_config', uselist=False))
+
+
+# ============================================================
+# Bérlő Történet (archivált bérlők)
+# ============================================================
+
+class TenantHistory(db.Model):
+    """Archivált bérlő rekord."""
+    __tablename__ = 'tenant_history'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+    tenant_user_id = db.Column(db.Integer, db.ForeignKey('tenant_users.id'), nullable=True)
+    tenant_name = db.Column(db.String(100), nullable=True)
+    tenant_email = db.Column(db.String(255), nullable=True)
+
+    move_in_date = db.Column(db.Date, nullable=True)
+    move_out_date = db.Column(db.Date, nullable=True)
+    deposit_amount = db.Column(db.Float, nullable=True)
+    deposit_returned = db.Column(db.Float, nullable=True)
+    deposit_deductions = db.Column(db.Float, nullable=True)
+    deposit_notes = db.Column(db.Text, nullable=True)
+    total_payments = db.Column(db.Float, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    property = db.relationship('Property', backref=db.backref('tenant_history', lazy='dynamic'))
+
+
+# ============================================================
+# Átadás-Átvételi Checklist (be/kiköltözés workflow)
+# ============================================================
+
+class HandoverChecklist(db.Model):
+    """Átadás-átvételi jegyzőkönyv tételek."""
+    __tablename__ = 'handover_checklist'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+    tenant_user_id = db.Column(db.Integer, db.ForeignKey('tenant_users.id'), nullable=True)
+    checklist_type = db.Column(db.String(20), nullable=False)  # 'move_in' / 'move_out'
+
+    # Wizard lépés azonosító
+    step = db.Column(db.String(50), nullable=False)
+    # move_in lépések: meter_readings, handover_protocol, key_handover, contract_upload
+    # move_out lépések: final_readings, condition_assessment, deposit_settlement, key_return
+
+    status = db.Column(db.String(20), default='pending')  # pending / completed
+    data_json = db.Column(db.Text, nullable=True)  # lépés-specifikus adat (JSON)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    property = db.relationship('Property', backref=db.backref('handover_checklists', lazy='dynamic'))
+
+
+# ============================================================
+# Chat Üzenetek
+# ============================================================
+
+class ChatMessage(db.Model):
+    """Chat üzenet admin és bérlő között."""
+    __tablename__ = 'chat_messages'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+    sender_type = db.Column(db.String(10), nullable=False)  # 'admin' / 'tenant'
+    sender_id = db.Column(db.Integer, nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    property = db.relationship('Property', backref=db.backref('chat_messages', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<ChatMessage {self.sender_type} property={self.property_id}>'
+
+
+# ============================================================
+# Mérőóra nyilvántartás (gyári számok)
+# ============================================================
+
+class MeterInfo(db.Model):
+    """Mérőóra gyári szám és adatok ingatlanhoz."""
+    __tablename__ = 'meter_info'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+    utility_type = db.Column(db.String(20), nullable=False)  # villany / viz / gaz
+    serial_number = db.Column(db.String(100), nullable=True)  # gyári szám
+    location = db.Column(db.String(200), nullable=True)  # hol van (pl. "pince", "konyha")
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    property = db.relationship('Property', backref=db.backref('meters', lazy='dynamic'))

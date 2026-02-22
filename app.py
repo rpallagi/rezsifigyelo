@@ -7,9 +7,11 @@ from flask import Flask, jsonify, send_from_directory
 from flask_login import LoginManager
 
 from config import config
-from models import db, AdminUser, TenantUser, Property, TariffGroup, Tariff
+from models import (db, AdminUser, TenantUser, Property, TariffGroup, Tariff,
+                    PropertyTax, CommonFee, CommonFeePayment, RentalTaxConfig,
+                    TenantHistory, HandoverChecklist, ChatMessage, MeterInfo)
 
-APP_VERSION = '1.0.0'
+APP_VERSION = '3.1.0'
 
 login_manager = LoginManager()
 
@@ -120,10 +122,23 @@ def _run_migrations():
             db.session.commit()
             print("[MIGRATE] Added avatar_filename to properties table")
 
-    # v3.0: Create documents table if not exists (db.create_all handles this,
-    # but just in case)
-    # v3.0: Create marketing_contents table if not exists
-    # db.create_all() already handles new tables, so no action needed here.
+    # v3.1: Add tenant lifecycle fields to tenant_users
+    if 'tenant_users' in inspector.get_table_names():
+        columns = [c['name'] for c in inspector.get_columns('tenant_users')]
+        new_cols = []
+        if 'is_active' not in columns:
+            new_cols.append('ALTER TABLE tenant_users ADD COLUMN is_active BOOLEAN DEFAULT TRUE')
+        if 'move_in_date' not in columns:
+            new_cols.append('ALTER TABLE tenant_users ADD COLUMN move_in_date DATE')
+        if 'move_out_date' not in columns:
+            new_cols.append('ALTER TABLE tenant_users ADD COLUMN move_out_date DATE')
+        if 'deposit_amount' not in columns:
+            new_cols.append('ALTER TABLE tenant_users ADD COLUMN deposit_amount FLOAT')
+        if new_cols:
+            for sql in new_cols:
+                db.session.execute(text(sql))
+            db.session.commit()
+            print("[MIGRATE] Added tenant lifecycle fields to tenant_users")
 
 
 def seed_initial_data(app):

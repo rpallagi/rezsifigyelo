@@ -9,8 +9,9 @@ import {
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarProvider, SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { adminSession } from "@/lib/api";
+import { adminSession, getTaxReminders, getCommonFeeReminders } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { toast } from "sonner";
 
 const AdminLayout = () => {
   const { t } = useI18n();
@@ -38,7 +39,26 @@ const AdminLayout = () => {
     adminSession()
       .then((data) => {
         if (!data.logged_in) navigate("/admin/login");
-        else setChecked(true);
+        else {
+          setChecked(true);
+          // Show reminders on login
+          getTaxReminders().then(({ reminders }) => {
+            reminders.forEach((r) => {
+              toast.warning(
+                `${r.property_name}: ${t('tax.title')} – ${r.amount?.toLocaleString('hu-HU')} Ft`,
+                { description: `${t('tax.paymentMemo')}: ${r.payment_memo || '—'}`, duration: 10000 }
+              );
+            });
+          }).catch(() => {});
+          getCommonFeeReminders().then(({ reminders }) => {
+            reminders.forEach((r) => {
+              toast.warning(
+                `${r.property_name}: ${t('fees.title')} – ${r.amount?.toLocaleString('hu-HU')} Ft`,
+                { description: `${t('fees.paymentMemo')}: ${r.payment_memo || '—'}`, duration: 10000 }
+              );
+            });
+          }).catch(() => {});
+        }
       })
       .catch(() => navigate("/admin/login"));
   }, []);

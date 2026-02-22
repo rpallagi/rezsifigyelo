@@ -24,6 +24,9 @@ import AdminROI from "./pages/admin/AdminROI";
 import AdminSystem from "./pages/admin/AdminSystem";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminPropertyDetail from "./pages/admin/AdminPropertyDetail";
+import MoveInWizard from "./pages/admin/MoveInWizard";
+import MoveOutWizard from "./pages/admin/MoveOutWizard";
+import TenantChat from "./pages/tenant/TenantChat";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -47,12 +50,15 @@ const App = () => (
             <Route path="reading" element={<MeterReading />} />
             <Route path="history" element={<TenantHistory />} />
             <Route path="profile" element={<TenantProfile />} />
+            <Route path="chat" element={<TenantChat />} />
           </Route>
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="properties" element={<AdminProperties />} />
             <Route path="properties/:id" element={<AdminPropertyDetail />} />
+            <Route path="properties/:id/move-in" element={<MoveInWizard />} />
+            <Route path="properties/:id/move-out" element={<MoveOutWizard />} />
             <Route path="readings" element={<AdminReadings />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="maintenance" element={<AdminMaintenance />} />
