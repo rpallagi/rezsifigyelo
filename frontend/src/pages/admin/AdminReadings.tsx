@@ -294,7 +294,7 @@ const AdminReadings = () => {
                         <ExternalLink className="h-3 w-3" />
                       </a>
                     ) : (
-                      <span className="text-muted-foreground text-xs">\u2014</span>
+                      <span className="text-muted-foreground text-xs">{"\u2014"}</span>
                     )}
                   </TableCell>
                 </TableRow>
