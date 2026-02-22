@@ -1,4 +1,5 @@
 # Dev environment - Unraid / local development
+# Flask API (port 5003) + React Vite dev server (port 5173)
 services:
   postgres:
     image: postgres:15
@@ -25,18 +26,19 @@ services:
     container_name: rezsi-app-dev
     restart: unless-stopped
     labels:
-      - "net.unraid.docker.webui=http://[IP]:[PORT:5003]/"
+      - "net.unraid.docker.webui=http://[IP]:[PORT:5173]/"
       - "net.unraid.docker.icon=https://raw.githubusercontent.com/rpallagi/rezsifigyelo/main/static/img/icon-192.png"
       - "net.unraid.docker.managed=compose"
-      - "org.opencontainers.image.title=Rezsi Figyelo"
-      - "org.opencontainers.image.description=Kozuzemi meroallas nyilvantarto"
-      - "org.opencontainers.image.version=1.0.0"
+      - "org.opencontainers.image.title=Rezsi Követés"
+      - "org.opencontainers.image.description=Közüzemi mérőállás nyilvántartó és ingatlankezelő"
+      - "org.opencontainers.image.version=2.0.0"
       - "org.opencontainers.image.source=https://github.com/rpallagi/rezsifigyelo"
     depends_on:
       postgres:
         condition: service_healthy
     ports:
       - "5003:5003"
+      - "5173:5173"
     environment:
       - FLASK_PORT=5003
       - FLASK_ENV=development
@@ -46,8 +48,8 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
     volumes:
       - ./uploads:/app/uploads
-      - .:/app  # Mount source code (rw for git operations + hot reload)
-      - /var/run/docker.sock:/var/run/docker.sock  # For self-rebuild capability
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5003/api/health"]
       interval: 30s

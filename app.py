@@ -1,9 +1,9 @@
-"""Rezsi Figyelo - Flask application factory."""
+"""Rezsi Követés - Flask application factory with React SPA frontend."""
 import os
 import logging
 import bcrypt
 from datetime import date, datetime
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_login import LoginManager
 
 from config import config
@@ -54,28 +54,47 @@ def create_app(config_name=None):
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         return response
 
-    # Health check endpoint (monitoring, uptime checks)
-    @app.route('/api/health')
-    def health_check():
-        """Health check - DB connection test."""
-        try:
-            db.session.execute(db.text('SELECT 1'))
-            db_status = 'ok'
-        except Exception as e:
-            db_status = f'error: {str(e)}'
+    # Store app version and base dir in config
+    app.config['APP_VERSION'] = APP_VERSION
+    app.config['BASE_DIR'] = os.path.dirname(os.path.abspath(__file__))
 
-        return jsonify({
-            'status': 'ok' if db_status == 'ok' else 'degraded',
-            'version': APP_VERSION,
-            'database': db_status,
-            'timestamp': datetime.utcnow().isoformat(),
-        }), 200 if db_status == 'ok' else 503
+    # Register API blueprint (JSON endpoints for React frontend)
+    from routes.api import api_bp
+    app.register_blueprint(api_bp)
 
-    # Register blueprints
+    # Keep legacy Jinja blueprints for backward compatibility
     from routes.tenant import tenant_bp
     from routes.admin import admin_bp
-    app.register_blueprint(tenant_bp)
-    app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(tenant_bp, url_prefix='/legacy')
+    app.register_blueprint(admin_bp, url_prefix='/legacy/admin')
+
+    # Serve React SPA (built files from frontend/dist or static/dist)
+    dist_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'dist')
+
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve_spa(path):
+        """Serve React SPA - all non-API routes go to index.html."""
+        # Skip API routes
+        if path.startswith('api/'):
+            return jsonify({'error': 'Not found'}), 404
+
+        # Try to serve static file from dist
+        file_path = os.path.join(dist_dir, path)
+        if path and os.path.isfile(file_path):
+            return send_from_directory(dist_dir, path)
+
+        # Fallback to index.html for SPA routing
+        index_path = os.path.join(dist_dir, 'index.html')
+        if os.path.isfile(index_path):
+            return send_from_directory(dist_dir, 'index.html')
+
+        # If no build yet, show helpful message
+        return jsonify({
+            'message': 'Rezsi Követés API running. Frontend not built yet.',
+            'api_health': '/api/health',
+            'version': APP_VERSION,
+        })
 
     # Create tables and seed data
     with app.app_context():

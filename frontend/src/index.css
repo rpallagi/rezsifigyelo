@@ -1,0 +1,235 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 225 20% 97%;
+    --foreground: 230 25% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 230 25% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 25% 10%;
+
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 230 25% 93%;
+    --secondary-foreground: 230 25% 15%;
+
+    --muted: 230 15% 94%;
+    --muted-foreground: 230 10% 46%;
+
+    --accent: 239 60% 95%;
+    --accent-foreground: 239 84% 50%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 230 18% 90%;
+    --input: 230 18% 88%;
+    --ring: 239 84% 67%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 230 15% 30%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 239 60% 95%;
+    --sidebar-accent-foreground: 239 84% 50%;
+    --sidebar-border: 230 18% 92%;
+    --sidebar-ring: 239 84% 67%;
+
+    --success: 152 69% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(239, 84%, 67%), hsl(260, 80%, 60%));
+    --gradient-hero: linear-gradient(160deg, hsl(239, 84%, 67%) 0%, hsl(280, 70%, 55%) 50%, hsl(330, 80%, 60%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%) 0%, hsl(230, 20%, 98%) 100%);
+    --gradient-tenant: linear-gradient(135deg, hsl(199, 89%, 48%) 0%, hsl(239, 84%, 67%) 100%);
+    --gradient-admin: linear-gradient(135deg, hsl(260, 80%, 55%) 0%, hsl(330, 80%, 55%) 100%);
+
+    --shadow-sm: 0 1px 3px 0 hsl(230, 25%, 10%, 0.04), 0 1px 2px -1px hsl(230, 25%, 10%, 0.04);
+    --shadow-md: 0 4px 6px -1px hsl(230, 25%, 10%, 0.06), 0 2px 4px -2px hsl(230, 25%, 10%, 0.04);
+    --shadow-lg: 0 10px 25px -5px hsl(230, 25%, 10%, 0.08), 0 8px 10px -6px hsl(230, 25%, 10%, 0.04);
+    --shadow-card: 0 1px 3px hsl(230, 25%, 10%, 0.04), 0 6px 16px hsl(230, 25%, 10%, 0.06);
+    --shadow-card-hover: 0 4px 12px hsl(230, 25%, 10%, 0.08), 0 12px 28px hsl(230, 25%, 10%, 0.1);
+
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  .dark {
+    --background: 230 25% 7%;
+    --foreground: 210 20% 93%;
+
+    --card: 230 22% 11%;
+    --card-foreground: 210 20% 93%;
+
+    --popover: 230 22% 11%;
+    --popover-foreground: 210 20% 93%;
+
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 230 20% 16%;
+    --secondary-foreground: 210 20% 90%;
+
+    --muted: 230 15% 18%;
+    --muted-foreground: 230 10% 55%;
+
+    --accent: 239 40% 20%;
+    --accent-foreground: 239 84% 75%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 20% 93%;
+
+    --border: 230 15% 20%;
+    --input: 230 15% 22%;
+    --ring: 239 84% 67%;
+
+    --sidebar-background: 230 25% 9%;
+    --sidebar-foreground: 210 15% 70%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 239 40% 18%;
+    --sidebar-accent-foreground: 239 84% 75%;
+    --sidebar-border: 230 15% 18%;
+    --sidebar-ring: 239 84% 67%;
+
+    --success: 152 69% 35%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 45%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 45%;
+    --info-foreground: 0 0% 100%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(239, 84%, 60%), hsl(260, 70%, 55%));
+    --gradient-hero: linear-gradient(160deg, hsl(239, 60%, 30%) 0%, hsl(280, 50%, 25%) 50%, hsl(330, 50%, 25%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(230, 22%, 12%) 0%, hsl(230, 22%, 10%) 100%);
+    --gradient-tenant: linear-gradient(135deg, hsl(199, 70%, 35%) 0%, hsl(239, 70%, 50%) 100%);
+    --gradient-admin: linear-gradient(135deg, hsl(260, 60%, 40%) 0%, hsl(330, 60%, 40%) 100%);
+
+    --shadow-sm: 0 1px 3px 0 hsl(0, 0%, 0%, 0.2);
+    --shadow-md: 0 4px 6px -1px hsl(0, 0%, 0%, 0.3);
+    --shadow-lg: 0 10px 25px -5px hsl(0, 0%, 0%, 0.4);
+    --shadow-card: 0 1px 3px hsl(0, 0%, 0%, 0.2), 0 6px 16px hsl(0, 0%, 0%, 0.15);
+    --shadow-card-hover: 0 4px 12px hsl(0, 0%, 0%, 0.3), 0 12px 28px hsl(0, 0%, 0%, 0.2);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl;
+    box-shadow: var(--shadow-card);
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300;
+  }
+
+  .glass-card-hover:hover {
+    box-shadow: var(--shadow-card-hover);
+    @apply -translate-y-1;
+  }
+
+  .gradient-text {
+    background: var(--gradient-hero);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-primary-bg {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-tenant-bg {
+    background: var(--gradient-tenant);
+  }
+
+  .gradient-admin-bg {
+    background: var(--gradient-admin);
+  }
+
+  .stat-card {
+    @apply glass-card p-5 space-y-2;
+  }
+
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border/50 z-50;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pin-button {
+    @apply w-20 h-20 rounded-2xl text-2xl font-semibold bg-secondary text-secondary-foreground
+           flex items-center justify-center transition-all duration-150 active:scale-95;
+  }
+
+  .pin-button:hover {
+    @apply bg-accent text-accent-foreground;
+  }
+
+  .format-hu {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .animate-in {
+    animation: fade-slide-in 0.5s ease-out both;
+  }
+
+  .animate-in-delay-1 {
+    animation: fade-slide-in 0.5s ease-out 0.1s both;
+  }
+
+  .animate-in-delay-2 {
+    animation: fade-slide-in 0.5s ease-out 0.2s both;
+  }
+
+  .animate-in-delay-3 {
+    animation: fade-slide-in 0.5s ease-out 0.3s both;
+  }
+}
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}

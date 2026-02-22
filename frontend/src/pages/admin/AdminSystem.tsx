@@ -1,0 +1,213 @@
+import { useEffect, useState } from "react";
+import { Rocket, GitBranch, GitCommit, RefreshCw, Download, CheckCircle2, AlertCircle } from "lucide-react";
+import { getSystemInfo, systemPull, systemRebuild, type SystemInfo } from "@/lib/api";
+import { formatDate } from "@/lib/format";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+
+const AdminSystem = () => {
+  const [info, setInfo] = useState<SystemInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pulling, setPulling] = useState(false);
+  const [pullOutput, setPullOutput] = useState<string | null>(null);
+  const [rebuilding, setRebuilding] = useState(false);
+  const [confirmRebuild, setConfirmRebuild] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    getSystemInfo()
+      .then(setInfo)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handlePull = async () => {
+    setPulling(true);
+    setPullOutput(null);
+    try {
+      const result = await systemPull();
+      setPullOutput(result.output || "Git pull sikeres.");
+      load();
+    } catch (e: any) {
+      setPullOutput(`Hiba: ${e.message}`);
+    } finally {
+      setPulling(false);
+    }
+  };
+
+  const handleRebuild = async () => {
+    setConfirmRebuild(false);
+    setRebuilding(true);
+    try {
+      await systemRebuild();
+      // The server will restart, so we may lose connection
+      setPullOutput("Újraépítés elindítva. Az alkalmazás hamarosan újraindul...");
+    } catch (e: any) {
+      setPullOutput(`Hiba: ${e.message}`);
+    } finally {
+      setRebuilding(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-48 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!info) return null;
+
+  return (
+    <div className="space-y-6">
+      <div className="animate-in">
+        <h1 className="font-display text-2xl font-bold">Rendszer</h1>
+        <p className="text-muted-foreground text-sm mt-1">Verziókezelés és frissítések</p>
+      </div>
+
+      {/* Version card */}
+      <div className="glass-card p-5 animate-in-delay-1">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+            <Rocket className="h-5 w-5 text-accent-foreground" />
+          </div>
+          <div>
+            <h2 className="font-display font-bold">Verzió információ</h2>
+            <p className="text-xs text-muted-foreground">Aktuális telepített verzió</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Verzió</p>
+            <p className="font-display font-bold text-sm">{info.version}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Branch</p>
+            <p className="flex items-center gap-1.5 text-sm">
+              <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="font-mono font-medium">{info.branch}</span>
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Commit</p>
+            <p className="flex items-center gap-1.5 text-sm">
+              <GitCommit className="h-3.5 w-3.5 text-muted-foreground" />
+              <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{info.commit_hash}</code>
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Commit dátum</p>
+            <p className="text-sm">{formatDate(info.commit_date)}</p>
+          </div>
+          <div className="sm:col-span-2">
+            <p className="text-xs text-muted-foreground mb-0.5">Commit üzenet</p>
+            <p className="text-sm">{info.commit_message}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Update status */}
+      <div className="glass-card p-5 animate-in-delay-2">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            {info.has_update ? (
+              <>
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center animate-pulse">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <h2 className="font-display font-bold text-amber-600">
+                    {info.behind} új commit
+                  </h2>
+                  <p className="text-xs text-muted-foreground">Elérhető frissítés</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <h2 className="font-display font-bold text-green-600">Naprakész</h2>
+                  <p className="text-xs text-muted-foreground">Az alkalmazás a legfrissebb verzión fut</p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* New commits list */}
+        {info.has_update && info.new_commits && info.new_commits.length > 0 && (
+          <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Új commitok:</p>
+            <div className="space-y-1">
+              {info.new_commits.map((c, i) => (
+                <p key={i} className="text-xs font-mono text-muted-foreground">{c}</p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button
+            variant="outline"
+            onClick={handlePull}
+            disabled={pulling || rebuilding}
+            className="flex-1"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {pulling ? "Git Pull folyamatban..." : "Git Pull"}
+          </Button>
+          <Button
+            onClick={() => setConfirmRebuild(true)}
+            disabled={pulling || rebuilding}
+            className="flex-1 gradient-primary-bg border-0"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${rebuilding ? "animate-spin" : ""}`} />
+            {rebuilding ? "Újraépítés..." : "Frissítés + Újraindítás"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Pull output */}
+      {pullOutput && (
+        <div className="glass-card p-5 animate-in">
+          <h3 className="font-display font-bold text-sm mb-2">Kimenet</h3>
+          <pre className="text-xs font-mono bg-muted/50 p-3 rounded-lg whitespace-pre-wrap overflow-x-auto max-h-48">
+            {pullOutput}
+          </pre>
+        </div>
+      )}
+
+      {/* Rebuild confirmation */}
+      <AlertDialog open={confirmRebuild} onOpenChange={setConfirmRebuild}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">Újraépítés és újraindítás</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ez a művelet újraépíti a frontend-et és újraindítja az alkalmazást. A folyamat közben az oldal átmenetileg nem lesz elérhető. Biztosan folytatod?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Mégse</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRebuild} className="gradient-primary-bg border-0">
+              Igen, újraépítés
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default AdminSystem;
