@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ property.name }} - Rezsi Figyelo{% endblock %}
+{% block title %}{{ property.name }} - Rezsi Figyelő{% endblock %}
 {% block body_class %}tenant-dashboard{% endblock %}
 
 {% block content %}
@@ -10,7 +10,7 @@
             <h1>{{ property.name }}</h1>
         </div>
         <div class="header-right">
-            <a href="{{ url_for('tenant.logout') }}" class="btn btn-sm btn-outline">Kilepes</a>
+            <a href="{{ url_for('tenant.logout') }}" class="btn btn-sm btn-outline">Kilépés</a>
         </div>
     </header>
 
@@ -25,7 +25,7 @@
                 <div class="card-value">{{ "%.1f"|format(last_villany.value) }} kWh</div>
                 <div class="card-meta">
                     {% if last_villany.consumption is not none %}
-                    Fogyasztas: {{ "%.1f"|format(last_villany.consumption) }} kWh
+                    Fogyasztás: {{ "%.1f"|format(last_villany.consumption) }} kWh
                     {% endif %}
                     {% if last_villany.cost_huf is not none %}
                     <br>{{ "{:,.0f}".format(last_villany.cost_huf) }} Ft
@@ -34,7 +34,7 @@
                 <div class="card-date">{{ last_villany.reading_date.strftime('%Y.%m.%d') }}</div>
                 {% else %}
                 <div class="card-value">-</div>
-                <div class="card-meta">Nincs meroallas</div>
+                <div class="card-meta">Nincs mérőállás</div>
                 {% endif %}
             </div>
             <canvas class="sparkline" id="sparkline-villany" width="80" height="30"></canvas>
@@ -44,12 +44,12 @@
         <div class="summary-card card-viz">
             <div class="card-icon">&#128167;</div>
             <div class="card-content">
-                <h3>Viz</h3>
+                <h3>Víz</h3>
                 {% if last_viz %}
                 <div class="card-value">{{ "%.1f"|format(last_viz.value) }} m&sup3;</div>
                 <div class="card-meta">
                     {% if last_viz.consumption is not none %}
-                    Fogyasztas: {{ "%.1f"|format(last_viz.consumption) }} m&sup3;
+                    Fogyasztás: {{ "%.1f"|format(last_viz.consumption) }} m&sup3;
                     {% endif %}
                     {% if last_viz.cost_huf is not none %}
                     <br>{{ "{:,.0f}".format(last_viz.cost_huf) }} Ft
@@ -58,7 +58,7 @@
                 <div class="card-date">{{ last_viz.reading_date.strftime('%Y.%m.%d') }}</div>
                 {% else %}
                 <div class="card-value">-</div>
-                <div class="card-meta">Nincs meroallas</div>
+                <div class="card-meta">Nincs mérőállás</div>
                 {% endif %}
             </div>
             <canvas class="sparkline" id="sparkline-viz" width="80" height="30"></canvas>
@@ -68,13 +68,13 @@
         <div class="summary-card card-tarifa">
             <div class="card-icon">&#128176;</div>
             <div class="card-content">
-                <h3>Aktualis tarifak</h3>
+                <h3>Aktuális tarifák</h3>
                 <div class="tariff-list">
                     {% if tariff_villany %}
                     <div>Villany: {{ "{:,.0f}".format(tariff_villany.rate_huf) }} Ft/kWh</div>
                     {% endif %}
                     {% if tariff_viz %}
-                    <div>Viz: {{ "{:,.2f}".format(tariff_viz.rate_huf) }} Ft/m&sup3;</div>
+                    <div>Víz: {{ "{:,.2f}".format(tariff_viz.rate_huf) }} Ft/m&sup3;</div>
                     {% endif %}
                     {% if tariff_csatorna %}
                     <div>Csatorna: {{ "{:,.2f}".format(tariff_csatorna.rate_huf) }} Ft/m&sup3;</div>
@@ -87,10 +87,10 @@
     <!-- Actions -->
     <div class="action-buttons">
         <a href="{{ url_for('tenant.reading') }}" class="btn btn-primary btn-lg">
-            &#128221; Meroallas rogzites
+            &#128221; Mérőállás rögzítés
         </a>
         <a href="{{ url_for('tenant.history') }}" class="btn btn-secondary btn-lg">
-            &#128202; Elozmeny / Grafikon
+            &#128202; Előzmény / Grafikon
         </a>
     </div>
 </div>

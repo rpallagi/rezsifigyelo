@@ -21,8 +21,8 @@ def seed():
             print("Data already exists. Skipping seed.")
             return
 
-        lakas_group = TariffGroup.query.filter_by(name='Lakas').first()
-        uzleti_group = TariffGroup.query.filter_by(name='Uzleti').first()
+        lakas_group = TariffGroup.query.filter_by(name='Lakás').first()
+        uzleti_group = TariffGroup.query.filter_by(name='Üzleti').first()
 
         if not lakas_group or not uzleti_group:
             print("Error: Tariff groups not found. Run app first to create seed tariffs.")
@@ -38,11 +38,11 @@ def seed():
             group = uzleti_group if prop_type == 'uzlet' else lakas_group
 
             prop = Property(
-                name=f"{i}. {'Uzlet' if prop_type == 'uzlet' else 'Lakas'}",
+                name=f"{i}. {'Üzlet' if prop_type == 'uzlet' else 'Lakás'}",
                 property_type=prop_type,
                 pin_hash=pin_hash,
                 tariff_group_id=group.id,
-                contact_name=f"Teszt Berlo {i}",
+                contact_name=f"Teszt Bérlő {i}",
                 contact_phone=f"+36 30 {random.randint(100, 999)} {random.randint(1000, 9999)}",
                 address=f"Teszt utca {i}.",
                 purchase_price=random.randint(15, 35) * 1000000,
@@ -53,7 +53,7 @@ def seed():
         db.session.add_all(properties)
         db.session.commit()
         print(f"Created {len(properties)} test properties.")
-        print("PIN kodok: 1001, 1002, ... 1010")
+        print("PIN kódok: 1001, 1002, ... 1010")
 
         # Create sample meter readings (last 6 months)
         for prop in properties:
@@ -90,7 +90,7 @@ def seed():
                 )
                 db.session.add(reading_v)
 
-                # Viz
+                # Víz
                 w_consumption = round(random.uniform(2, 15), 1)
                 viz_value += w_consumption
                 w_cost = w_consumption * viz_tariff.rate_huf if viz_tariff else 0
@@ -107,7 +107,7 @@ def seed():
                 )
                 db.session.add(reading_w)
 
-                # Csatorna (auto from water)
+                # Csatorna (automatikus víz alapján)
                 c_cost = w_consumption * csatorna_tariff.rate_huf if csatorna_tariff else 0
                 reading_c = MeterReading(
                     property_id=prop.id,
@@ -118,7 +118,7 @@ def seed():
                     tariff_id=csatorna_tariff.id if csatorna_tariff else None,
                     cost_huf=c_cost,
                     reading_date=reading_date,
-                    notes='Automatikusan szamolva viz alapjan',
+                    notes='Automatikusan számolva víz alapján',
                 )
                 db.session.add(reading_c)
 
@@ -129,7 +129,7 @@ def seed():
                     amount_huf=prop.monthly_rent + random.randint(-5000, 5000),
                     payment_date=date.today() - timedelta(days=month_offset * 30 - 5),
                     payment_method=random.choice(['keszpenz', 'atutalas']),
-                    notes=f"Havi berlet + rezsi",
+                    notes=f"Havi bérleti díj + rezsi",
                 )
                 db.session.add(payment)
 
@@ -138,11 +138,11 @@ def seed():
 
         # Sample maintenance logs
         maintenance_items = [
-            ("Csaptelep csere - konyha", "vizszereles", 15000),
-            ("Villanykapcsolo csere", "villanyszereles", 5000),
-            ("Festes - nappali", "festes", 45000),
-            ("Zarcsere - bejarat", "lakatossag", 12000),
-            ("Altalanos takaritas", "takaritas", 8000),
+            ("Csaptelep csere - konyha", "csere", 15000),
+            ("Villanykapcsoló csere", "csere", 5000),
+            ("Festés - nappali", "felujitas", 45000),
+            ("Zárcsere - bejárat", "javitas", 12000),
+            ("Általános takarítás", "karbantartas", 8000),
         ]
         for desc, cat, cost in maintenance_items:
             log = MaintenanceLog(
@@ -150,17 +150,17 @@ def seed():
                 description=desc,
                 category=cat,
                 cost_huf=cost,
-                performed_by="Mester Janos",
+                performed_by="Mester János",
                 performed_date=date.today() - timedelta(days=random.randint(1, 90)),
             )
             db.session.add(log)
 
         # Sample todos
         todo_items = [
-            ("Meroora csere - 3. Lakas", "high"),
-            ("Kertrendezest beszervezni tavasszal", "medium"),
-            ("Biztositas megujitas", "high"),
-            ("Festos ajanlat kerese", "low"),
+            ("Mérőóra csere - 3. Lakás", "high"),
+            ("Kertrendezést beszervezni tavasszal", "medium"),
+            ("Biztosítás megújítás", "high"),
+            ("Festős ajánlat kérése", "low"),
         ]
         for title, priority in todo_items:
             todo = Todo(

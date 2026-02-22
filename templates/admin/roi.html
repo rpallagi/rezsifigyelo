@@ -5,23 +5,23 @@
 {% block content %}
 <div class="admin-container">
     <nav class="admin-sidebar">
-        <div class="sidebar-header"><h2>Rezsi Figyelo</h2><span class="admin-badge">Admin</span></div>
+        <div class="sidebar-header"><h2>Rezsi Figyelő</h2><span class="admin-badge">Admin</span></div>
         <ul class="sidebar-menu">
             <li><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
             <li><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
-            <li><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
-            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
-            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li><a href="{{ url_for('admin.readings') }}">&#128221; Mérőállások</a></li>
+            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetések</a></li>
+            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartás</a></li>
             <li><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
-            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifák</a></li>
             <li class="active"><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
-            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beállítások</a></li>
         </ul>
-        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a></div>
+        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilépés</a></div>
     </nav>
 
     <main class="admin-main">
-        <h1>ROI - Megtherules kalkulator</h1>
+        <h1>ROI - Megtérülés kalkulátor</h1>
 
         {% if roi_data %}
         <div class="roi-grid">
@@ -30,24 +30,24 @@
                 <h3>{{ item.property.name }}</h3>
                 <div class="roi-stats">
                     <div class="roi-row">
-                        <span>Veteli ar:</span>
+                        <span>Vételi ár:</span>
                         <strong>{{ "{:,.0f}".format(item.property.purchase_price) }} Ft</strong>
                     </div>
                     <div class="roi-row">
-                        <span>Havi berlet:</span>
+                        <span>Havi bérlet:</span>
                         <strong>{{ "{:,.0f}".format(item.property.monthly_rent) }} Ft</strong>
                     </div>
                     <div class="roi-row">
-                        <span>Osszes befizetes:</span>
+                        <span>Összes befizetés:</span>
                         <strong>{{ "{:,.0f}".format(item.total_rent) }} Ft</strong>
                     </div>
                     <div class="roi-row">
-                        <span>Karbantartas koltseg:</span>
+                        <span>Karbantartás költség:</span>
                         <strong class="text-danger">{{ "{:,.0f}".format(item.total_maintenance) }} Ft</strong>
                     </div>
                     <hr>
                     <div class="roi-row">
-                        <span>Netto bevetel:</span>
+                        <span>Nettó bevétel:</span>
                         <strong class="{{ 'text-success' if item.net_income >= 0 else 'text-danger' }}">
                             {{ "{:,.0f}".format(item.net_income) }} Ft
                         </strong>
@@ -58,8 +58,8 @@
                     </div>
                     {% if item.breakeven_months %}
                     <div class="roi-row roi-highlight">
-                        <span>Megterules:</span>
-                        <strong>{{ "%.0f"|format(item.breakeven_months) }} honap ({{ "%.1f"|format(item.breakeven_months / 12) }} ev)</strong>
+                        <span>Megtérülés:</span>
+                        <strong>{{ "%.0f"|format(item.breakeven_months) }} hónap ({{ "%.1f"|format(item.breakeven_months / 12) }} év)</strong>
                     </div>
                     {% endif %}
                 </div>
@@ -71,8 +71,8 @@
         </div>
         {% else %}
         <div class="empty-state">
-            <p>Nincs ingatlan veteli arral es berleti dijjal.</p>
-            <p>Az Ingatlanok oldalon add meg a veteli arat es berleti dijat!</p>
+            <p>Nincs ingatlan vételi árral és bérleti díjjal.</p>
+            <p>Az Ingatlanok oldalon add meg a vételi árat és bérleti díjat!</p>
         </div>
         {% endif %}
     </main>
@@ -105,7 +105,7 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Veteli ar',
+                        label: 'Vételi ár',
                         data: invested,
                         borderColor: '#ef4444',
                         borderWidth: 2,
@@ -114,7 +114,7 @@
                         fill: false,
                     },
                     {
-                        label: 'Bevetel',
+                        label: 'Bevétel',
                         data: income,
                         borderColor: '#10b981',
                         backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -128,10 +128,10 @@
                 responsive: true,
                 plugins: {
                     legend: { position: 'bottom' },
-                    title: { display: true, text: 'Megterules' }
+                    title: { display: true, text: 'Megtérülés' }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Honapok' } },
+                    x: { title: { display: true, text: 'Hónapok' } },
                     y: { title: { display: true, text: 'Ft' },
                          ticks: { callback: v => (v/1e6).toFixed(1) + 'M' } }
                 }

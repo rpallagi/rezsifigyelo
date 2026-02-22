@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Elozmeny - {{ property.name }}{% endblock %}
+{% block title %}Előzmény - {{ property.name }}{% endblock %}
 {% block body_class %}tenant-history{% endblock %}
 
 {% block content %}
 <div class="app-container">
     <header class="app-header">
         <a href="{{ url_for('tenant.dashboard') }}" class="back-btn">&larr;</a>
-        <h1>Elozmeny</h1>
+        <h1>Előzmény</h1>
     </header>
 
     <!-- Filter tabs -->
@@ -16,24 +16,24 @@
         <a href="{{ url_for('tenant.history', type='villany') }}"
            class="tab {% if utility_type == 'villany' %}active{% endif %}">&#9889; Villany</a>
         <a href="{{ url_for('tenant.history', type='viz') }}"
-           class="tab {% if utility_type == 'viz' %}active{% endif %}">&#128167; Viz</a>
+           class="tab {% if utility_type == 'viz' %}active{% endif %}">&#128167; Víz</a>
         <a href="{{ url_for('tenant.history', type='csatorna') }}"
            class="tab {% if utility_type == 'csatorna' %}active{% endif %}">&#128688; Csatorna</a>
     </div>
 
     <!-- Charts -->
     <div class="chart-section">
-        <h2>Fogyasztas</h2>
+        <h2>Fogyasztás</h2>
         <canvas id="consumptionChart" height="200"></canvas>
     </div>
     <div class="chart-section">
-        <h2>Koltseg (Ft)</h2>
+        <h2>Költség (Ft)</h2>
         <canvas id="costChart" height="200"></canvas>
     </div>
 
     <!-- Reading list -->
     <div class="reading-list">
-        <h2>Osszes bejegyzes</h2>
+        <h2>Összes bejegyzés</h2>
         {% if readings %}
         {% for reading in readings %}
         <div class="reading-item {{ reading.utility_type }}">
@@ -51,7 +51,7 @@
                 </div>
                 {% if reading.consumption is not none %}
                 <div class="reading-consumption">
-                    Fogyasztas: {{ "%.1f"|format(reading.consumption) }}
+                    Fogyasztás: {{ "%.1f"|format(reading.consumption) }}
                     {{ 'kWh' if reading.utility_type == 'villany' else 'm&sup3;' }}
                 </div>
                 {% endif %}
@@ -63,7 +63,7 @@
             <div class="reading-photo">
                 <a href="{{ url_for('tenant.uploaded_photo', filename=reading.photo_filename) }}" target="_blank">
                     <img src="{{ url_for('tenant.uploaded_photo', filename=reading.photo_filename) }}"
-                         alt="Meroora foto" loading="lazy">
+                         alt="Mérőóra fotó" loading="lazy">
                 </a>
             </div>
             {% endif %}
@@ -74,8 +74,8 @@
         {% endfor %}
         {% else %}
         <div class="empty-state">
-            <p>Meg nincsenek meroallasok.</p>
-            <a href="{{ url_for('tenant.reading') }}" class="btn btn-primary">Elso meroallas rogzites</a>
+            <p>Még nincsenek mérőállások.</p>
+            <a href="{{ url_for('tenant.reading') }}" class="btn btn-primary">Első mérőállás rögzítés</a>
         </div>
         {% endif %}
     </div>
@@ -114,7 +114,7 @@
             data: {
                 labels: data.labels,
                 datasets: [{
-                    label: 'Fogyasztas',
+                    label: 'Fogyasztás',
                     data: data.consumption,
                     backgroundColor: 'rgba(59, 130, 246, 0.6)',
                     borderColor: 'rgba(59, 130, 246, 1)',
@@ -134,7 +134,7 @@
             data: {
                 labels: data.labels,
                 datasets: [{
-                    label: 'Koltseg (Ft)',
+                    label: 'Költség (Ft)',
                     data: data.costs,
                     fill: true,
                     backgroundColor: 'rgba(16, 185, 129, 0.2)',

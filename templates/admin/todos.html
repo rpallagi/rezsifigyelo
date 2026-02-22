@@ -5,26 +5,26 @@
 {% block content %}
 <div class="admin-container">
     <nav class="admin-sidebar">
-        <div class="sidebar-header"><h2>Rezsi Figyelo</h2><span class="admin-badge">Admin</span></div>
+        <div class="sidebar-header"><h2>Rezsi Figyelő</h2><span class="admin-badge">Admin</span></div>
         <ul class="sidebar-menu">
             <li><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
             <li><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
-            <li><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
-            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
-            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li><a href="{{ url_for('admin.readings') }}">&#128221; Mérőállások</a></li>
+            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetések</a></li>
+            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartás</a></li>
             <li class="active"><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
-            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifák</a></li>
             <li><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
-            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beállítások</a></li>
         </ul>
-        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a></div>
+        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilépés</a></div>
     </nav>
 
     <main class="admin-main">
         <div class="page-header">
             <h1>Todo lista</h1>
             <button class="btn btn-primary" onclick="document.getElementById('add-todo-modal').style.display='flex'">
-                + Uj todo
+                + Új todo
             </button>
         </div>
 
@@ -42,11 +42,11 @@
                     <div class="todo-meta">
                         <span class="badge badge-{{ todo.priority }}">{{ todo.priority }}</span>
                         {% if todo.property %}<span>{{ todo.property.name }}</span>{% endif %}
-                        {% if todo.due_date %}<span>Hatarido: {{ todo.due_date.strftime('%Y.%m.%d') }}</span>{% endif %}
+                        {% if todo.due_date %}<span>Határidő: {{ todo.due_date.strftime('%Y.%m.%d') }}</span>{% endif %}
                     </div>
                 </div>
                 <form method="POST" action="{{ url_for('admin.delete_todo', todo_id=todo.id) }}" class="todo-delete">
-                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Torles?')">&#128465;</button>
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Törlés?')">&#128465;</button>
                 </form>
             </div>
             {% endfor %}
@@ -60,43 +60,43 @@
         <div class="modal" id="add-todo-modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Uj todo</h2>
+                    <h2>Új todo</h2>
                     <button class="modal-close" onclick="document.getElementById('add-todo-modal').style.display='none'">&times;</button>
                 </div>
                 <form method="POST" action="{{ url_for('admin.add_todo') }}">
                     <div class="form-grid">
                         <div class="form-group form-full">
-                            <label>Cim *</label>
-                            <input type="text" name="title" required placeholder="Mit kell csinalni...">
+                            <label>Cím *</label>
+                            <input type="text" name="title" required placeholder="Mit kell csinálni...">
                         </div>
                         <div class="form-group form-full">
-                            <label>Leiras</label>
+                            <label>Leírás</label>
                             <textarea name="description" rows="2"></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Prioritas</label>
+                            <label>Prioritás</label>
                             <select name="priority">
                                 <option value="low">Alacsony</option>
-                                <option value="medium" selected>Kozepes</option>
+                                <option value="medium" selected>Közepes</option>
                                 <option value="high">Magas</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Ingatlan (opcionalis)</label>
+                            <label>Ingatlan (opcionális)</label>
                             <select name="property_id">
-                                <option value="">Altalanos</option>
+                                <option value="">Általános</option>
                                 {% for p in properties %}
                                 <option value="{{ p.id }}">{{ p.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Hatarido</label>
+                            <label>Határidő</label>
                             <input type="date" name="due_date">
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Mentes</button>
+                        <button type="submit" class="btn btn-primary">Mentés</button>
                     </div>
                 </form>
             </div>

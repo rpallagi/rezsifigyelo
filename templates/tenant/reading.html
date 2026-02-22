@@ -1,18 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Meroallas rogzites - {{ property.name }}{% endblock %}
+{% block title %}Mérőállás rögzítés - {{ property.name }}{% endblock %}
 {% block body_class %}tenant-reading{% endblock %}
 
 {% block content %}
 <div class="app-container">
     <header class="app-header">
         <a href="{{ url_for('tenant.dashboard') }}" class="back-btn">&larr;</a>
-        <h1>Meroallas rogzites</h1>
+        <h1>Mérőállás rögzítés</h1>
     </header>
 
     <form method="POST" action="{{ url_for('tenant.reading') }}" enctype="multipart/form-data" class="reading-form">
         <!-- Utility Type Selection -->
         <div class="form-group">
-            <label>Kozuzemi tipus</label>
+            <label>Közüzemi típus</label>
             <div class="radio-group">
                 <label class="radio-card">
                     <input type="radio" name="utility_type" value="villany" checked>
@@ -25,7 +25,7 @@
                     <input type="radio" name="utility_type" value="viz">
                     <span class="radio-card-content">
                         <span class="radio-icon">&#128167;</span>
-                        <span>Viz (m&sup3;)</span>
+                        <span>Víz (m&sup3;)</span>
                     </span>
                 </label>
             </div>
@@ -33,12 +33,12 @@
 
         <!-- Current Value -->
         <div class="form-group">
-            <label for="value">Aktualis meroallas</label>
+            <label for="value">Aktuális mérőállás</label>
             <input type="number" name="value" id="value" step="0.1" min="0"
                    placeholder="pl. 12345.6" required class="input-lg" inputmode="decimal">
             <div class="form-help" id="last-reading-info">
                 {% if last_villany %}
-                Utolso villany: {{ "%.1f"|format(last_villany.value) }} kWh
+                Utolsó villany: {{ "%.1f"|format(last_villany.value) }} kWh
                 ({{ last_villany.reading_date.strftime('%Y.%m.%d') }})
                 {% endif %}
             </div>
@@ -47,24 +47,24 @@
         <!-- Auto calculation preview -->
         <div class="calc-preview" id="calc-preview" style="display:none;">
             <div class="calc-row">
-                <span>Fogyasztas:</span>
+                <span>Fogyasztás:</span>
                 <strong id="calc-consumption">-</strong>
             </div>
             <div class="calc-row">
-                <span>Becsult koltseg:</span>
+                <span>Becsült költség:</span>
                 <strong id="calc-cost">-</strong>
             </div>
         </div>
 
         <!-- Date -->
         <div class="form-group">
-            <label for="reading_date">Meres datuma</label>
+            <label for="reading_date">Mérés dátuma</label>
             <input type="date" name="reading_date" id="reading_date" value="{{ today }}">
         </div>
 
         <!-- Photo -->
         <div class="form-group">
-            <label for="photo">Meroora foto (opcionalis)</label>
+            <label for="photo">Mérőóra fotó (opcionális)</label>
             <div class="photo-upload">
                 <input type="file" name="photo" id="photo" accept="image/*" capture="environment">
                 <div class="photo-preview" id="photo-preview"></div>
@@ -73,12 +73,12 @@
 
         <!-- Notes -->
         <div class="form-group">
-            <label for="notes">Megjegyzes (opcionalis)</label>
-            <textarea name="notes" id="notes" rows="2" placeholder="pl. Merocsere volt"></textarea>
+            <label for="notes">Megjegyzés (opcionális)</label>
+            <textarea name="notes" id="notes" rows="2" placeholder="pl. Mérőcsere volt"></textarea>
         </div>
 
         <button type="submit" class="btn btn-primary btn-full btn-lg">
-            Meroallas mentese
+            Mérőállás mentése
         </button>
     </form>
 </div>
@@ -105,9 +105,9 @@
             const info = document.getElementById('last-reading-info');
             if (last !== null) {
                 const unit = type === 'villany' ? 'kWh' : 'm\u00b3';
-                info.textContent = `Utolso ${type}: ${last} ${unit}`;
+                info.textContent = `Utolsó ${type}: ${last} ${unit}`;
             } else {
-                info.textContent = `Nincs elozo meroallas (${type})`;
+                info.textContent = `Nincs előző mérőállás (${type})`;
             }
             updateCalc();
         });
@@ -134,7 +134,7 @@
                 `${consumption.toFixed(1)} ${unit}`;
             document.getElementById('calc-cost').textContent =
                 `${Math.round(cost).toLocaleString('hu')} Ft` +
-                (type === 'viz' ? ' (viz + csatorna)' : '');
+                (type === 'viz' ? ' (víz + csatorna)' : '');
 
             preview.style.display = 'block';
             preview.style.color = consumption >= 0 ? '' : 'red';

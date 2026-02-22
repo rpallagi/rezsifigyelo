@@ -11,7 +11,7 @@ db = SQLAlchemy()
 # ============================================================
 
 class AdminUser(UserMixin, db.Model):
-    """Admin felhasznalo."""
+    """Admin felhasználó."""
     __tablename__ = 'admin_users'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -28,7 +28,7 @@ class AdminUser(UserMixin, db.Model):
 # ============================================================
 
 class TenantUser(db.Model):
-    """Berlo felhasznalo - email + jelszo bejelentkezes."""
+    """Bérlő felhasználó - email + jelszó bejelentkezés."""
     __tablename__ = 'tenant_users'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -61,15 +61,15 @@ tenant_property_access = db.Table('tenant_property_access',
 
 
 # ============================================================
-# Tarifa Csoportok es Tarifak
+# Tarifa Csoportok és Tarifák
 # ============================================================
 
 class TariffGroup(db.Model):
-    """Tarifa csoport (pl. Lakas, Uzleti)."""
+    """Tarifa csoport (pl. Lakás, Üzleti)."""
     __tablename__ = 'tariff_groups'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)  # pl. "Lakas", "Uzleti"
+    name = db.Column(db.String(100), nullable=False)  # pl. "Lakás", "Üzleti"
     description = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -82,13 +82,13 @@ class TariffGroup(db.Model):
 
 
 class Tariff(db.Model):
-    """Tarifa (dijszabas) - torteneti, datumhoz kotott."""
+    """Tarifa (díjszabás) - történeti, dátumhoz kötött."""
     __tablename__ = 'tariffs'
 
     id = db.Column(db.Integer, primary_key=True)
     tariff_group_id = db.Column(db.Integer, db.ForeignKey('tariff_groups.id'), nullable=False)
     utility_type = db.Column(db.String(20), nullable=False)  # 'villany', 'viz', 'csatorna'
-    rate_huf = db.Column(db.Float, nullable=False)  # Ft / egyseg
+    rate_huf = db.Column(db.Float, nullable=False)  # Ft / egység
     unit = db.Column(db.String(10), nullable=False)  # 'kWh', 'm3'
     valid_from = db.Column(db.Date, nullable=False, default=date.today)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -102,27 +102,27 @@ class Tariff(db.Model):
 # ============================================================
 
 class Property(db.Model):
-    """Ingatlan (lakas, uzlet, stb.)."""
+    """Ingatlan (lakás, üzlet, stb.)."""
     __tablename__ = 'properties'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)  # pl. "1. Lakas", "Uzlet"
+    name = db.Column(db.String(100), nullable=False)  # pl. "1. Lakás", "Üzlet"
     property_type = db.Column(db.String(20), nullable=False, default='lakas')  # lakas/uzlet/egyeb
     pin_hash = db.Column(db.String(255), nullable=True)  # legacy PIN auth (optional)
     tariff_group_id = db.Column(db.Integer, db.ForeignKey('tariff_groups.id'), nullable=False)
 
-    # Kapcsolattarto
+    # Kapcsolattartó
     contact_name = db.Column(db.String(100), nullable=True)
     contact_phone = db.Column(db.String(30), nullable=True)
     contact_email = db.Column(db.String(120), nullable=True)
 
-    # Cim, megjegyzes
+    # Cím, megjegyzés
     address = db.Column(db.String(255), nullable=True)
     notes = db.Column(db.Text, nullable=True)
 
-    # ROI szamitashoz
+    # ROI számításhoz
     purchase_price = db.Column(db.Float, nullable=True)  # Ft
-    monthly_rent = db.Column(db.Float, nullable=True)  # Ft/ho
+    monthly_rent = db.Column(db.Float, nullable=True)  # Ft/hó
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -140,22 +140,22 @@ class Property(db.Model):
 
 
 # ============================================================
-# Meroallasok
+# Mérőállások
 # ============================================================
 
 class MeterReading(db.Model):
-    """Meroallas bejegyzes."""
+    """Mérőállás bejegyzés."""
     __tablename__ = 'meter_readings'
 
     id = db.Column(db.Integer, primary_key=True)
     property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
     utility_type = db.Column(db.String(20), nullable=False)  # 'villany', 'viz'
-    value = db.Column(db.Float, nullable=False)  # aktualis meroallas
-    prev_value = db.Column(db.Float, nullable=True)  # elozo meroallas (auto)
-    consumption = db.Column(db.Float, nullable=True)  # fogyasztas (auto: value - prev_value)
+    value = db.Column(db.Float, nullable=False)  # aktuális mérőállás
+    prev_value = db.Column(db.Float, nullable=True)  # előző mérőállás (auto)
+    consumption = db.Column(db.Float, nullable=True)  # fogyasztás (auto: value - prev_value)
     tariff_id = db.Column(db.Integer, db.ForeignKey('tariffs.id'), nullable=True)
-    cost_huf = db.Column(db.Float, nullable=True)  # szamitott koltseg
-    photo_filename = db.Column(db.String(255), nullable=True)  # feltoltott foto
+    cost_huf = db.Column(db.Float, nullable=True)  # számított költség
+    photo_filename = db.Column(db.String(255), nullable=True)  # feltöltött fotó
     reading_date = db.Column(db.Date, nullable=False, default=date.today)
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -168,18 +168,18 @@ class MeterReading(db.Model):
 
 
 # ============================================================
-# Befizetesek
+# Befizetések
 # ============================================================
 
 class Payment(db.Model):
-    """Befizetes bejegyzes."""
+    """Befizetés bejegyzés."""
     __tablename__ = 'payments'
 
     id = db.Column(db.Integer, primary_key=True)
     property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
     amount_huf = db.Column(db.Float, nullable=False)
     payment_date = db.Column(db.Date, nullable=False, default=date.today)
-    payment_method = db.Column(db.String(50), nullable=True)  # keszpenz, atutalas, stb.
+    payment_method = db.Column(db.String(50), nullable=True)  # készpénz, átutalás, stb.
     period_from = db.Column(db.Date, nullable=True)
     period_to = db.Column(db.Date, nullable=True)
     notes = db.Column(db.Text, nullable=True)
@@ -190,17 +190,17 @@ class Payment(db.Model):
 
 
 # ============================================================
-# Karbantartas Naplo
+# Karbantartás Napló
 # ============================================================
 
 class MaintenanceLog(db.Model):
-    """Karbantartas bejegyzes."""
+    """Karbantartás bejegyzés."""
     __tablename__ = 'maintenance_logs'
 
     id = db.Column(db.Integer, primary_key=True)
-    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=True)  # nullable = altalanos
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=True)  # nullable = általános
     description = db.Column(db.Text, nullable=False)
-    category = db.Column(db.String(50), nullable=True)  # villanyszereles, vizszereles, festes, stb.
+    category = db.Column(db.String(50), nullable=True)  # villanyszerelés, vízszerelés, festés, stb.
     cost_huf = db.Column(db.Float, nullable=True, default=0)
     performed_by = db.Column(db.String(100), nullable=True)
     performed_date = db.Column(db.Date, nullable=True)

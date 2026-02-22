@@ -5,22 +5,22 @@
 <div class="admin-container">
     <nav class="admin-sidebar">
         <div class="sidebar-header">
-            <h2>Rezsi Figyelo</h2>
+            <h2>Rezsi Figyelő</h2>
             <span class="admin-badge">Admin</span>
         </div>
         <ul class="sidebar-menu">
             <li><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
             <li class="active"><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
-            <li><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
-            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
-            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li><a href="{{ url_for('admin.readings') }}">&#128221; Mérőállások</a></li>
+            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetések</a></li>
+            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartás</a></li>
             <li><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
-            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifák</a></li>
             <li><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
-            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beállítások</a></li>
         </ul>
         <div class="sidebar-footer">
-            <a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a>
+            <a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilépés</a>
         </div>
     </nav>
 
@@ -28,7 +28,7 @@
         <div class="page-header">
             <h1>Ingatlanok</h1>
             <button class="btn btn-primary" onclick="document.getElementById('add-modal').style.display='flex'">
-                + Uj ingatlan
+                + Új ingatlan
             </button>
         </div>
 
@@ -41,23 +41,23 @@
                     <span class="badge badge-{{ prop.property_type }}">{{ prop.property_type|capitalize }}</span>
                 </div>
                 <div class="property-card-body">
-                    {% if prop.address %}<div><strong>Cim:</strong> {{ prop.address }}</div>{% endif %}
-                    {% if prop.contact_name %}<div><strong>Berlo:</strong> {{ prop.contact_name }}</div>{% endif %}
+                    {% if prop.address %}<div><strong>Cím:</strong> {{ prop.address }}</div>{% endif %}
+                    {% if prop.contact_name %}<div><strong>Bérlő:</strong> {{ prop.contact_name }}</div>{% endif %}
                     {% if prop.contact_phone %}<div><strong>Tel:</strong> {{ prop.contact_phone }}</div>{% endif %}
                     {% if prop.contact_email %}<div><strong>Email:</strong> {{ prop.contact_email }}</div>{% endif %}
-                    {% if prop.monthly_rent %}<div><strong>Berleti dij:</strong> {{ "{:,.0f}".format(prop.monthly_rent) }} Ft/ho</div>{% endif %}
-                    {% if prop.purchase_price %}<div><strong>Veteli ar:</strong> {{ "{:,.0f}".format(prop.purchase_price) }} Ft</div>{% endif %}
+                    {% if prop.monthly_rent %}<div><strong>Bérleti díj:</strong> {{ "{:,.0f}".format(prop.monthly_rent) }} Ft/hó</div>{% endif %}
+                    {% if prop.purchase_price %}<div><strong>Vételi ár:</strong> {{ "{:,.0f}".format(prop.purchase_price) }} Ft</div>{% endif %}
                     <div><strong>Tarifa csoport:</strong> {{ prop.tariff_group.name if prop.tariff_group else '-' }}</div>
-                    {% if prop.notes %}<div class="prop-notes"><strong>Megjegyzes:</strong> {{ prop.notes }}</div>{% endif %}
+                    {% if prop.notes %}<div class="prop-notes"><strong>Megjegyzés:</strong> {{ prop.notes }}</div>{% endif %}
                 </div>
                 <div class="property-card-actions">
                     <button class="btn btn-sm btn-outline"
                             onclick="editProperty({{ prop.id }}, '{{ prop.name }}', '{{ prop.property_type }}', {{ prop.tariff_group_id }}, '{{ prop.contact_name or '' }}', '{{ prop.contact_phone or '' }}', '{{ prop.contact_email or '' }}', '{{ prop.address or '' }}', '{{ prop.notes or '' }}', '{{ prop.purchase_price or '' }}', '{{ prop.monthly_rent or '' }}')">
-                        Szerkesztes
+                        Szerkesztés
                     </button>
                     <form method="POST" action="{{ url_for('admin.delete_property', prop_id=prop.id) }}"
-                          onsubmit="return confirm('Biztosan torlod: {{ prop.name }}? Minden adat torlodik!')">
-                        <button class="btn btn-sm btn-danger">Torles</button>
+                          onsubmit="return confirm('Biztosan törlöd: {{ prop.name }}? Minden adat törlődik!')">
+                        <button class="btn btn-sm btn-danger">Törlés</button>
                     </form>
                 </div>
             </div>
@@ -66,7 +66,7 @@
 
         {% if not properties %}
         <div class="empty-state">
-            <p>Meg nincsenek ingatlanok. Add hozza az elsot!</p>
+            <p>Még nincsenek ingatlanok. Add hozzá az elsőt!</p>
         </div>
         {% endif %}
 
@@ -74,25 +74,25 @@
         <div class="modal" id="add-modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Uj ingatlan</h2>
+                    <h2>Új ingatlan</h2>
                     <button class="modal-close" onclick="document.getElementById('add-modal').style.display='none'">&times;</button>
                 </div>
                 <form method="POST" action="{{ url_for('admin.add_property') }}">
                     <div class="form-grid">
                         <div class="form-group">
-                            <label>Nev *</label>
-                            <input type="text" name="name" required placeholder="pl. 1. Lakas">
+                            <label>Név *</label>
+                            <input type="text" name="name" required placeholder="pl. 1. Lakás">
                         </div>
                         <div class="form-group">
-                            <label>Tipus</label>
+                            <label>Típus</label>
                             <select name="property_type">
-                                <option value="lakas">Lakas</option>
-                                <option value="uzlet">Uzlet</option>
-                                <option value="egyeb">Egyeb</option>
+                                <option value="lakas">Lakás</option>
+                                <option value="uzlet">Üzlet</option>
+                                <option value="egyeb">Egyéb</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>PIN kod *</label>
+                            <label>PIN kód *</label>
                             <input type="text" name="pin" required pattern="[0-9]+" placeholder="pl. 1234">
                         </div>
                         <div class="form-group">
@@ -104,8 +104,8 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Berlo neve</label>
-                            <input type="text" name="contact_name" placeholder="Nev">
+                            <label>Bérlő neve</label>
+                            <input type="text" name="contact_name" placeholder="Név">
                         </div>
                         <div class="form-group">
                             <label>Telefon</label>
@@ -116,24 +116,24 @@
                             <input type="email" name="contact_email" placeholder="email@example.com">
                         </div>
                         <div class="form-group">
-                            <label>Cim</label>
-                            <input type="text" name="address" placeholder="Varos, utca, hazszam">
+                            <label>Cím</label>
+                            <input type="text" name="address" placeholder="Város, utca, házszám">
                         </div>
                         <div class="form-group">
-                            <label>Veteli ar (Ft)</label>
+                            <label>Vételi ár (Ft)</label>
                             <input type="number" name="purchase_price" step="1" placeholder="pl. 25000000">
                         </div>
                         <div class="form-group">
-                            <label>Berleti dij (Ft/ho)</label>
+                            <label>Bérleti díj (Ft/hó)</label>
                             <input type="number" name="monthly_rent" step="1" placeholder="pl. 120000">
                         </div>
                         <div class="form-group form-full">
-                            <label>Megjegyzes</label>
+                            <label>Megjegyzés</label>
                             <textarea name="notes" rows="2"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Mentes</button>
+                        <button type="submit" class="btn btn-primary">Mentés</button>
                     </div>
                 </form>
             </div>
@@ -143,26 +143,26 @@
         <div class="modal" id="edit-modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Ingatlan szerkesztese</h2>
+                    <h2>Ingatlan szerkesztése</h2>
                     <button class="modal-close" onclick="document.getElementById('edit-modal').style.display='none'">&times;</button>
                 </div>
                 <form method="POST" id="edit-form">
                     <div class="form-grid">
                         <div class="form-group">
-                            <label>Nev</label>
+                            <label>Név</label>
                             <input type="text" name="name" id="edit-name" required>
                         </div>
                         <div class="form-group">
-                            <label>Tipus</label>
+                            <label>Típus</label>
                             <select name="property_type" id="edit-type">
-                                <option value="lakas">Lakas</option>
-                                <option value="uzlet">Uzlet</option>
-                                <option value="egyeb">Egyeb</option>
+                                <option value="lakas">Lakás</option>
+                                <option value="uzlet">Üzlet</option>
+                                <option value="egyeb">Egyéb</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Uj PIN (uressel hagyva nem valtozik)</label>
-                            <input type="text" name="pin" pattern="[0-9]*" placeholder="Ures = valtozatlan">
+                            <label>Új PIN (üressel hagyva nem változik)</label>
+                            <input type="text" name="pin" pattern="[0-9]*" placeholder="Üres = változatlan">
                         </div>
                         <div class="form-group">
                             <label>Tarifa csoport</label>
@@ -173,7 +173,7 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Berlo neve</label>
+                            <label>Bérlő neve</label>
                             <input type="text" name="contact_name" id="edit-contact-name">
                         </div>
                         <div class="form-group">
@@ -185,24 +185,24 @@
                             <input type="email" name="contact_email" id="edit-contact-email">
                         </div>
                         <div class="form-group">
-                            <label>Cim</label>
+                            <label>Cím</label>
                             <input type="text" name="address" id="edit-address">
                         </div>
                         <div class="form-group">
-                            <label>Veteli ar (Ft)</label>
+                            <label>Vételi ár (Ft)</label>
                             <input type="number" name="purchase_price" id="edit-purchase-price" step="1">
                         </div>
                         <div class="form-group">
-                            <label>Berleti dij (Ft/ho)</label>
+                            <label>Bérleti díj (Ft/hó)</label>
                             <input type="number" name="monthly_rent" id="edit-monthly-rent" step="1">
                         </div>
                         <div class="form-group form-full">
-                            <label>Megjegyzes</label>
+                            <label>Megjegyzés</label>
                             <textarea name="notes" id="edit-notes" rows="2"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Mentes</button>
+                        <button type="submit" class="btn btn-primary">Mentés</button>
                     </div>
                 </form>
             </div>

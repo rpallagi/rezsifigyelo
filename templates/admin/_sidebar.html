@@ -1,16 +1,16 @@
 <nav class="admin-sidebar">
     <div class="sidebar-header">
-        <h2>Rezsi Figyelo</h2>
+        <h2>Rezsi Figyelő</h2>
         <span class="admin-badge">Admin</span>
     </div>
     <ul class="sidebar-menu">
         <li {% if active_page == 'dashboard' %}class="active"{% endif %}><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
         <li {% if active_page == 'properties' %}class="active"{% endif %}><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
-        <li {% if active_page == 'readings' %}class="active"{% endif %}><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
-        <li {% if active_page == 'payments' %}class="active"{% endif %}><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
-        <li {% if active_page == 'maintenance' %}class="active"{% endif %}><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+        <li {% if active_page == 'readings' %}class="active"{% endif %}><a href="{{ url_for('admin.readings') }}">&#128221; Mérőállások</a></li>
+        <li {% if active_page == 'payments' %}class="active"{% endif %}><a href="{{ url_for('admin.payments') }}">&#128176; Fizetések</a></li>
+        <li {% if active_page == 'maintenance' %}class="active"{% endif %}><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartás</a></li>
         <li {% if active_page == 'todos' %}class="active"{% endif %}><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
-        <li {% if active_page == 'tariffs' %}class="active"{% endif %}><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+        <li {% if active_page == 'tariffs' %}class="active"{% endif %}><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifák</a></li>
         <li {% if active_page == 'roi' %}class="active"{% endif %}><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
         <li {% if active_page == 'system' %}class="active"{% endif %}>
             <a href="{{ url_for('admin.system') }}">
@@ -18,10 +18,10 @@
                 <span id="update-dot" style="display:none; color:#f59e0b;"> &#9679;</span>
             </a>
         </li>
-        <li {% if active_page == 'settings' %}class="active"{% endif %}><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+        <li {% if active_page == 'settings' %}class="active"{% endif %}><a href="{{ url_for('admin.settings') }}">&#9881; Beállítások</a></li>
     </ul>
     <div class="sidebar-footer">
-        <a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a>
+        <a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilépés</a>
     </div>
 </nav>
 

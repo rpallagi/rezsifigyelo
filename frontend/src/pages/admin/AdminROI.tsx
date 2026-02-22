@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { TrendingUp, Building2, Banknote, Wrench, CalendarClock, Percent } from "lucide-react";
 import { getAdminROI, type ROIProperty } from "@/lib/api";
-import { formatHuf, formatDate, formatNumber } from "@/lib/format";
+import { formatHuf, formatMonthYear, formatNumber } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/lib/i18n";
@@ -118,14 +118,14 @@ const AdminROI = () => {
                       <p className="font-display font-bold text-sm">
                         {p.breakeven_months} {t('roi.months')}
                         <span className="text-xs text-muted-foreground font-normal ml-1">
-                          ({formatNumber(p.breakeven_months / 12, 1)} év)
+                          ({formatNumber(p.breakeven_months / 12, 1)} {t('roi.years')})
                         </span>
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-muted-foreground">{t('roi.breakevenDate')}</p>
-                    <p className="font-display font-bold text-sm">{formatDate(p.breakeven_date)}</p>
+                    <p className="font-display font-bold text-sm">{formatMonthYear(p.breakeven_date)}</p>
                   </div>
                 </div>
               </div>

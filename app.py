@@ -120,22 +120,22 @@ def seed_initial_data(app):
 
     # Create tariff groups if none exist
     if TariffGroup.query.count() == 0:
-        lakas = TariffGroup(name='Lakas', description='Lakoingatlanok tarifai')
-        uzleti = TariffGroup(name='Uzleti', description='Uzleti ingatlanok tarifai')
+        lakas = TariffGroup(name='Lakás', description='Lakóingatlanok tarifái')
+        uzleti = TariffGroup(name='Üzleti', description='Üzleti ingatlanok tarifái')
         db.session.add_all([lakas, uzleti])
         db.session.commit()
 
         # Default tariffs
         today = date.today()
         tariffs = [
-            # Lakas tarifak
+            # Lakás tarifák
             Tariff(tariff_group_id=lakas.id, utility_type='villany',
                    rate_huf=212.0, unit='kWh', valid_from=today),
             Tariff(tariff_group_id=lakas.id, utility_type='viz',
                    rate_huf=758.19, unit='m3', valid_from=today),
             Tariff(tariff_group_id=lakas.id, utility_type='csatorna',
                    rate_huf=1160.78, unit='m3', valid_from=today),
-            # Uzleti tarifak
+            # Üzleti tarifák
             Tariff(tariff_group_id=uzleti.id, utility_type='villany',
                    rate_huf=212.0, unit='kWh', valid_from=today),
             Tariff(tariff_group_id=uzleti.id, utility_type='viz',
@@ -147,13 +147,27 @@ def seed_initial_data(app):
         db.session.commit()
         print("[SEED] Default tariff groups and tariffs created.")
 
+    # Fix accent issues in existing tariff group names
+    for tg in TariffGroup.query.all():
+        fixes = {
+            'Lakas': 'Lakás',
+            'Uzleti': 'Üzleti',
+            'Lakoingatlanok tarifai': 'Lakóingatlanok tarifái',
+            'Uzleti ingatlanok tarifai': 'Üzleti ingatlanok tarifái',
+        }
+        if tg.name in fixes:
+            tg.name = fixes[tg.name]
+        if tg.description in fixes:
+            tg.description = fixes[tg.description]
+    db.session.commit()
+
     # Create demo tenant user if none exists
     if TenantUser.query.count() == 0:
         demo_password = bcrypt.hashpw('demo123'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         demo_tenant = TenantUser(
             email='demo@rezsikoves.hu',
             password_hash=demo_password,
-            name='Demo Berlo',
+            name='Demo Bérlő',
         )
         db.session.add(demo_tenant)
         db.session.commit()

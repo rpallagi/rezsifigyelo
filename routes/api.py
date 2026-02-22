@@ -138,7 +138,7 @@ def health():
 
 
 # ============================================================
-# Tenant Auth (email + jelszo)
+# Tenant Auth (email + jelszó)
 # ============================================================
 
 def tenant_user_to_dict(t):
@@ -157,11 +157,11 @@ def tenant_login():
     password = data.get('password', '')
 
     if not email or not password:
-        return jsonify({'error': 'Add meg az e-mail cimedet es a jelszavad!'}), 400
+        return jsonify({'error': 'Add meg az e-mail címedet és a jelszavad!'}), 400
 
     tenant = TenantUser.query.filter_by(email=email).first()
     if not tenant or not tenant.password_hash:
-        return jsonify({'error': 'Hibas e-mail cim vagy jelszo!'}), 401
+        return jsonify({'error': 'Hibás e-mail cím vagy jelszó!'}), 401
 
     if bcrypt.checkpw(password.encode('utf-8'), tenant.password_hash.encode('utf-8')):
         session['tenant_user_id'] = tenant.id
@@ -185,9 +185,9 @@ def tenant_login():
                 'needs_property_select': True,
             })
         else:
-            return jsonify({'error': 'Nincs ingatlan hozzarendelve a fiokodhoz. Kerlek, fordulj a berbeadohoz!'}), 403
+            return jsonify({'error': 'Nincs ingatlan hozzárendelve a fiókodhoz. Kérlek, fordulj a bérbeadóhoz!'}), 403
     else:
-        return jsonify({'error': 'Hibas e-mail cim vagy jelszo!'}), 401
+        return jsonify({'error': 'Hibás e-mail cím vagy jelszó!'}), 401
 
 
 @api_bp.route('/tenant/select-property', methods=['POST'])
@@ -195,21 +195,21 @@ def tenant_select_property():
     """After login, if tenant has multiple properties, they select one."""
     tenant_id = session.get('tenant_user_id')
     if not tenant_id:
-        return jsonify({'error': 'Nem vagy bejelentkezve'}), 401
+        return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
 
     data = request.get_json()
     property_id = data.get('property_id')
     if not property_id:
-        return jsonify({'error': 'Valassz ingatlant!'}), 400
+        return jsonify({'error': 'Válassz ingatlant!'}), 400
 
     tenant = db.session.get(TenantUser, tenant_id)
     if not tenant:
-        return jsonify({'error': 'Felhasznalo nem talalhato'}), 404
+        return jsonify({'error': 'Felhasználó nem található!'}), 404
 
     # Check tenant has access to this property
     prop = db.session.get(Property, int(property_id))
     if not prop or prop not in tenant.properties:
-        return jsonify({'error': 'Nincs hozzaferesed ehhez az ingatlanhoz!'}), 403
+        return jsonify({'error': 'Nincs hozzáférésed ehhez az ingatlanhoz!'}), 403
 
     session['property_id'] = prop.id
     session['property_name'] = prop.name
@@ -228,13 +228,13 @@ def tenant_register():
     name = (data.get('name') or '').strip()
 
     if not email or not password:
-        return jsonify({'error': 'E-mail es jelszo kotelezo!'}), 400
+        return jsonify({'error': 'E-mail és jelszó kötelező!'}), 400
     if len(password) < 6:
-        return jsonify({'error': 'A jelszonak legalabb 6 karakter hosszunak kell lennie!'}), 400
+        return jsonify({'error': 'A jelszónak legalább 6 karakter hosszúnak kell lennie!'}), 400
 
     existing = TenantUser.query.filter_by(email=email).first()
     if existing:
-        return jsonify({'error': 'Ez az e-mail cim mar regisztralva van!'}), 409
+        return jsonify({'error': 'Ez az e-mail cím már regisztrálva van!'}), 409
 
     password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     tenant = TenantUser(
@@ -247,7 +247,7 @@ def tenant_register():
 
     return jsonify({
         'success': True,
-        'message': 'Sikeres regisztracio! A berbeado fogja hozzarendelni az ingatlanodat.',
+        'message': 'Sikeres regisztráció! A bérbeadó fogja hozzárendelni az ingatlanodat.',
     })
 
 
@@ -295,11 +295,11 @@ def tenant_session():
 def tenant_dashboard():
     property_id = session.get('property_id')
     if not property_id:
-        return jsonify({'error': 'Nem vagy bejelentkezve'}), 401
+        return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
 
     prop = Property.query.get(property_id)
     if not prop:
-        return jsonify({'error': 'Ingatlan nem található'}), 404
+        return jsonify({'error': 'Ingatlan nem található!'}), 404
 
     lv = get_last_reading(prop.id, 'villany')
     lw = get_last_reading(prop.id, 'viz')
@@ -349,10 +349,10 @@ def tenant_dashboard():
 def tenant_profile():
     property_id = session.get('property_id')
     if not property_id:
-        return jsonify({'error': 'Nem vagy bejelentkezve'}), 401
+        return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
     prop = Property.query.get(property_id)
     if not prop:
-        return jsonify({'error': 'Ingatlan nem található'}), 404
+        return jsonify({'error': 'Ingatlan nem található!'}), 404
     return jsonify(property_to_dict(prop))
 
 
@@ -364,11 +364,11 @@ def tenant_profile():
 def tenant_reading():
     property_id = session.get('property_id')
     if not property_id:
-        return jsonify({'error': 'Nem vagy bejelentkezve'}), 401
+        return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
 
     prop = Property.query.get(property_id)
     if not prop:
-        return jsonify({'error': 'Ingatlan nem található'}), 404
+        return jsonify({'error': 'Ingatlan nem található!'}), 404
 
     # Accept both JSON and multipart (for photo)
     if request.content_type and 'multipart' in request.content_type:
@@ -464,7 +464,7 @@ def tenant_reading():
 def tenant_history():
     property_id = session.get('property_id')
     if not property_id:
-        return jsonify({'error': 'Nem vagy bejelentkezve'}), 401
+        return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
 
     utility_type = request.args.get('type', 'all')
     query = MeterReading.query.filter_by(property_id=property_id)
@@ -481,7 +481,7 @@ def tenant_history():
 def tenant_chart_data():
     property_id = session.get('property_id')
     if not property_id:
-        return jsonify({'error': 'Nem vagy bejelentkezve'}), 401
+        return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
 
     utility_type = request.args.get('type', 'villany')
     limit = min(int(request.args.get('limit', 24)), 100)
@@ -586,7 +586,7 @@ def admin_property_add():
     tariff_group_id = data.get('tariff_group_id')
 
     if not name or not tariff_group_id:
-        return jsonify({'error': 'Nev es tarifa csoport kotelezo!'}), 400
+        return jsonify({'error': 'Név és tarifa csoport kötelező!'}), 400
 
     # PIN is optional now (legacy)
     pin = data.get('pin', '')
@@ -984,7 +984,7 @@ def admin_roi():
         breakeven_months = int(p.purchase_price / p.monthly_rent) if p.monthly_rent else 0
 
         from dateutil.relativedelta import relativedelta
-        breakeven_date = (datetime.now() + relativedelta(months=breakeven_months)).strftime('%Y. %B')
+        breakeven_date = (datetime.now() + relativedelta(months=breakeven_months)).strftime('%Y-%m-%d')
 
         result.append({
             'id': p.id,
@@ -1115,11 +1115,11 @@ def admin_tenant_add():
     property_ids = data.get('property_ids', [])
 
     if not email:
-        return jsonify({'error': 'E-mail kotelezo!'}), 400
+        return jsonify({'error': 'E-mail kötelező!'}), 400
 
     existing = TenantUser.query.filter_by(email=email).first()
     if existing:
-        return jsonify({'error': 'Ez az e-mail cim mar regisztralva van!'}), 409
+        return jsonify({'error': 'Ez az e-mail cím már regisztrálva van!'}), 409
 
     password_hash = None
     if password:
@@ -1143,7 +1143,7 @@ def admin_tenant_add():
 def admin_tenant_edit(tenant_id):
     tenant = db.session.get(TenantUser, tenant_id)
     if not tenant:
-        return jsonify({'error': 'Berlo nem talalhato'}), 404
+        return jsonify({'error': 'Bérlő nem található!'}), 404
 
     data = request.get_json()
     tenant.name = data.get('name', tenant.name)
@@ -1170,7 +1170,7 @@ def admin_tenant_edit(tenant_id):
 def admin_tenant_delete(tenant_id):
     tenant = db.session.get(TenantUser, tenant_id)
     if not tenant:
-        return jsonify({'error': 'Berlo nem talalhato'}), 404
+        return jsonify({'error': 'Bérlő nem található!'}), 404
     tenant.properties = []
     db.session.delete(tenant)
     db.session.commit()

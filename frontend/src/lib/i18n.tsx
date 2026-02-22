@@ -334,8 +334,9 @@ const hu: Record<string, string> = {
   'roi.totalMaintenance': 'Összes karbantartás',
   'roi.annualYield': 'Éves hozam',
   'roi.breakeven': 'Megtérülés',
-  'roi.breakevenDate': 'Break-even dátum',
+  'roi.breakevenDate': 'Megtérülés dátuma',
   'roi.months': 'hónap',
+  'roi.years': 'év',
 
   // --- Admin System ---
   'system.title': 'Rendszer',
@@ -717,6 +718,7 @@ const en: Record<string, string> = {
   'roi.breakeven': 'Break-even',
   'roi.breakevenDate': 'Break-even date',
   'roi.months': 'months',
+  'roi.years': 'years',
 
   // --- Admin System ---
   'system.title': 'System',

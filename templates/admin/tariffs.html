@@ -1,30 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Tarifak - Admin{% endblock %}
+{% block title %}Tarifák - Admin{% endblock %}
 {% block body_class %}admin-page{% endblock %}
 
 {% block content %}
 <div class="admin-container">
     <nav class="admin-sidebar">
-        <div class="sidebar-header"><h2>Rezsi Figyelo</h2><span class="admin-badge">Admin</span></div>
+        <div class="sidebar-header"><h2>Rezsi Figyelő</h2><span class="admin-badge">Admin</span></div>
         <ul class="sidebar-menu">
             <li><a href="{{ url_for('admin.dashboard') }}">&#128200; Dashboard</a></li>
             <li><a href="{{ url_for('admin.properties') }}">&#127968; Ingatlanok</a></li>
-            <li><a href="{{ url_for('admin.readings') }}">&#128221; Meroallasok</a></li>
-            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetesek</a></li>
-            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartas</a></li>
+            <li><a href="{{ url_for('admin.readings') }}">&#128221; Mérőállások</a></li>
+            <li><a href="{{ url_for('admin.payments') }}">&#128176; Fizetések</a></li>
+            <li><a href="{{ url_for('admin.maintenance') }}">&#128295; Karbantartás</a></li>
             <li><a href="{{ url_for('admin.todos') }}">&#9745; Todo</a></li>
-            <li class="active"><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifak</a></li>
+            <li class="active"><a href="{{ url_for('admin.tariffs') }}">&#128178; Tarifák</a></li>
             <li><a href="{{ url_for('admin.roi') }}">&#128200; ROI</a></li>
-            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beallitasok</a></li>
+            <li><a href="{{ url_for('admin.settings') }}">&#9881; Beállítások</a></li>
         </ul>
-        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilepes</a></div>
+        <div class="sidebar-footer"><a href="{{ url_for('admin.admin_logout') }}" class="btn btn-outline btn-sm">Kilépés</a></div>
     </nav>
 
     <main class="admin-main">
         <div class="page-header">
-            <h1>Tarifak</h1>
+            <h1>Tarifák</h1>
             <button class="btn btn-primary" onclick="document.getElementById('add-tariff-modal').style.display='flex'">
-                + Uj tarifa
+                + Új tarifa
             </button>
         </div>
 
@@ -34,10 +34,10 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Tipus</th>
-                        <th>Dij</th>
-                        <th>Egyseg</th>
-                        <th>Ervenyes</th>
+                        <th>Típus</th>
+                        <th>Díj</th>
+                        <th>Egység</th>
+                        <th>Érvényes</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -46,7 +46,7 @@
                         <td>{{ t.utility_type|capitalize }}</td>
                         <td><strong>{{ "{:,.2f}".format(t.rate_huf) }} Ft</strong></td>
                         <td>{{ t.unit }}</td>
-                        <td>{{ t.valid_from.strftime('%Y.%m.%d') }}-tol</td>
+                        <td>{{ t.valid_from.strftime('%Y.%m.%d') }}-tól</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -58,7 +58,7 @@
         <div class="modal" id="add-tariff-modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Uj tarifa</h2>
+                    <h2>Új tarifa</h2>
                     <button class="modal-close" onclick="document.getElementById('add-tariff-modal').style.display='none'">&times;</button>
                 </div>
                 <form method="POST" action="{{ url_for('admin.add_tariff') }}">
@@ -72,31 +72,31 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Kozuzem tipus</label>
+                            <label>Közüzem típus</label>
                             <select name="utility_type" required>
                                 <option value="villany">Villany</option>
-                                <option value="viz">Viz</option>
+                                <option value="viz">Víz</option>
                                 <option value="csatorna">Csatorna</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Dij (Ft)</label>
+                            <label>Díj (Ft)</label>
                             <input type="number" name="rate_huf" step="0.01" required placeholder="pl. 212">
                         </div>
                         <div class="form-group">
-                            <label>Egyseg</label>
+                            <label>Egység</label>
                             <select name="unit" required>
                                 <option value="kWh">kWh</option>
                                 <option value="m3">m3</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Ervenyes ettol</label>
+                            <label>Érvényes ettől</label>
                             <input type="date" name="valid_from">
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Mentes</button>
+                        <button type="submit" class="btn btn-primary">Mentés</button>
                     </div>
                 </form>
             </div>

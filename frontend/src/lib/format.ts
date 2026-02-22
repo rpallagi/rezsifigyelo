@@ -27,6 +27,15 @@ export const formatDateShort = (date: string): string => {
   });
 };
 
+export const formatMonthYear = (date: string): string => {
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('hu-HU', {
+    year: 'numeric',
+    month: 'long',
+  });
+};
+
 export const utilityLabel = (type: string, locale?: 'hu' | 'en'): string => {
   const labels: Record<string, Record<string, string>> = {
     hu: {

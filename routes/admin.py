@@ -34,10 +34,10 @@ def admin_login():
         admin = AdminUser.query.filter_by(username=username).first()
         if admin and bcrypt.checkpw(password.encode('utf-8'), admin.password_hash.encode('utf-8')):
             login_user(admin)
-            flash('Sikeres bejelentkezes!', 'success')
+            flash('Sikeres bejelentkezés!', 'success')
             return redirect(url_for('admin.dashboard'))
         else:
-            flash('Hibas felhasznalonev vagy jelszo!', 'error')
+            flash('Hibás felhasználónév vagy jelszó!', 'error')
 
     return render_template('admin/login.html')
 
@@ -47,7 +47,7 @@ def admin_login():
 def admin_logout():
     """Admin logout."""
     logout_user()
-    flash('Sikeresen kijelentkeztel!', 'success')
+    flash('Sikeresen kijelentkeztél!', 'success')
     return redirect(url_for('admin.admin_login'))
 
 
@@ -115,7 +115,7 @@ def add_property():
     monthly_rent = request.form.get('monthly_rent', '').strip()
 
     if not name or not pin or not tariff_group_id:
-        flash('Nev, PIN es tarifa csoport kotelezo!', 'error')
+        flash('Név, PIN és tarifa csoport kötelező!', 'error')
         return redirect(url_for('admin.properties'))
 
     pin_hash = bcrypt.hashpw(pin.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -136,7 +136,7 @@ def add_property():
     db.session.add(prop)
     db.session.commit()
 
-    flash(f'Ingatlan letrehozva: {name}', 'success')
+    flash(f'Ingatlan létrehozva: {name}', 'success')
     return redirect(url_for('admin.properties'))
 
 
@@ -166,7 +166,7 @@ def edit_property(prop_id):
         prop.pin_hash = bcrypt.hashpw(new_pin.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     db.session.commit()
-    flash(f'Ingatlan frissitve: {prop.name}', 'success')
+    flash(f'Ingatlan frissítve: {prop.name}', 'success')
     return redirect(url_for('admin.properties'))
 
 
@@ -185,7 +185,7 @@ def delete_property(prop_id):
     db.session.delete(prop)
     db.session.commit()
 
-    flash(f'Ingatlan torolve: {name}', 'success')
+    flash(f'Ingatlan törölve: {name}', 'success')
     return redirect(url_for('admin.properties'))
 
 
@@ -250,7 +250,7 @@ def add_payment():
     notes = request.form.get('notes', '').strip()
 
     if not property_id or not amount:
-        flash('Ingatlan es osszeg kotelezo!', 'error')
+        flash('Ingatlan és összeg kötelező!', 'error')
         return redirect(url_for('admin.payments'))
 
     try:
@@ -268,7 +268,7 @@ def add_payment():
     db.session.add(payment)
     db.session.commit()
 
-    flash(f'Befizetes rogzitve: {float(amount):,.0f} Ft', 'success')
+    flash(f'Befizetés rögzítve: {float(amount):,.0f} Ft', 'success')
     return redirect(url_for('admin.payments'))
 
 
@@ -299,7 +299,7 @@ def add_maintenance():
     performed_date_str = request.form.get('performed_date', '')
 
     if not description:
-        flash('Leiras kotelezo!', 'error')
+        flash('Leírás kötelező!', 'error')
         return redirect(url_for('admin.maintenance'))
 
     try:
@@ -318,7 +318,7 @@ def add_maintenance():
     db.session.add(log)
     db.session.commit()
 
-    flash('Karbantartas bejegyzes rogzitve!', 'success')
+    flash('Karbantartás bejegyzés rögzítve!', 'success')
     return redirect(url_for('admin.maintenance'))
 
 
@@ -350,7 +350,7 @@ def add_todo():
     due_date_str = request.form.get('due_date', '')
 
     if not title:
-        flash('Cim kotelezo!', 'error')
+        flash('Cím kötelező!', 'error')
         return redirect(url_for('admin.todos'))
 
     try:
@@ -368,7 +368,7 @@ def add_todo():
     db.session.add(todo)
     db.session.commit()
 
-    flash(f'Todo letrehozva: {title}', 'success')
+    flash(f'Todo létrehozva: {title}', 'success')
     return redirect(url_for('admin.todos'))
 
 
@@ -398,7 +398,7 @@ def delete_todo(todo_id):
     todo = Todo.query.get_or_404(todo_id)
     db.session.delete(todo)
     db.session.commit()
-    flash('Todo torolve!', 'success')
+    flash('Todo törölve!', 'success')
     return redirect(url_for('admin.todos'))
 
 
@@ -428,7 +428,7 @@ def add_tariff():
     valid_from_str = request.form.get('valid_from', '')
 
     if not all([tariff_group_id, utility_type, rate, unit]):
-        flash('Minden mezo kotelezo!', 'error')
+        flash('Minden mező kötelező!', 'error')
         return redirect(url_for('admin.tariffs'))
 
     try:
@@ -446,7 +446,7 @@ def add_tariff():
     db.session.add(tariff)
     db.session.commit()
 
-    flash('Tarifa letrehozva!', 'success')
+    flash('Tarifa létrehozva!', 'success')
     return redirect(url_for('admin.tariffs'))
 
 
@@ -510,15 +510,15 @@ def change_password():
     confirm_password = request.form.get('confirm_password', '')
 
     if not bcrypt.checkpw(old_password.encode('utf-8'), current_user.password_hash.encode('utf-8')):
-        flash('Hibas regi jelszo!', 'error')
+        flash('Hibás régi jelszó!', 'error')
         return redirect(url_for('admin.settings'))
 
     if new_password != confirm_password:
-        flash('Az uj jelszavak nem egyeznek!', 'error')
+        flash('Az új jelszavak nem egyeznek!', 'error')
         return redirect(url_for('admin.settings'))
 
     if len(new_password) < 6:
-        flash('A jelszo tul rovid (min. 6 karakter)!', 'error')
+        flash('A jelszó túl rövid (min. 6 karakter)!', 'error')
         return redirect(url_for('admin.settings'))
 
     current_user.password_hash = bcrypt.hashpw(
@@ -526,7 +526,7 @@ def change_password():
     ).decode('utf-8')
     db.session.commit()
 
-    flash('Jelszo sikeresen megvaltoztatva!', 'success')
+    flash('Jelszó sikeresen megváltoztatva!', 'success')
     return redirect(url_for('admin.settings'))
 
 
@@ -624,7 +624,7 @@ def system_rebuild():
     # 2. Find docker-compose file
     compose_file = os.path.join(app_dir, 'docker-compose.yml')
     if not os.path.exists(compose_file):
-        flash('docker-compose.yml nem talalhato!', 'error')
+        flash('docker-compose.yml nem található!', 'error')
         return redirect(url_for('admin.system'))
 
     # 3. Docker compose build + up (in background - the container will restart)
@@ -635,7 +635,7 @@ def system_rebuild():
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        flash('Frissites elinditva! A container ujraindul... Varj 30 masodpercet es frissitsd az oldalt.', 'success')
+        flash('Frissítés elindítva! A container újraindul... Várj 30 másodpercet és frissítsd az oldalt.', 'success')
     except Exception as e:
         flash(f'Docker rebuild hiba: {str(e)}', 'error')
 

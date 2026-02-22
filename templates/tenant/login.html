@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Bejelentkezes - Rezsi Figyelo{% endblock %}
+{% block title %}Bejelentkezés - Rezsi Figyelő{% endblock %}
 {% block body_class %}tenant-login{% endblock %}
 
 {% block content %}
 <div class="login-container">
     <div class="login-card">
         <div class="login-header">
-            <h1>Rezsi Figyelo</h1>
-            <p>Kozuzemi meroallas rogzites</p>
+            <h1>Rezsi Figyelő</h1>
+            <p>Közüzemi mérőállás rögzítés</p>
         </div>
 
         <form method="POST" action="{{ url_for('tenant.login') }}" class="login-form">
             <div class="form-group">
-                <label for="property_id">Ingatlan kivalasztasa</label>
+                <label for="property_id">Ingatlan kiválasztása</label>
                 <select name="property_id" id="property_id" required>
-                    <option value="">-- Valassz ingatlant --</option>
+                    <option value="">-- Válassz ingatlant --</option>
                     {% for prop in properties %}
                     <option value="{{ prop.id }}">{{ prop.name }}</option>
                     {% endfor %}
@@ -22,26 +22,26 @@
             </div>
 
             <div class="form-group">
-                <label for="pin">PIN kod</label>
+                <label for="pin">PIN kód</label>
                 <input type="password" name="pin" id="pin" inputmode="numeric"
                        pattern="[0-9]*" maxlength="6" placeholder="PIN" required
                        autocomplete="off">
             </div>
 
             <button type="submit" class="btn btn-primary btn-full">
-                Bejelentkezes
+                Bejelentkezés
             </button>
         </form>
 
         {% if not properties %}
         <div class="empty-state">
-            <p>Meg nincsenek ingatlanok felvetel.</p>
-            <p>Az admin feluleten tudsz ingatlanokat hozzaadni.</p>
+            <p>Még nincsenek ingatlanok felvéve.</p>
+            <p>Az admin felületen tudsz ingatlanokat hozzáadni.</p>
         </div>
         {% endif %}
 
         <div class="login-footer">
-            <a href="{{ url_for('admin.admin_login') }}">Admin bejelentkezes</a>
+            <a href="{{ url_for('admin.admin_login') }}">Admin bejelentkezés</a>
         </div>
     </div>
 </div>

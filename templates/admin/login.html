@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Admin bejelentkezes - Rezsi Figyelo{% endblock %}
+{% block title %}Admin bejelentkezés - Rezsi Figyelő{% endblock %}
 {% block body_class %}admin-login{% endblock %}
 
 {% block content %}
@@ -7,23 +7,23 @@
     <div class="login-card">
         <div class="login-header">
             <h1>Admin</h1>
-            <p>Rezsi Figyelo kezelese</p>
+            <p>Rezsi Figyelő kezelése</p>
         </div>
 
         <form method="POST" action="{{ url_for('admin.admin_login') }}" class="login-form">
             <div class="form-group">
-                <label for="username">Felhasznalonev</label>
+                <label for="username">Felhasználónév</label>
                 <input type="text" name="username" id="username" required autocomplete="username">
             </div>
             <div class="form-group">
-                <label for="password">Jelszo</label>
+                <label for="password">Jelszó</label>
                 <input type="password" name="password" id="password" required autocomplete="current-password">
             </div>
-            <button type="submit" class="btn btn-primary btn-full">Bejelentkezes</button>
+            <button type="submit" class="btn btn-primary btn-full">Bejelentkezés</button>
         </form>
 
         <div class="login-footer">
-            <a href="{{ url_for('tenant.index') }}">&larr; Berloi bejelentkezes</a>
+            <a href="{{ url_for('tenant.index') }}">&larr; Bérlői bejelentkezés</a>
         </div>
     </div>
 </div>

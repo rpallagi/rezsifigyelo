@@ -1,4 +1,4 @@
-"""Tenant (berloi) routes - meroallas rogzites, elozmeny, foto feltoltes."""
+"""Tenant (bérlői) routes - mérőállás rögzítés, előzmény, fotó feltöltés."""
 import os
 import bcrypt
 from datetime import date, datetime
@@ -86,22 +86,22 @@ def login():
     pin = request.form.get('pin', '')
 
     if not property_id or not pin:
-        flash('Valassz ingatlant es add meg a PIN kodot!', 'error')
+        flash('Válassz ingatlant és add meg a PIN kódot!', 'error')
         return redirect(url_for('tenant.index'))
 
     prop = Property.query.get(int(property_id))
     if not prop:
-        flash('Az ingatlan nem talalhato!', 'error')
+        flash('Az ingatlan nem található!', 'error')
         return redirect(url_for('tenant.index'))
 
     # Verify PIN
     if bcrypt.checkpw(pin.encode('utf-8'), prop.pin_hash.encode('utf-8')):
         session['property_id'] = prop.id
         session['property_name'] = prop.name
-        flash(f'Udv, {prop.name}!', 'success')
+        flash(f'Üdv, {prop.name}!', 'success')
         return redirect(url_for('tenant.dashboard'))
     else:
-        flash('Hibas PIN kod!', 'error')
+        flash('Hibás PIN kód!', 'error')
         return redirect(url_for('tenant.index'))
 
 
@@ -110,7 +110,7 @@ def logout():
     """Clear tenant session."""
     session.pop('property_id', None)
     session.pop('property_name', None)
-    flash('Sikeresen kijelentkeztel!', 'success')
+    flash('Sikeresen kijelentkeztél!', 'success')
     return redirect(url_for('tenant.index'))
 
 
@@ -162,13 +162,13 @@ def reading():
 
         # Validate
         if not utility_type or utility_type not in ('villany', 'viz'):
-            flash('Valassz kozuzemi tipust!', 'error')
+            flash('Válassz közüzemi típust!', 'error')
             return redirect(url_for('tenant.reading'))
 
         try:
             value = float(value_str)
         except (ValueError, TypeError):
-            flash('Ervenytelen meroallas ertek!', 'error')
+            flash('Érvénytelen mérőállás érték!', 'error')
             return redirect(url_for('tenant.reading'))
 
         try:
@@ -228,16 +228,16 @@ def reading():
                     tariff_id=csatorna_tariff.id,
                     cost_huf=csatorna_cost,
                     reading_date=reading_date,
-                    notes='Automatikusan szamolva viz alapjan',
+                    notes='Automatikusan számolva víz alapján',
                 )
                 db.session.add(csatorna_reading)
 
         db.session.commit()
 
         # Summary message
-        cost_msg = f" - Koltseg: {cost_huf:,.0f} Ft" if cost_huf is not None else ""
-        consumption_msg = f" - Fogyasztas: {consumption:,.1f}" if consumption is not None else ""
-        flash(f'Meroallas rogzitve! {utility_type.capitalize()}: {value}{consumption_msg}{cost_msg}', 'success')
+        cost_msg = f" - Költség: {cost_huf:,.0f} Ft" if cost_huf is not None else ""
+        consumption_msg = f" - Fogyasztás: {consumption:,.1f}" if consumption is not None else ""
+        flash(f'Mérőállás rögzítve! {utility_type.capitalize()}: {value}{consumption_msg}{cost_msg}', 'success')
         return redirect(url_for('tenant.dashboard'))
 
     # GET - show form
