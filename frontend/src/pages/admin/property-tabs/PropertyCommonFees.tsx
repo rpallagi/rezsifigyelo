@@ -477,7 +477,7 @@ const PropertyCommonFees = ({ propertyId }: Props) => {
 
       {/* ---- Add / Edit Dialog ---- */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-display">
               {editingId ? t("fees.editTitle") : t("fees.newTitle")}

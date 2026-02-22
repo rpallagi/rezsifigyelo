@@ -546,7 +546,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
 
       {/* Logs Viewer Dialog */}
       <Dialog open={logsDialogOpen} onOpenChange={setLogsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-display">
               {t("smartMeter.logs")} &mdash; {logsDeviceName}
