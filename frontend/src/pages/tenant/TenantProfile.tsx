@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getTenantProfile, tenantLogout, type TenantProperty } from "@/lib/api";
 import { formatHuf } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Building2, User, Mail, Phone, MapPin, CreditCard, Tag } from "lucide-react";
 
 const TenantProfile = () => {
   const [profile, setProfile] = useState<TenantProperty | null>(null);
@@ -23,58 +23,78 @@ const TenantProfile = () => {
   const initials = (profile.contact_name || profile.name)
     .split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
+  const infoItems = [
+    { icon: User, label: "Kapcsolattarto", value: profile.contact_name },
+    { icon: Mail, label: "Email", value: profile.contact_email },
+    { icon: Phone, label: "Telefon", value: profile.contact_phone },
+    { icon: MapPin, label: "Cim", value: profile.address },
+    { icon: CreditCard, label: "Berleti dij", value: profile.monthly_rent ? `${formatHuf(profile.monthly_rent)}/ho` : null },
+    { icon: Tag, label: "Tipus", value: profile.property_type === 'uzlet' ? 'Uzlet' : 'Lakas' },
+  ].filter(item => item.value);
+
   return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="pt-2 mb-6 animate-in">
         <h1 className="font-display text-2xl font-bold">Profil</h1>
       </div>
 
-      <div className="glass-card p-6 animate-in-delay-1">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-            <span className="font-display font-bold text-primary text-xl">{initials}</span>
+      {/* Profile header card */}
+      <div className="glass-card p-6 mb-5 animate-in-delay-1">
+        <div className="flex items-center gap-4 mb-2">
+          <div className="w-16 h-16 rounded-2xl gradient-tenant-bg flex items-center justify-center flex-shrink-0">
+            <span className="font-display font-bold text-primary-foreground text-xl">{initials}</span>
           </div>
-          <div>
-            <p className="font-display font-bold text-lg">{profile.name}</p>
-            {profile.address && <p className="text-sm text-muted-foreground">{profile.address}</p>}
-          </div>
-        </div>
-
-        <div className="space-y-4 text-sm">
-          {profile.contact_name && (
-            <div className="flex justify-between py-2 border-b border-border/50">
-              <span className="text-muted-foreground">Kapcsolattartó</span>
-              <span className="font-medium">{profile.contact_name}</span>
-            </div>
-          )}
-          {profile.contact_email && (
-            <div className="flex justify-between py-2 border-b border-border/50">
-              <span className="text-muted-foreground">Email</span>
-              <span className="font-medium">{profile.contact_email}</span>
-            </div>
-          )}
-          {profile.contact_phone && (
-            <div className="flex justify-between py-2 border-b border-border/50">
-              <span className="text-muted-foreground">Telefon</span>
-              <span className="font-medium">{profile.contact_phone}</span>
-            </div>
-          )}
-          {profile.monthly_rent && (
-            <div className="flex justify-between py-2 border-b border-border/50">
-              <span className="text-muted-foreground">Bérleti díj</span>
-              <span className="font-medium">{formatHuf(profile.monthly_rent)}/hó</span>
-            </div>
-          )}
-          <div className="flex justify-between py-2">
-            <span className="text-muted-foreground">Típus</span>
-            <span className="font-medium">{profile.property_type === 'uzlet' ? 'Uzlet' : 'Lakas'}</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-display font-bold text-xl">{profile.name}</p>
+            {profile.address && <p className="text-sm text-muted-foreground mt-0.5">{profile.address}</p>}
           </div>
         </div>
       </div>
 
-      <div className="mt-6 animate-in-delay-2">
-        <Button variant="outline" className="w-full" onClick={handleLogout}>
-          <LogOut className="h-4 w-4 mr-2" /> Kijelentkezés
+      {/* Info card */}
+      <div className="glass-card overflow-hidden mb-5 animate-in-delay-2">
+        {infoItems.map((item, i) => (
+          <div
+            key={item.label}
+            className={`flex items-center gap-4 px-5 py-4 ${
+              i < infoItems.length - 1 ? "border-b border-border/50" : ""
+            }`}
+          >
+            <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center flex-shrink-0">
+              <item.icon className="h-4 w-4 text-accent-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">{item.label}</p>
+              <p className="font-medium text-sm truncate">{item.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Property card */}
+      <div className="glass-card p-5 mb-5 animate-in-delay-2">
+        <div className="flex items-center gap-3 mb-3">
+          <Building2 className="h-5 w-5 text-primary" />
+          <p className="font-display font-semibold">Ingatlan informaciok</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-accent/50 rounded-xl p-3 text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Tipus</p>
+            <p className="font-semibold text-sm">{profile.property_type === 'uzlet' ? 'Uzlet' : 'Lakas'}</p>
+          </div>
+          {profile.monthly_rent && (
+            <div className="bg-accent/50 rounded-xl p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Berleti dij</p>
+              <p className="font-semibold text-sm format-hu">{formatHuf(profile.monthly_rent)}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Logout */}
+      <div className="animate-in-delay-3">
+        <Button variant="outline" className="w-full h-12" onClick={handleLogout}>
+          <LogOut className="h-4 w-4 mr-2" /> Kijelentkezes
         </Button>
       </div>
     </div>

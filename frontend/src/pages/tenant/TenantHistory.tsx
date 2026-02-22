@@ -1,14 +1,27 @@
 import { useState, useEffect } from "react";
-import { getTenantHistory, getTenantChartData, type ReadingItem, type ChartData } from "@/lib/api";
-import { formatHuf, formatDate, utilityLabel } from "@/lib/format";
+import { Zap, Droplets, Waves, Camera } from "lucide-react";
+import { getTenantHistory, getTenantChartData, type ReadingItem } from "@/lib/api";
+import { formatHuf, formatDate, formatDateShort, formatNumber } from "@/lib/format";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
-const tabs = ["Összes", "Villany", "Víz", "Csatorna"] as const;
+const tabs = ["Osszes", "Villany", "Viz", "Csatorna"] as const;
 type Tab = typeof tabs[number];
-const typeMap: Record<Tab, string> = { "Összes": "all", "Villany": "villany", "Víz": "viz", "Csatorna": "csatorna" };
+const typeMap: Record<Tab, string> = { "Osszes": "all", "Villany": "villany", "Viz": "viz", "Csatorna": "csatorna" };
+
+const utilityIcon = (type: string) => {
+  if (type === 'villany') return <Zap className="h-3.5 w-3.5" style={{ color: "hsl(45, 93%, 47%)" }} />;
+  if (type === 'viz') return <Droplets className="h-3.5 w-3.5" style={{ color: "hsl(199, 89%, 48%)" }} />;
+  return <Waves className="h-3.5 w-3.5" style={{ color: "hsl(280, 60%, 55%)" }} />;
+};
+
+const utilityColor = (type: string) => {
+  if (type === 'villany') return 'hsl(45, 93%, 47%)';
+  if (type === 'viz') return 'hsl(199, 89%, 48%)';
+  return 'hsl(280, 60%, 55%)';
+};
 
 const TenantHistory = () => {
-  const [activeTab, setActiveTab] = useState<Tab>("Összes");
+  const [activeTab, setActiveTab] = useState<Tab>("Osszes");
   const [readings, setReadings] = useState<ReadingItem[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +33,6 @@ const TenantHistory = () => {
       .then((data) => setReadings(data.readings))
       .finally(() => setLoading(false));
 
-    // Get chart data for all types
     Promise.all([
       getTenantChartData('villany', 12),
       getTenantChartData('viz', 12),
@@ -38,26 +50,24 @@ const TenantHistory = () => {
     });
   }, [activeTab]);
 
-  const borderColor = (type: string) => {
-    if (type === 'villany') return 'border-l-amber-400';
-    if (type === 'viz') return 'border-l-blue-400';
-    return 'border-l-purple-400';
-  };
+  // Calculate totals for the summary
+  const totalCost = readings.reduce((sum, r) => sum + (r.cost_huf || 0), 0);
+  const totalReadings = readings.length;
 
   return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="pt-2 mb-6 animate-in">
-        <h1 className="font-display text-2xl font-bold">Előzmények</h1>
-        <p className="text-muted-foreground text-sm mt-1">Fogyasztás és költségek áttekintése</p>
+        <h1 className="font-display text-2xl font-bold">Elozmenyekk</h1>
+        <p className="text-muted-foreground text-sm mt-1">Fogyasztas es koltsegek attekintese</p>
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 bg-muted rounded-xl p-1 mb-6 animate-in-delay-1">
+      <div className="flex gap-1 bg-muted rounded-xl p-1 mb-5 animate-in-delay-1">
         {tabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
               activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
             }`}
           >
@@ -66,24 +76,43 @@ const TenantHistory = () => {
         ))}
       </div>
 
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 gap-3 mb-5 animate-in-delay-1">
+        <div className="glass-card p-4 text-center">
+          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">Osszes koltseg</p>
+          <p className="font-display font-bold text-lg format-hu">{formatHuf(totalCost)}</p>
+        </div>
+        <div className="glass-card p-4 text-center">
+          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">Leolvasasok</p>
+          <p className="font-display font-bold text-lg">{totalReadings} db</p>
+        </div>
+      </div>
+
       {/* Chart */}
       {chartData.length > 0 && (
-        <div className="glass-card p-4 mb-6 animate-in-delay-2">
-          <h3 className="font-display font-semibold text-sm mb-4">Havi költségek (Ft)</h3>
-          <div className="h-52">
+        <div className="glass-card p-4 mb-5 animate-in-delay-2">
+          <h3 className="font-display font-semibold text-sm mb-4">Havi koltsegek (Ft)</h3>
+          <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} barGap={2}>
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000)}k`} />
+              <BarChart data={chartData} barGap={2} barCategoryGap="15%">
+                <XAxis dataKey="month" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={40}
+                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
-                  contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", fontSize: "12px" }}
+                  contentStyle={{
+                    borderRadius: "12px",
+                    border: "1px solid hsl(var(--border))",
+                    background: "hsl(var(--card))",
+                    fontSize: "11px",
+                    boxShadow: "var(--shadow-md)",
+                  }}
                   formatter={(value: number) => [formatHuf(value), ""]}
                 />
-                {(activeTab === "Összes" || activeTab === "Villany") && (
+                {(activeTab === "Osszes" || activeTab === "Villany") && (
                   <Bar dataKey="villany" name="Villany" fill="hsl(45, 93%, 47%)" radius={[4, 4, 0, 0]} />
                 )}
-                {(activeTab === "Összes" || activeTab === "Víz") && (
-                  <Bar dataKey="viz" name="Víz" fill="hsl(199, 89%, 48%)" radius={[4, 4, 0, 0]} />
+                {(activeTab === "Osszes" || activeTab === "Viz") && (
+                  <Bar dataKey="viz" name="Viz" fill="hsl(199, 89%, 48%)" radius={[4, 4, 0, 0]} />
                 )}
               </BarChart>
             </ResponsiveContainer>
@@ -93,26 +122,46 @@ const TenantHistory = () => {
 
       {/* Readings list */}
       <div className="space-y-2 animate-in-delay-3">
-        <h3 className="font-display font-semibold text-sm mb-3">Leolvasások</h3>
-        {loading && <p className="text-muted-foreground text-sm">Betöltés...</p>}
-        {!loading && readings.length === 0 && <p className="text-muted-foreground text-sm">Még nincs mérőállás rögzítve.</p>}
+        <h3 className="font-display font-semibold text-sm mb-3">Leolvasasok</h3>
+        {loading && (
+          <div className="space-y-2">
+            {[1,2,3].map(i => <div key={i} className="glass-card p-4 h-20 animate-pulse" />)}
+          </div>
+        )}
+        {!loading && readings.length === 0 && (
+          <div className="glass-card p-8 text-center">
+            <p className="text-muted-foreground text-sm">Meg nincs meroallas rogzitve.</p>
+          </div>
+        )}
         {readings.map((r) => (
-          <div key={r.id} className={`glass-card p-4 flex items-center justify-between border-l-4 ${borderColor(r.utility_type)}`}>
-            <div>
-              <p className="font-medium text-sm">{utilityLabel(r.utility_type)}</p>
+          <div
+            key={r.id}
+            className="glass-card p-4 flex items-center gap-3"
+            style={{ borderLeft: `3px solid ${utilityColor(r.utility_type)}` }}
+          >
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${utilityColor(r.utility_type)}15` }}>
+              {utilityIcon(r.utility_type)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-sm capitalize">{r.utility_type}</p>
+                {r.photo_filename && <Camera className="h-3 w-3 text-muted-foreground" />}
+              </div>
               <p className="text-xs text-muted-foreground">{formatDate(r.reading_date)}</p>
               {r.consumption != null && (
                 <p className="text-xs text-muted-foreground">
-                  Fogyasztás: {r.consumption.toLocaleString('hu-HU')} {r.utility_type === 'villany' ? 'kWh' : 'm³'}
+                  Fogyasztas: {formatNumber(r.consumption)} {r.utility_type === 'villany' ? 'kWh' : 'm\u00B3'}
                 </p>
               )}
             </div>
-            <div className="text-right">
-              {r.cost_huf != null && <p className="font-display font-bold text-sm format-hu">{formatHuf(r.cost_huf)}</p>}
+            <div className="text-right flex-shrink-0">
+              {r.cost_huf != null && (
+                <p className="font-display font-bold text-sm format-hu">{formatHuf(r.cost_huf)}</p>
+              )}
               <p className="text-xs text-muted-foreground format-hu">
-                {r.value.toLocaleString('hu-HU')} {r.utility_type === 'villany' ? 'kWh' : 'm³'}
+                {formatNumber(r.value)} {r.utility_type === 'villany' ? 'kWh' : 'm\u00B3'}
               </p>
-              {r.photo_filename && <span className="text-xs text-muted-foreground">Foto</span>}
             </div>
           </div>
         ))}
