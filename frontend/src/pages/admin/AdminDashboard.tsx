@@ -90,9 +90,9 @@ const AdminDashboard = () => {
                 <TableRow
                   key={p.id}
                   className="cursor-pointer hover:bg-accent/50 transition-colors"
-                  onClick={() => navigate('/admin/properties')}
+                  onClick={() => navigate(`/admin/properties/${p.id}`)}
                 >
-                  <TableCell className="font-medium text-sm">{p.name}</TableCell>
+                  <TableCell className="font-medium text-sm text-primary">{p.name}</TableCell>
                   <TableCell>{typeBadge(p.property_type)}</TableCell>
                   <TableCell className="text-right text-sm format-hu">
                     {p.monthly_rent ? formatHuf(p.monthly_rent) : '\u2014'}
@@ -116,11 +116,11 @@ const AdminDashboard = () => {
               <div
                 key={r.id}
                 className="p-4 flex items-center justify-between cursor-pointer hover:bg-accent/50 transition-colors"
-                onClick={() => navigate('/admin/readings')}
+                onClick={() => navigate(`/admin/properties/${r.property_id}?tab=readings`)}
               >
                 <div>
                   <p className="font-medium text-sm">{utilityLabel(r.utility_type)}</p>
-                  <p className="text-xs text-muted-foreground">{r.property_name} · {formatDate(r.reading_date)}</p>
+                  <p className="text-xs text-muted-foreground"><span className="text-primary">{r.property_name}</span> · {formatDate(r.reading_date)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <p className="font-display font-bold text-sm format-hu">
