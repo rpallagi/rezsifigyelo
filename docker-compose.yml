@@ -27,6 +27,11 @@ services:
     labels:
       - "net.unraid.docker.webui=http://[IP]:[PORT:5003]/"
       - "net.unraid.docker.icon=https://raw.githubusercontent.com/rpallagi/rezsifigyelo/main/static/img/icon-192.png"
+      - "net.unraid.docker.managed=compose"
+      - "org.opencontainers.image.title=Rezsi Figyelo"
+      - "org.opencontainers.image.description=Kozuzemi meroallas nyilvantarto"
+      - "org.opencontainers.image.version=1.0.0"
+      - "org.opencontainers.image.source=https://github.com/rpallagi/rezsifigyelo"
     depends_on:
       postgres:
         condition: service_healthy
