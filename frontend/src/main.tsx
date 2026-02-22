@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import { I18nProvider } from "./lib/i18n.tsx";
 import "./index.css";
 
 // Initialize theme from localStorage before React renders to prevent flash
@@ -8,4 +9,12 @@ if (savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-s
   document.documentElement.classList.add("dark");
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Initialize lang attribute
+const savedLang = localStorage.getItem("rezsi-lang");
+if (savedLang) document.documentElement.lang = savedLang;
+
+createRoot(document.getElementById("root")!).render(
+  <I18nProvider>
+    <App />
+  </I18nProvider>
+);

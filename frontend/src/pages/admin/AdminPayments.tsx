@@ -19,8 +19,10 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { useI18n } from "@/lib/i18n";
 
 const AdminPayments = () => {
+  const { t } = useI18n();
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [properties, setProperties] = useState<AdminProperty[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,7 @@ const AdminPayments = () => {
       setDialogOpen(false);
       loadPayments();
     } catch (e: any) {
-      alert(e.message || "Hiba történt");
+      alert(e.message || t('common.error'));
     } finally {
       setSaving(false);
     }
@@ -89,17 +91,17 @@ const AdminPayments = () => {
   const set = (key: string, val: string) => setForm((f) => ({ ...f, [key]: val }));
 
   const methodLabel = (m: string | null) => {
-    if (m === "keszpenz") return "Készpénz";
-    if (m === "atutalas") return "Átutalás";
-    if (m === "egyeb") return "Egyéb";
+    if (m === "keszpenz") return t('payments.cash');
+    if (m === "atutalas") return t('payments.transfer');
+    if (m === "egyeb") return t('common.egyeb');
     return m || "—";
   };
 
   const methodBadge = (m: string | null) => {
     if (m === "keszpenz")
-      return <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200 text-xs">Készpénz</Badge>;
+      return <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200 text-xs">{t('payments.cash')}</Badge>;
     if (m === "atutalas")
-      return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 text-xs">Átutalás</Badge>;
+      return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 text-xs">{t('payments.transfer')}</Badge>;
     return <Badge variant="outline" className="text-xs">{methodLabel(m)}</Badge>;
   };
 
@@ -107,21 +109,21 @@ const AdminPayments = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between animate-in">
         <div>
-          <h1 className="font-display text-2xl font-bold">Befizetések</h1>
-          <p className="text-muted-foreground text-sm mt-1">Bérleti díjak és befizetések kezelése</p>
+          <h1 className="font-display text-2xl font-bold">{t('payments.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t('payments.desc')}</p>
         </div>
         <Button onClick={openNew} className="gradient-primary-bg border-0">
-          <Plus className="h-4 w-4 mr-2" /> Új befizetés
+          <Plus className="h-4 w-4 mr-2" /> {t('payments.new')}
         </Button>
       </div>
 
       {/* Filter */}
       <div className="w-full sm:w-64 animate-in-delay-1">
-        <label className="text-sm text-muted-foreground block mb-1">Szűrés ingatlanra</label>
+        <label className="text-sm text-muted-foreground block mb-1">{t('payments.filterProperty')}</label>
         <Select value={filterProperty} onValueChange={setFilterProperty}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Összes ingatlan</SelectItem>
+            <SelectItem value="all">{t('payments.allProperties')}</SelectItem>
             {properties.map((p) => (
               <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
             ))}
@@ -138,18 +140,18 @@ const AdminPayments = () => {
         ) : payments.length === 0 ? (
           <div className="p-12 text-center">
             <Banknote className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">Nincs befizetés rögzítve.</p>
+            <p className="text-muted-foreground text-sm">{t('payments.noPayments')}</p>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Ingatlan</TableHead>
-                <TableHead className="text-right">Összeg</TableHead>
-                <TableHead>Dátum</TableHead>
-                <TableHead>Mód</TableHead>
-                <TableHead>Időszak</TableHead>
-                <TableHead>Megjegyzés</TableHead>
+                <TableHead>{t('payments.property')}</TableHead>
+                <TableHead className="text-right">{t('payments.amount')}</TableHead>
+                <TableHead>{t('payments.paymentDate')}</TableHead>
+                <TableHead>{t('payments.paymentMethod')}</TableHead>
+                <TableHead>{t('payments.periodFrom')}</TableHead>
+                <TableHead>{t('payments.notes')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -182,15 +184,15 @@ const AdminPayments = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display">Új befizetés</DialogTitle>
-            <DialogDescription>Rögzíts egy új bérleti díj befizetést.</DialogDescription>
+            <DialogTitle className="font-display">{t('payments.newTitle')}</DialogTitle>
+            <DialogDescription>{t('payments.newDesc')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Ingatlan *</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('payments.property')} *</label>
               <Select value={form.property_id} onValueChange={(v) => set("property_id", v)}>
-                <SelectTrigger><SelectValue placeholder="Válassz ingatlant..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('payments.selectProperty')} /></SelectTrigger>
                 <SelectContent>
                   {properties.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
@@ -200,57 +202,57 @@ const AdminPayments = () => {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Összeg (Ft) *</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('payments.amount')} *</label>
               <Input
                 type="number"
                 value={form.amount_huf}
                 onChange={(e) => set("amount_huf", e.target.value)}
-                placeholder="pl. 150000"
+                placeholder={t('payments.amountPlaceholder')}
               />
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Befizetés dátuma *</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('payments.paymentDate')} *</label>
               <Input type="date" value={form.payment_date} onChange={(e) => set("payment_date", e.target.value)} />
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Fizetési mód</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('payments.paymentMethod')}</label>
               <Select value={form.payment_method} onValueChange={(v) => set("payment_method", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="keszpenz">Készpénz</SelectItem>
-                  <SelectItem value="atutalas">Átutalás</SelectItem>
-                  <SelectItem value="egyeb">Egyéb</SelectItem>
+                  <SelectItem value="keszpenz">{t('payments.cash')}</SelectItem>
+                  <SelectItem value="atutalas">{t('payments.transfer')}</SelectItem>
+                  <SelectItem value="egyeb">{t('common.egyeb')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm text-muted-foreground block mb-1">Időszak kezdete</label>
+                <label className="text-sm text-muted-foreground block mb-1">{t('payments.periodFrom')}</label>
                 <Input type="date" value={form.period_from} onChange={(e) => set("period_from", e.target.value)} />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground block mb-1">Időszak vége</label>
+                <label className="text-sm text-muted-foreground block mb-1">{t('payments.periodTo')}</label>
                 <Input type="date" value={form.period_to} onChange={(e) => set("period_to", e.target.value)} />
               </div>
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Megjegyzés</label>
-              <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} placeholder="Opcionális megjegyzés..." />
+              <label className="text-sm text-muted-foreground block mb-1">{t('payments.notes')}</label>
+              <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} placeholder={t('payments.notesPlaceholder')} />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Mégse</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>
             <Button
               onClick={handleSave}
               disabled={saving || !form.property_id || !form.amount_huf}
               className="gradient-primary-bg border-0"
             >
-              {saving ? "Mentés..." : "Mentés"}
+              {saving ? t('common.saving') : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

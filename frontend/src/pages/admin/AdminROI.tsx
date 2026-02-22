@@ -4,8 +4,10 @@ import { getAdminROI, type ROIProperty } from "@/lib/api";
 import { formatHuf, formatDate, formatNumber } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useI18n } from "@/lib/i18n";
 
 const AdminROI = () => {
+  const { t } = useI18n();
   const [properties, setProperties] = useState<ROIProperty[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -17,10 +19,10 @@ const AdminROI = () => {
 
   const typeBadge = (type: string) => {
     if (type === "lakas")
-      return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 text-xs">Lakás</Badge>;
+      return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 text-xs">{t('common.lakas')}</Badge>;
     if (type === "uzlet")
-      return <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-xs">Üzlet</Badge>;
-    return <Badge variant="outline" className="text-xs">Egyéb</Badge>;
+      return <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-xs">{t('common.uzlet')}</Badge>;
+    return <Badge variant="outline" className="text-xs">{t('common.egyeb')}</Badge>;
   };
 
   const yieldColor = (y: number) => {
@@ -43,15 +45,15 @@ const AdminROI = () => {
   return (
     <div className="space-y-6">
       <div className="animate-in">
-        <h1 className="font-display text-2xl font-bold">ROI Kalkulátor</h1>
-        <p className="text-muted-foreground text-sm mt-1">Befektetés megtérülése ingatlanonként</p>
+        <h1 className="font-display text-2xl font-bold">{t('roi.title')}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{t('roi.desc')}</p>
       </div>
 
       {properties.length === 0 ? (
         <div className="glass-card p-12 text-center animate-in-delay-1">
           <TrendingUp className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground text-sm">
-            Nincs ingatlan vételárral és bérleti díjjal. Add meg ezeket az ingatlan szerkesztésénél.
+            {t('roi.empty')}
           </p>
         </div>
       ) : (
@@ -74,7 +76,7 @@ const AdminROI = () => {
                 <div className="flex items-start gap-2">
                   <Banknote className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground">Vételár</p>
+                    <p className="text-xs text-muted-foreground">{t('roi.purchasePrice')}</p>
                     <p className="font-display font-bold text-sm format-hu">{formatHuf(p.purchase_price)}</p>
                   </div>
                 </div>
@@ -82,7 +84,7 @@ const AdminROI = () => {
                 <div className="flex items-start gap-2">
                   <Banknote className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground">Havi bérleti díj</p>
+                    <p className="text-xs text-muted-foreground">{t('roi.monthlyRent')}</p>
                     <p className="font-display font-bold text-sm format-hu">{formatHuf(p.monthly_rent)}</p>
                   </div>
                 </div>
@@ -90,7 +92,7 @@ const AdminROI = () => {
                 <div className="flex items-start gap-2">
                   <Wrench className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground">Összes karbantartás</p>
+                    <p className="text-xs text-muted-foreground">{t('roi.totalMaintenance')}</p>
                     <p className="font-display font-bold text-sm format-hu">{formatHuf(p.total_maintenance)}</p>
                   </div>
                 </div>
@@ -98,7 +100,7 @@ const AdminROI = () => {
                 <div className="flex items-start gap-2">
                   <Percent className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-xs text-muted-foreground">Éves hozam</p>
+                    <p className="text-xs text-muted-foreground">{t('roi.annualYield')}</p>
                     <p className={`font-display font-bold text-sm ${yieldColor(p.annual_yield)}`}>
                       {formatNumber(p.annual_yield, 2)}%
                     </p>
@@ -112,9 +114,9 @@ const AdminROI = () => {
                   <div className="flex items-center gap-2">
                     <CalendarClock className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-xs text-muted-foreground">Megtérülés</p>
+                      <p className="text-xs text-muted-foreground">{t('roi.breakeven')}</p>
                       <p className="font-display font-bold text-sm">
-                        {p.breakeven_months} hónap
+                        {p.breakeven_months} {t('roi.months')}
                         <span className="text-xs text-muted-foreground font-normal ml-1">
                           ({formatNumber(p.breakeven_months / 12, 1)} év)
                         </span>
@@ -122,7 +124,7 @@ const AdminROI = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Break-even dátum</p>
+                    <p className="text-xs text-muted-foreground">{t('roi.breakevenDate')}</p>
                     <p className="font-display font-bold text-sm">{formatDate(p.breakeven_date)}</p>
                   </div>
                 </div>

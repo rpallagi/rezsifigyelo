@@ -4,11 +4,9 @@ import { Zap, Droplets, Waves, Camera } from "lucide-react";
 import { getTenantHistory, getTenantChartData, type ReadingItem } from "@/lib/api";
 import { formatHuf, formatDate, formatDateShort, formatNumber } from "@/lib/format";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { useI18n } from "@/lib/i18n";
 
-const tabs = ["Osszes", "Villany", "Viz", "Csatorna"] as const;
-type Tab = typeof tabs[number];
-const typeMap: Record<Tab, string> = { "Osszes": "all", "Villany": "villany", "Viz": "viz", "Csatorna": "csatorna" };
-const reverseTypeMap: Record<string, Tab> = { "villany": "Villany", "viz": "Viz", "csatorna": "Csatorna" };
+type TabKey = "all" | "villany" | "viz" | "csatorna";
 
 const utilityIcon = (type: string) => {
   if (type === 'villany') return <Zap className="h-3.5 w-3.5" style={{ color: "hsl(45, 93%, 47%)" }} />;
@@ -23,17 +21,26 @@ const utilityColor = (type: string) => {
 };
 
 const TenantHistory = () => {
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const initialType = searchParams.get('type');
-  const [activeTab, setActiveTab] = useState<Tab>(
-    initialType && reverseTypeMap[initialType] ? reverseTypeMap[initialType] : "Osszes"
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    initialType && ['villany', 'viz', 'csatorna'].includes(initialType) ? initialType as TabKey : "all"
   );
   const [readings, setReadings] = useState<ReadingItem[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const tabKeys: TabKey[] = ["all", "villany", "viz", "csatorna"];
+  const tabLabels: Record<TabKey, string> = {
+    all: t('common.all'),
+    villany: t('common.villany'),
+    viz: t('common.viz'),
+    csatorna: t('common.csatorna'),
+  };
+
   useEffect(() => {
-    const type = typeMap[activeTab];
+    const type = activeTab;
     setLoading(true);
     getTenantHistory(type)
       .then((data) => setReadings(data.readings))
@@ -63,13 +70,13 @@ const TenantHistory = () => {
   return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="pt-2 mb-6 animate-in">
-        <h1 className="font-display text-2xl font-bold">Elozmenyem</h1>
-        <p className="text-muted-foreground text-sm mt-1">Fogyasztas es koltsegek attekintese</p>
+        <h1 className="font-display text-2xl font-bold">{t('history.title')}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{t('history.desc')}</p>
       </div>
 
       {/* Tab bar */}
       <div className="flex gap-1 bg-muted rounded-xl p-1 mb-5 animate-in-delay-1">
-        {tabs.map((tab) => (
+        {tabKeys.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -77,7 +84,7 @@ const TenantHistory = () => {
               activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
             }`}
           >
-            {tab}
+            {tabLabels[tab]}
           </button>
         ))}
       </div>
@@ -85,19 +92,19 @@ const TenantHistory = () => {
       {/* Summary stats */}
       <div className="grid grid-cols-2 gap-3 mb-5 animate-in-delay-1">
         <div className="glass-card p-4 text-center">
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">Osszes koltseg</p>
+          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">{t('history.totalCost')}</p>
           <p className="font-display font-bold text-lg format-hu">{formatHuf(totalCost)}</p>
         </div>
         <div className="glass-card p-4 text-center">
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">Leolvasasok</p>
-          <p className="font-display font-bold text-lg">{totalReadings} db</p>
+          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">{t('history.readings')}</p>
+          <p className="font-display font-bold text-lg">{totalReadings} {t('common.db')}</p>
         </div>
       </div>
 
       {/* Chart */}
       {chartData.length > 0 && (
         <div className="glass-card p-4 mb-5 animate-in-delay-2">
-          <h3 className="font-display font-semibold text-sm mb-4">Havi koltsegek (Ft)</h3>
+          <h3 className="font-display font-semibold text-sm mb-4">{t('history.monthlyCosts')}</h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barGap={2} barCategoryGap="15%">
@@ -114,11 +121,11 @@ const TenantHistory = () => {
                   }}
                   formatter={(value: number) => [formatHuf(value), ""]}
                 />
-                {(activeTab === "Osszes" || activeTab === "Villany") && (
-                  <Bar dataKey="villany" name="Villany" fill="hsl(45, 93%, 47%)" radius={[4, 4, 0, 0]} />
+                {(activeTab === "all" || activeTab === "villany") && (
+                  <Bar dataKey="villany" name={t('common.villany')} fill="hsl(45, 93%, 47%)" radius={[4, 4, 0, 0]} />
                 )}
-                {(activeTab === "Osszes" || activeTab === "Viz") && (
-                  <Bar dataKey="viz" name="Viz" fill="hsl(199, 89%, 48%)" radius={[4, 4, 0, 0]} />
+                {(activeTab === "all" || activeTab === "viz") && (
+                  <Bar dataKey="viz" name={t('common.viz')} fill="hsl(199, 89%, 48%)" radius={[4, 4, 0, 0]} />
                 )}
               </BarChart>
             </ResponsiveContainer>
@@ -128,7 +135,7 @@ const TenantHistory = () => {
 
       {/* Readings list */}
       <div className="space-y-2 animate-in-delay-3">
-        <h3 className="font-display font-semibold text-sm mb-3">Leolvasasok</h3>
+        <h3 className="font-display font-semibold text-sm mb-3">{t('history.readings')}</h3>
         {loading && (
           <div className="space-y-2">
             {[1,2,3].map(i => <div key={i} className="glass-card p-4 h-20 animate-pulse" />)}
@@ -136,7 +143,7 @@ const TenantHistory = () => {
         )}
         {!loading && readings.length === 0 && (
           <div className="glass-card p-8 text-center">
-            <p className="text-muted-foreground text-sm">Meg nincs meroallas rogzitve.</p>
+            <p className="text-muted-foreground text-sm">{t('history.noReadings')}</p>
           </div>
         )}
         {readings.map((r) => (
@@ -157,7 +164,7 @@ const TenantHistory = () => {
               <p className="text-xs text-muted-foreground">{formatDate(r.reading_date)}</p>
               {r.consumption != null && (
                 <p className="text-xs text-muted-foreground">
-                  Fogyasztas: {formatNumber(r.consumption)} {r.utility_type === 'villany' ? 'kWh' : 'm\u00B3'}
+                  {t('reading.consumption')}: {formatNumber(r.consumption)} {r.utility_type === 'villany' ? 'kWh' : 'm\u00B3'}
                 </p>
               )}
             </div>

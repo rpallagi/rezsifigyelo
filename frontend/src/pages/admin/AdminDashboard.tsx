@@ -6,8 +6,10 @@ import { formatHuf, formatDate, utilityLabel } from "@/lib/format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useI18n } from "@/lib/i18n";
 
 const AdminDashboard = () => {
+  const { t } = useI18n();
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -29,23 +31,23 @@ const AdminDashboard = () => {
   if (!data) return null;
 
   const stats = [
-    { label: "Ingatlanok", value: String(data.total_properties), icon: Building2, href: "/admin/properties" },
-    { label: "Meroallasok", value: String(data.total_readings), icon: Users, href: "/admin/readings" },
-    { label: "Befizetesek osszesen", value: formatHuf(data.total_payments), icon: Banknote, href: "/admin/payments" },
-    { label: "Nyitott feladatok", value: String(data.pending_todos), icon: ListTodo, href: "/admin/todos" },
+    { label: t('adminDash.properties'), value: String(data.total_properties), icon: Building2, href: "/admin/properties" },
+    { label: t('adminDash.readings'), value: String(data.total_readings), icon: Users, href: "/admin/readings" },
+    { label: t('adminDash.payments'), value: formatHuf(data.total_payments), icon: Banknote, href: "/admin/payments" },
+    { label: t('adminDash.openTodos'), value: String(data.pending_todos), icon: ListTodo, href: "/admin/todos" },
   ];
 
   const typeBadge = (type: string) => {
-    if (type === 'lakas') return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800 text-xs">Lakas</Badge>;
-    if (type === 'uzlet') return <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800 text-xs">Uzlet</Badge>;
-    return <Badge variant="outline" className="text-xs">Egyeb</Badge>;
+    if (type === 'lakas') return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800 text-xs">{t('common.lakas')}</Badge>;
+    if (type === 'uzlet') return <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800 text-xs">{t('common.uzlet')}</Badge>;
+    return <Badge variant="outline" className="text-xs">{t('common.egyeb')}</Badge>;
   };
 
   return (
     <div className="space-y-6">
       <div className="animate-in">
-        <h1 className="font-display text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Attekintes a portfoliodrol</p>
+        <h1 className="font-display text-2xl font-bold">{t('adminDash.title')}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{t('adminDash.desc')}</p>
       </div>
 
       {/* Stat cards - clickable */}
@@ -70,17 +72,17 @@ const AdminDashboard = () => {
         {/* Properties table - clickable rows */}
         <div className="lg:col-span-3 glass-card animate-in-delay-2">
           <div className="p-5 border-b border-border/50 flex items-center justify-between">
-            <h2 className="font-display font-bold">Ingatlanok</h2>
+            <h2 className="font-display font-bold">{t('adminDash.properties')}</h2>
             <Link to="/admin/properties" className="text-xs text-primary font-medium flex items-center gap-1 hover:underline">
-              Osszes <ChevronRight className="h-3 w-3" />
+              {t('common.all')} <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nev</TableHead>
-                <TableHead>Tipus</TableHead>
-                <TableHead className="text-right">Berleti dij</TableHead>
+                <TableHead>{t('adminDash.name')}</TableHead>
+                <TableHead>{t('adminDash.type')}</TableHead>
+                <TableHead className="text-right">{t('adminDash.monthlyRent')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -104,9 +106,9 @@ const AdminDashboard = () => {
         {/* Recent readings - clickable rows */}
         <div className="lg:col-span-2 glass-card animate-in-delay-3">
           <div className="p-5 border-b border-border/50 flex items-center justify-between">
-            <h2 className="font-display font-bold">Legutobbi leolvasasok</h2>
+            <h2 className="font-display font-bold">{t('adminDash.recentReadings')}</h2>
             <Link to="/admin/readings" className="text-xs text-primary font-medium flex items-center gap-1 hover:underline">
-              Osszes <ChevronRight className="h-3 w-3" />
+              {t('common.all')} <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
           <div className="divide-y divide-border/50">

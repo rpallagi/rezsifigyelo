@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { tenantLogin, tenantRegister } from "@/lib/api";
 import ThemeToggle from "@/components/ThemeToggle";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useI18n } from "@/lib/i18n";
 
 const TenantLogin = () => {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -16,6 +18,7 @@ const TenantLogin = () => {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +34,7 @@ const TenantLogin = () => {
         navigate("/tenant");
       }
     } catch (err: any) {
-      setError(err.message || "Hibas e-mail cim vagy jelszo!");
+      setError(err.message || t('tenantLogin.errorLogin'));
     } finally {
       setLoading(false);
     }
@@ -44,10 +47,10 @@ const TenantLogin = () => {
     setLoading(true);
     try {
       const result = await tenantRegister(email, password, name);
-      setSuccess(result.message || "Sikeres regisztracio!");
+      setSuccess(result.message || t('tenantLogin.successRegister'));
       setMode("login");
     } catch (err: any) {
-      setError(err.message || "Hiba tortent a regisztracio soran!");
+      setError(err.message || t('tenantLogin.errorRegister'));
     } finally {
       setLoading(false);
     }
@@ -55,13 +58,14 @@ const TenantLogin = () => {
 
   const handleSocialLogin = (provider: string) => {
     // TODO: Implement OAuth flows
-    setError(`${provider} bejelentkezes hamarosan elerheto!`);
+    setError(`${provider} — ${t('tenantLogin.socialSoon')}`);
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
-      {/* Theme toggle */}
-      <div className="fixed top-4 right-4">
+      {/* Theme toggle + Language toggle */}
+      <div className="fixed top-4 right-4 flex items-center gap-1">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
 
@@ -69,9 +73,9 @@ const TenantLogin = () => {
         <div className="w-16 h-16 rounded-2xl gradient-tenant-bg flex items-center justify-center mx-auto mb-5">
           <Zap className="h-8 w-8 text-primary-foreground" />
         </div>
-        <h1 className="font-display text-2xl font-bold mb-2">Rezsi Kovetes</h1>
+        <h1 className="font-display text-2xl font-bold mb-2">{t('common.appName')}</h1>
         <p className="text-muted-foreground">
-          {mode === "login" ? "Berlo bejelentkezes" : "Uj fiok letrehozasa"}
+          {mode === "login" ? t('tenantLogin.title') : t('tenantLogin.registerTitle')}
         </p>
       </div>
 
@@ -88,7 +92,7 @@ const TenantLogin = () => {
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
-          Folytatas Google-lel
+          {t('tenantLogin.google')}
         </Button>
 
         <Button
@@ -99,7 +103,7 @@ const TenantLogin = () => {
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="#1877F2">
             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
           </svg>
-          Folytatas Facebook-kal
+          {t('tenantLogin.facebook')}
         </Button>
 
         <Button
@@ -110,14 +114,14 @@ const TenantLogin = () => {
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
           </svg>
-          Folytatas Apple-lel
+          {t('tenantLogin.apple')}
         </Button>
       </div>
 
       {/* Divider */}
       <div className="w-full max-w-sm flex items-center gap-3 mb-6 animate-in-delay-1">
         <div className="flex-1 h-px bg-border" />
-        <span className="text-xs text-muted-foreground">vagy e-mail cimmel</span>
+        <span className="text-xs text-muted-foreground">{t('tenantLogin.orEmail')}</span>
         <div className="flex-1 h-px bg-border" />
       </div>
 
@@ -132,7 +136,7 @@ const TenantLogin = () => {
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Neved"
+              placeholder={t('tenantLogin.name')}
               className="pl-10 h-12"
             />
           </div>
@@ -144,7 +148,7 @@ const TenantLogin = () => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="E-mail cim"
+            placeholder={t('tenantLogin.email')}
             className="pl-10 h-12"
             autoFocus
             required
@@ -157,7 +161,7 @@ const TenantLogin = () => {
             type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Jelszo"
+            placeholder={t('tenantLogin.password')}
             className="pl-10 pr-10 h-12"
             required
           />
@@ -179,8 +183,8 @@ const TenantLogin = () => {
           disabled={loading}
         >
           {loading
-            ? (mode === "login" ? "Bejelentkezes..." : "Regisztracio...")
-            : (mode === "login" ? "Bejelentkezes" : "Regisztracio")
+            ? (mode === "login" ? t('tenantLogin.loggingIn') : t('tenantLogin.registering'))
+            : (mode === "login" ? t('tenantLogin.loginBtn') : t('tenantLogin.registerBtn'))
           }
         </Button>
       </form>
@@ -189,23 +193,23 @@ const TenantLogin = () => {
       <p className="text-muted-foreground text-sm mt-6 animate-in-delay-3">
         {mode === "login" ? (
           <>
-            Meg nincs fiokod?{" "}
+            {t('tenantLogin.noAccount')}{" "}
             <button onClick={() => { setMode("register"); setError(""); setSuccess(""); }} className="text-primary hover:underline font-medium">
-              Regisztracio
+              {t('common.register')}
             </button>
           </>
         ) : (
           <>
-            Mar van fiokod?{" "}
+            {t('tenantLogin.hasAccount')}{" "}
             <button onClick={() => { setMode("login"); setError(""); setSuccess(""); }} className="text-primary hover:underline font-medium">
-              Bejelentkezes
+              {t('common.login')}
             </button>
           </>
         )}
       </p>
 
       <p className="text-muted-foreground text-xs mt-4 animate-in-delay-3">
-        <Link to="/admin/login" className="text-primary hover:underline">Berbeado belepes</Link>
+        <Link to="/admin/login" className="text-primary hover:underline">{t('tenantLogin.landlordLogin')}</Link>
       </p>
     </div>
   );

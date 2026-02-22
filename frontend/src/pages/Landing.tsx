@@ -2,8 +2,12 @@ import { Link } from "react-router-dom";
 import { Key, BarChart3, Camera, Calculator, TrendingUp, ArrowRight, Zap, Droplets, FileText, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useI18n } from "@/lib/i18n";
 
 const Landing = () => {
+  const { t } = useI18n();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
@@ -11,15 +15,16 @@ const Landing = () => {
         <div className="container max-w-6xl mx-auto flex items-center justify-between h-16 px-4">
           <div className="flex items-center gap-2">
             <Zap className="h-6 w-6 text-primary" />
-            <span className="font-display font-bold text-lg">Rezsi Követés</span>
+            <span className="font-display font-bold text-lg">{t('common.appName')}</span>
           </div>
           <div className="flex items-center gap-2">
+            <LanguageToggle />
             <ThemeToggle />
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/tenant/login">Berlo belepes</Link>
+              <Link to="/tenant/login">{t('landing.tenantBtn')}</Link>
             </Button>
             <Button size="sm" className="gradient-primary-bg border-0" asChild>
-              <Link to="/admin/login">Berbeado</Link>
+              <Link to="/admin/login">{t('landing.landlordBtn')}</Link>
             </Button>
           </div>
         </div>
@@ -31,15 +36,14 @@ const Landing = () => {
           <div className="animate-in max-w-3xl mx-auto">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent text-accent-foreground text-sm font-medium mb-6">
               <Zap className="h-3.5 w-3.5" />
-              Közüzemi nyilvántartás, egyszerűen
+              {t('landing.tagline')}
             </div>
             <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.1] mb-5">
-              Tartsd kézben a{" "}
-              <span className="gradient-text">rezsiköltségeket</span>
+              {t('landing.heroTitle1')}{" "}
+              <span className="gradient-text">{t('landing.heroTitle2')}</span>
             </h1>
             <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-              Mérőállás rögzítés, automatikus költségszámítás, bérlői kommunikáció
-              és teljes ingatlankezelés — egy helyen, okostelefonról is.
+              {t('landing.heroDesc')}
             </p>
           </div>
 
@@ -50,13 +54,12 @@ const Landing = () => {
                 <div className="w-14 h-14 rounded-2xl gradient-tenant-bg flex items-center justify-center mb-5">
                   <Key className="h-7 w-7 text-primary-foreground" />
                 </div>
-                <h2 className="font-display text-2xl font-bold mb-3">Bérlő vagyok</h2>
+                <h2 className="font-display text-2xl font-bold mb-3">{t('landing.tenantCard')}</h2>
                 <p className="text-muted-foreground mb-5 leading-relaxed">
-                  Rögzítsd a mérőállásaidat pillanatok alatt.
-                  Kövesd a fogyasztásodat és költségeidet valós időben.
+                  {t('landing.tenantCardDesc')}
                 </p>
                 <div className="flex items-center gap-2 text-primary font-semibold text-sm group-hover:gap-3 transition-all">
-                  Mérőállás rögzítés <ArrowRight className="h-4 w-4" />
+                  {t('landing.tenantCardLink')} <ArrowRight className="h-4 w-4" />
                 </div>
               </div>
             </Link>
@@ -66,13 +69,12 @@ const Landing = () => {
                 <div className="w-14 h-14 rounded-2xl gradient-admin-bg flex items-center justify-center mb-5">
                   <BarChart3 className="h-7 w-7 text-primary-foreground" />
                 </div>
-                <h2 className="font-display text-2xl font-bold mb-3">Bérbeadó vagyok</h2>
+                <h2 className="font-display text-2xl font-bold mb-3">{t('landing.landlordCard')}</h2>
                 <p className="text-muted-foreground mb-5 leading-relaxed">
-                  Kezeld az ingatlanportfóliódat, kövesd a bevételeidet,
-                  számlákat és optimalizáld a hozamodat egyetlen felületen.
+                  {t('landing.landlordCardDesc')}
                 </p>
                 <div className="flex items-center gap-2 text-primary font-semibold text-sm group-hover:gap-3 transition-all">
-                  Admin felület <ArrowRight className="h-4 w-4" />
+                  {t('landing.landlordCardLink')} <ArrowRight className="h-4 w-4" />
                 </div>
               </div>
             </Link>
@@ -84,9 +86,9 @@ const Landing = () => {
       <section className="py-20 px-4">
         <div className="container max-w-6xl mx-auto">
           <div className="text-center mb-14 animate-in-delay-2">
-            <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">Minden funkció, amire szükséged van</h2>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">{t('landing.featuresTitle')}</h2>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-              Rezsikövetés, ingatlankezelés és pénzügyi nyilvántartás egy helyen.
+              {t('landing.featuresDesc')}
             </p>
           </div>
 
@@ -94,33 +96,33 @@ const Landing = () => {
             {[
               {
                 icon: Camera,
-                title: "Fotós leolvasás",
-                description: "Fényképezd le a mérőórádat — a rendszer eltárolja és nyomon követi az állásokat.",
+                title: t('landing.feat1'),
+                description: t('landing.feat1Desc'),
               },
               {
                 icon: Calculator,
-                title: "Automatikus költségszámítás",
-                description: "Azonnal kiszámolja a várható költséget az aktuális tarifák alapján.",
+                title: t('landing.feat2'),
+                description: t('landing.feat2Desc'),
               },
               {
                 icon: TrendingUp,
-                title: "ROI kalkulátor",
-                description: "Számold ki a befektetésed megtérülését és kövesd a break-even pontot.",
+                title: t('landing.feat3'),
+                description: t('landing.feat3Desc'),
               },
               {
                 icon: Zap,
-                title: "Villany · Víz · Csatorna",
-                description: "Minden közüzemi mérő egy helyen, egységes kezelőfelülettel.",
+                title: t('landing.feat4'),
+                description: t('landing.feat4Desc'),
               },
               {
                 icon: Receipt,
-                title: "Számlázás és fizetés",
-                description: "Számlázz.hu integráció, fizetési felszólítások, online fizetés egy kattintással.",
+                title: t('landing.feat5'),
+                description: t('landing.feat5Desc'),
               },
               {
                 icon: FileText,
-                title: "PDF riportok",
-                description: "Fogyasztási kimutatások és összesítők PDF-ben, automatikusan.",
+                title: t('landing.feat6'),
+                description: t('landing.feat6Desc'),
               },
             ].map((feature, i) => (
               <div key={i} className="glass-card-hover p-6">
@@ -140,9 +142,9 @@ const Landing = () => {
         <div className="container max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Zap className="h-4 w-4" />
-            <span>Rezsi Követés © 2025</span>
+            <span>{t('common.appName')} &copy; 2025</span>
           </div>
-          <p className="text-muted-foreground text-sm">Közüzemi nyilvántartás és ingatlankezelés, egyszerűen.</p>
+          <p className="text-muted-foreground text-sm">{t('landing.footer')}</p>
         </div>
       </footer>
     </div>

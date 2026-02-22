@@ -18,8 +18,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n";
 
 const AdminTariffs = () => {
+  const { t } = useI18n();
   const [groups, setGroups] = useState<TariffGroupDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -66,7 +68,7 @@ const AdminTariffs = () => {
       setDialogOpen(false);
       load();
     } catch (e: any) {
-      alert(e.message || "Hiba történt");
+      alert(e.message || t('common.error'));
     } finally {
       setSaving(false);
     }
@@ -95,18 +97,18 @@ const AdminTariffs = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between animate-in">
         <div>
-          <h1 className="font-display text-2xl font-bold">Tarifák</h1>
-          <p className="text-muted-foreground text-sm mt-1">Közüzemi díjak kezelése csoportonként</p>
+          <h1 className="font-display text-2xl font-bold">{t('tariffs.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t('tariffs.desc')}</p>
         </div>
         <Button onClick={openNew} className="gradient-primary-bg border-0">
-          <Plus className="h-4 w-4 mr-2" /> Új tarifa
+          <Plus className="h-4 w-4 mr-2" /> {t('tariffs.new')}
         </Button>
       </div>
 
       {groups.length === 0 ? (
         <div className="glass-card p-12 text-center animate-in-delay-1">
           <BarChart3 className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground text-sm">Nincsenek tarifa csoportok.</p>
+          <p className="text-muted-foreground text-sm">{t('tariffs.noGroups')}</p>
         </div>
       ) : (
         <div className="space-y-4 animate-in-delay-1">
@@ -131,34 +133,34 @@ const AdminTariffs = () => {
 
               {group.tariffs.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
-                  Még nincsenek tarifák ebben a csoportban.
+                  {t('tariffs.noTariffs')}
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Közüzem típus</TableHead>
-                      <TableHead className="text-right">Díj</TableHead>
-                      <TableHead>Egység</TableHead>
-                      <TableHead>Érvényes</TableHead>
+                      <TableHead>{t('tariffs.utilityType')}</TableHead>
+                      <TableHead className="text-right">{t('tariffs.rate')}</TableHead>
+                      <TableHead>{t('tariffs.unit')}</TableHead>
+                      <TableHead>{t('tariffs.validFrom')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {group.tariffs.map((t) => (
-                      <TableRow key={t.id}>
+                    {group.tariffs.map((tar) => (
+                      <TableRow key={tar.id}>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
-                            {utilityLabel(t.utility_type)}
+                            {utilityLabel(tar.utility_type)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-display font-bold text-sm format-hu">
-                          {formatHuf(t.rate_huf)}
+                          {formatHuf(tar.rate_huf)}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          /{t.unit}
+                          /{tar.unit}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {formatDate(t.valid_from)}
+                          {formatDate(tar.valid_from)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -174,15 +176,15 @@ const AdminTariffs = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display">Új tarifa</DialogTitle>
-            <DialogDescription>Adj hozzá egy új közüzemi tarifát.</DialogDescription>
+            <DialogTitle className="font-display">{t('tariffs.newTitle')}</DialogTitle>
+            <DialogDescription>{t('tariffs.newDesc')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Tarifa csoport *</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('tariffs.group')} *</label>
               <Select value={form.tariff_group_id} onValueChange={(v) => set("tariff_group_id", v)}>
-                <SelectTrigger><SelectValue placeholder="Válassz csoportot..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('tariffs.selectGroup')} /></SelectTrigger>
                 <SelectContent>
                   {groups.map((g) => (
                     <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
@@ -192,51 +194,51 @@ const AdminTariffs = () => {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Közüzem típus *</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('tariffs.utilityType')} *</label>
               <Select value={form.utility_type} onValueChange={handleUtilityChange}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="villany">Villany</SelectItem>
-                  <SelectItem value="viz">Víz</SelectItem>
-                  <SelectItem value="csatorna">Csatorna</SelectItem>
+                  <SelectItem value="villany">{t('common.villany')}</SelectItem>
+                  <SelectItem value="viz">{t('common.viz')}</SelectItem>
+                  <SelectItem value="csatorna">{t('common.csatorna')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Díj (Ft) *</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('tariffs.rateFt')} *</label>
               <Input
                 type="number"
                 step="0.01"
                 value={form.rate_huf}
                 onChange={(e) => set("rate_huf", e.target.value)}
-                placeholder="pl. 36.00"
+                placeholder={t('tariffs.ratePlaceholder')}
               />
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Egység</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('tariffs.unit')}</label>
               <Input
                 value={form.unit}
                 onChange={(e) => set("unit", e.target.value)}
-                placeholder="pl. kWh, m³"
+                placeholder={t('tariffs.unitPlaceholder')}
               />
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Érvényes dátumtól *</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('tariffs.validFromDate')} *</label>
               <Input type="date" value={form.valid_from} onChange={(e) => set("valid_from", e.target.value)} />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Mégse</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>
             <Button
               onClick={handleSave}
               disabled={saving || !form.tariff_group_id || !form.rate_huf}
               className="gradient-primary-bg border-0"
             >
-              {saving ? "Mentés..." : "Mentés"}
+              {saving ? t('common.saving') : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

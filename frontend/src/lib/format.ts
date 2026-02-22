@@ -27,13 +27,21 @@ export const formatDateShort = (date: string): string => {
   });
 };
 
-export const utilityLabel = (type: string): string => {
-  const map: Record<string, string> = {
-    villany: 'Villany',
-    viz: 'Viz',
-    csatorna: 'Csatorna',
+export const utilityLabel = (type: string, locale?: 'hu' | 'en'): string => {
+  const labels: Record<string, Record<string, string>> = {
+    hu: {
+      villany: 'Villany',
+      viz: 'Viz',
+      csatorna: 'Csatorna',
+    },
+    en: {
+      villany: 'Electricity',
+      viz: 'Water',
+      csatorna: 'Sewage',
+    },
   };
-  return map[type] || type;
+  const lang = locale || 'hu';
+  return labels[lang]?.[type] || labels['hu']?.[type] || type;
 };
 
 export const utilityUnit = (type: string): string => {

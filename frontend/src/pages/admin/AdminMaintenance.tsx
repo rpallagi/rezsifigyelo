@@ -16,14 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-
-const categoryLabels: Record<string, string> = {
-  javitas: "Javítás",
-  karbantartas: "Karbantartás",
-  felujitas: "Felújítás",
-  csere: "Csere",
-  egyeb: "Egyéb",
-};
+import { useI18n } from "@/lib/i18n";
 
 const categoryColor: Record<string, string> = {
   javitas: "bg-red-50 text-red-600 border-red-200",
@@ -34,11 +27,20 @@ const categoryColor: Record<string, string> = {
 };
 
 const AdminMaintenance = () => {
+  const { t } = useI18n();
   const [logs, setLogs] = useState<MaintenanceItem[]>([]);
   const [properties, setProperties] = useState<AdminProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const categoryLabels: Record<string, string> = {
+    javitas: t('maint.catRepair'),
+    karbantartas: t('maint.catMaintenance'),
+    felujitas: t('maint.catRenovation'),
+    csere: t('maint.catReplacement'),
+    egyeb: t('common.egyeb'),
+  };
 
   const [form, setForm] = useState({
     property_id: "",
@@ -87,7 +89,7 @@ const AdminMaintenance = () => {
       setDialogOpen(false);
       loadLogs();
     } catch (e: any) {
-      alert(e.message || "Hiba történt");
+      alert(e.message || t('common.error'));
     } finally {
       setSaving(false);
     }
@@ -110,18 +112,18 @@ const AdminMaintenance = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between animate-in">
         <div>
-          <h1 className="font-display text-2xl font-bold">Karbantartás</h1>
-          <p className="text-muted-foreground text-sm mt-1">{logs.length} bejegyzés</p>
+          <h1 className="font-display text-2xl font-bold">{t('maint.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{logs.length} {t('maint.subtitle')}</p>
         </div>
         <Button onClick={openNew} className="gradient-primary-bg border-0">
-          <Plus className="h-4 w-4 mr-2" /> Új bejegyzés
+          <Plus className="h-4 w-4 mr-2" /> {t('maint.new')}
         </Button>
       </div>
 
       {logs.length === 0 ? (
         <div className="glass-card p-12 text-center animate-in-delay-1">
           <Wrench className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground text-sm">Még nincs karbantartási bejegyzés.</p>
+          <p className="text-muted-foreground text-sm">{t('maint.noEntries')}</p>
         </div>
       ) : (
         <div className="space-y-3 animate-in-delay-1">
@@ -174,15 +176,15 @@ const AdminMaintenance = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display">Új karbantartási bejegyzés</DialogTitle>
-            <DialogDescription>Rögzíts egy új karbantartási vagy javítási tételt.</DialogDescription>
+            <DialogTitle className="font-display">{t('maint.newTitle')}</DialogTitle>
+            <DialogDescription>{t('maint.newDesc')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Ingatlan (opcionális)</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('maint.property')}</label>
               <Select value={form.property_id} onValueChange={(v) => set("property_id", v)}>
-                <SelectTrigger><SelectValue placeholder="Válassz ingatlant..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('maint.selectProperty')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Nincs megadva</SelectItem>
                   {properties.map((p) => (
@@ -193,31 +195,31 @@ const AdminMaintenance = () => {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Leírás *</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('maint.description')} *</label>
               <Textarea
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
                 rows={3}
-                placeholder="Mi történt, mit kellett csinálni..."
+                placeholder={t('maint.descPlaceholder')}
               />
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Kategória</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('maint.category')}</label>
               <Select value={form.category} onValueChange={(v) => set("category", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="javitas">Javítás</SelectItem>
-                  <SelectItem value="karbantartas">Karbantartás</SelectItem>
-                  <SelectItem value="felujitas">Felújítás</SelectItem>
-                  <SelectItem value="csere">Csere</SelectItem>
-                  <SelectItem value="egyeb">Egyéb</SelectItem>
+                  <SelectItem value="javitas">{t('maint.catRepair')}</SelectItem>
+                  <SelectItem value="karbantartas">{t('maint.catMaintenance')}</SelectItem>
+                  <SelectItem value="felujitas">{t('maint.catRenovation')}</SelectItem>
+                  <SelectItem value="csere">{t('maint.catReplacement')}</SelectItem>
+                  <SelectItem value="egyeb">{t('common.egyeb')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Költség (Ft)</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('maint.cost')}</label>
               <Input
                 type="number"
                 value={form.cost_huf}
@@ -227,7 +229,7 @@ const AdminMaintenance = () => {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Ki végezte</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('maint.performedBy')}</label>
               <Input
                 value={form.performed_by}
                 onChange={(e) => set("performed_by", e.target.value)}
@@ -236,19 +238,19 @@ const AdminMaintenance = () => {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Dátum</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('maint.date')}</label>
               <Input type="date" value={form.performed_date} onChange={(e) => set("performed_date", e.target.value)} />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Mégse</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>
             <Button
               onClick={handleSave}
               disabled={saving || !form.description}
               className="gradient-primary-bg border-0"
             >
-              {saving ? "Mentés..." : "Mentés"}
+              {saving ? t('common.saving') : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

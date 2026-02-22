@@ -2,18 +2,20 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, PlusCircle, History, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { tenantSession } from "@/lib/api";
-
-const navItems = [
-  { to: "/tenant", icon: LayoutDashboard, label: "Főoldal" },
-  { to: "/tenant/reading", icon: PlusCircle, label: "Rögzítés" },
-  { to: "/tenant/history", icon: History, label: "Előzmények" },
-  { to: "/tenant/profile", icon: User, label: "Profil" },
-];
+import { useI18n } from "@/lib/i18n";
 
 const TenantLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [checked, setChecked] = useState(false);
+  const { t } = useI18n();
+
+  const navItems = [
+    { to: "/tenant", icon: LayoutDashboard, label: t('nav.home') },
+    { to: "/tenant/reading", icon: PlusCircle, label: t('nav.record') },
+    { to: "/tenant/history", icon: History, label: t('nav.history') },
+    { to: "/tenant/profile", icon: User, label: t('nav.profile') },
+  ];
 
   useEffect(() => {
     tenantSession()

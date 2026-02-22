@@ -10,27 +10,29 @@ import {
   SidebarProvider, SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { adminSession } from "@/lib/api";
-
-const mainNav = [
-  { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-  { title: "Ingatlanok", url: "/admin/properties", icon: Building2 },
-  { title: "Mérőállások", url: "/admin/readings", icon: FileText },
-  { title: "Fizetések", url: "/admin/payments", icon: CreditCard },
-  { title: "Karbantartás", url: "/admin/maintenance", icon: Wrench },
-  { title: "Feladatok", url: "/admin/todos", icon: ListTodo },
-];
-
-const analyticsNav = [
-  { title: "Tarifák", url: "/admin/tariffs", icon: BarChart3 },
-  { title: "ROI Kalkulátor", url: "/admin/roi", icon: TrendingUp },
-  { title: "Rendszer", url: "/admin/system", icon: Rocket },
-  { title: "Beállítások", url: "/admin/settings", icon: Settings },
-];
+import { useI18n } from "@/lib/i18n";
 
 const AdminLayout = () => {
+  const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const [checked, setChecked] = useState(false);
+
+  const mainNav = [
+    { title: t('adminDash.title'), url: "/admin", icon: LayoutDashboard },
+    { title: t('props.title'), url: "/admin/properties", icon: Building2 },
+    { title: t('adminReadings.title'), url: "/admin/readings", icon: FileText },
+    { title: t('payments.title'), url: "/admin/payments", icon: CreditCard },
+    { title: t('maint.title'), url: "/admin/maintenance", icon: Wrench },
+    { title: t('todos.title'), url: "/admin/todos", icon: ListTodo },
+  ];
+
+  const analyticsNav = [
+    { title: t('tariffs.title'), url: "/admin/tariffs", icon: BarChart3 },
+    { title: t('roi.title'), url: "/admin/roi", icon: TrendingUp },
+    { title: t('system.title'), url: "/admin/system", icon: Rocket },
+    { title: t('settings.title'), url: "/admin/settings", icon: Settings },
+  ];
 
   useEffect(() => {
     adminSession()
@@ -72,13 +74,13 @@ const AdminLayout = () => {
             <div className="px-4 mb-6">
               <Link to="/" className="flex items-center gap-2">
                 <Zap className="h-6 w-6 text-sidebar-primary" />
-                <span className="font-display font-bold text-lg">Rezsi Követés</span>
+                <span className="font-display font-bold text-lg">{t('common.appName')}</span>
               </Link>
             </div>
 
             <SidebarGroup>
               <SidebarGroupLabel className="text-xs uppercase tracking-wider text-sidebar-foreground/50 px-4 mb-1">
-                Kezelés
+                {t('admin.management')}
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
@@ -89,7 +91,7 @@ const AdminLayout = () => {
 
             <SidebarGroup>
               <SidebarGroupLabel className="text-xs uppercase tracking-wider text-sidebar-foreground/50 px-4 mb-1 mt-4">
-                Analitika & Rendszer
+                {t('admin.analytics')}
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
@@ -100,7 +102,7 @@ const AdminLayout = () => {
 
             <div className="mt-auto p-4">
               <Link to="/" className="flex items-center gap-2 text-sm text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors">
-                <ChevronLeft className="h-4 w-4" /> Vissza a főoldalra
+                <ChevronLeft className="h-4 w-4" /> {t('admin.backHome')}
               </Link>
             </div>
           </SidebarContent>
@@ -109,7 +111,7 @@ const AdminLayout = () => {
         <main className="flex-1 min-w-0">
           <header className="h-14 border-b border-border flex items-center px-4 gap-3 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
             <SidebarTrigger />
-            <span className="text-sm font-medium text-muted-foreground">Admin</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('admin.label')}</span>
           </header>
           <div className="p-6">
             <Outlet />

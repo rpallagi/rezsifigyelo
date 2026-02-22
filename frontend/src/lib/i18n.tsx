@@ -1,0 +1,797 @@
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+
+export type Locale = 'hu' | 'en';
+
+// ============================================================
+// HUNGARIAN translations — ékezetes, helyes magyar nyelv
+// ============================================================
+const hu: Record<string, string> = {
+  // --- Common ---
+  'common.appName': 'Rezsi Követés',
+  'common.save': 'Mentés',
+  'common.saving': 'Mentés...',
+  'common.cancel': 'Mégse',
+  'common.delete': 'Törlés',
+  'common.edit': 'Szerkesztés',
+  'common.back': 'Vissza',
+  'common.next': 'Tovább',
+  'common.close': 'Bezárás',
+  'common.all': 'Összes',
+  'common.loading': 'Betöltés...',
+  'common.error': 'Hiba történt',
+  'common.success': 'Sikeres',
+  'common.yes': 'Igen',
+  'common.no': 'Nem',
+  'common.noData': 'Nincs adat',
+  'common.optional': 'nem kötelező',
+  'common.required': 'kötelező',
+  'common.villany': 'Villany',
+  'common.viz': 'Víz',
+  'common.csatorna': 'Csatorna',
+  'common.lakas': 'Lakás',
+  'common.uzlet': 'Üzlet',
+  'common.egyeb': 'Egyéb',
+  'common.ft': 'Ft',
+  'common.db': 'db',
+  'common.details': 'Részletek',
+  'common.filter': 'Szűrés',
+  'common.search': 'Keresés',
+  'common.logout': 'Kijelentkezés',
+  'common.login': 'Bejelentkezés',
+  'common.register': 'Regisztráció',
+
+  // --- Landing ---
+  'landing.tagline': 'Közüzemi nyilvántartás, egyszerűen',
+  'landing.tenantBtn': 'Bérlő belépés',
+  'landing.landlordBtn': 'Bérbeadó',
+  'landing.heroTitle1': 'Tartsd kézben a',
+  'landing.heroTitle2': 'rezsiköltségeket',
+  'landing.heroDesc': 'Mérőállás rögzítés, automatikus költségszámítás, bérlői kommunikáció és teljes ingatlankezelés — egy helyen, okostelefonról is.',
+  'landing.tenantCard': 'Bérlő vagyok',
+  'landing.tenantCardDesc': 'Rögzítsd a mérőállásaidat pillanatok alatt. Kövesd a fogyasztásodat és költségeidet valós időben.',
+  'landing.tenantCardLink': 'Mérőállás rögzítés',
+  'landing.landlordCard': 'Bérbeadó vagyok',
+  'landing.landlordCardDesc': 'Kezeld az ingatlanportfóliódat, kövesd a bevételeidet, számlákat és optimalizáld a hozamodat egyetlen felületen.',
+  'landing.landlordCardLink': 'Admin felület',
+  'landing.featuresTitle': 'Minden funkció, amire szükséged van',
+  'landing.featuresDesc': 'Rezsikövetés, ingatlankezelés és pénzügyi nyilvántartás egy helyen.',
+  'landing.feat1': 'Fotós leolvasás',
+  'landing.feat1Desc': 'Fényképezd le a mérőórádat — a rendszer eltárolja és nyomon követi az állásokat.',
+  'landing.feat2': 'Automatikus költségszámítás',
+  'landing.feat2Desc': 'Azonnal kiszámolja a várható költséget az aktuális tarifák alapján.',
+  'landing.feat3': 'ROI kalkulátor',
+  'landing.feat3Desc': 'Számold ki a befektetésed megtérülését és kövesd a break-even pontot.',
+  'landing.feat4': 'Villany · Víz · Csatorna',
+  'landing.feat4Desc': 'Minden közüzemi mérő egy helyen, egységes kezelőfelülettel.',
+  'landing.feat5': 'Számlázás és fizetés',
+  'landing.feat5Desc': 'Számlázz.hu integráció, fizetési felszólítások, online fizetés egy kattintással.',
+  'landing.feat6': 'PDF riportok',
+  'landing.feat6Desc': 'Fogyasztási kimutatások és összesítők PDF-ben, automatikusan.',
+  'landing.footer': 'Közüzemi nyilvántartás és ingatlankezelés, egyszerűen.',
+
+  // --- Tenant Login ---
+  'tenantLogin.title': 'Bérlő bejelentkezés',
+  'tenantLogin.registerTitle': 'Új fiók létrehozása',
+  'tenantLogin.orEmail': 'vagy e-mail címmel',
+  'tenantLogin.google': 'Folytatás Google-lel',
+  'tenantLogin.facebook': 'Folytatás Facebook-kal',
+  'tenantLogin.apple': 'Folytatás Apple-lel',
+  'tenantLogin.name': 'Neved',
+  'tenantLogin.email': 'E-mail cím',
+  'tenantLogin.password': 'Jelszó',
+  'tenantLogin.loginBtn': 'Bejelentkezés',
+  'tenantLogin.loggingIn': 'Bejelentkezés...',
+  'tenantLogin.registerBtn': 'Regisztráció',
+  'tenantLogin.registering': 'Regisztráció...',
+  'tenantLogin.noAccount': 'Még nincs fiókod?',
+  'tenantLogin.hasAccount': 'Már van fiókod?',
+  'tenantLogin.errorLogin': 'Hibás e-mail cím vagy jelszó!',
+  'tenantLogin.errorRegister': 'Hiba történt a regisztráció során!',
+  'tenantLogin.successRegister': 'Sikeres regisztráció! Most már bejelentkezhetsz.',
+  'tenantLogin.landlordLogin': 'Bérbeadó belépés',
+  'tenantLogin.socialSoon': 'Hamarosan elérhető',
+
+  // --- Admin Login ---
+  'adminLogin.title': 'Bérbeadó bejelentkezés',
+  'adminLogin.username': 'Felhasználónév',
+  'adminLogin.password': 'Jelszó',
+  'adminLogin.errorLogin': 'Hibás felhasználónév vagy jelszó!',
+  'adminLogin.loginBtn': 'Bejelentkezés',
+  'adminLogin.loggingIn': 'Bejelentkezés...',
+  'adminLogin.tenantLogin': 'Bérlő belépés',
+
+  // --- Property Select ---
+  'propSelect.title': 'Válassz ingatlant',
+  'propSelect.desc': 'Melyik ingatlanba szeretnél belépni?',
+
+  // --- Tenant Dashboard ---
+  'tenant.welcome': 'Üdv,',
+  'tenant.readingCta': 'Mérőállás rögzítés',
+  'tenant.readingCtaDesc': 'Villany vagy víz mérőállás felvitele',
+  'tenant.monthlyCost': 'Havi becsült költség',
+  'tenant.lastMonths': 'Utolsó hónapok fogyasztása',
+  'tenant.currentTariffs': 'Aktuális tarifák',
+  'tenant.meterValue': 'Mérőállás',
+
+  // --- Meter Reading ---
+  'reading.title': 'Mérőállás rögzítés',
+  'reading.step0': 'Válaszd ki a mérő típusát',
+  'reading.step1': 'Add meg az aktuális mérőállást',
+  'reading.step2': 'Ellenőrizd és mentsd',
+  'reading.villanyDesc': 'Villanymérő aktuális állása',
+  'reading.vizDesc': 'Vízmérő aktuális állása',
+  'reading.previous': 'Előző',
+  'reading.consumption': 'Fogyasztás',
+  'reading.estimatedCost': 'Becsült költség',
+  'reading.total': 'Összesen',
+  'reading.photo': 'Fotó a mérőóráról',
+  'reading.takePhoto': 'Fotó készítése',
+  'reading.gallery': 'Galéria',
+  'reading.date': 'Dátum',
+  'reading.notes': 'Megjegyzés (nem kötelező)',
+  'reading.notesPlaceholder': 'Megjegyzés...',
+  'reading.summary': 'Összegzés',
+  'reading.meterType': 'Mérő típusa',
+  'reading.newReading': 'Új mérőállás',
+  'reading.photoAttached': 'Csatolva',
+  'reading.submit': 'Rögzítés',
+  'reading.submitting': 'Mentés...',
+  'reading.success': 'Sikeresen rögzítve!',
+  'reading.successDesc': 'A mérőállás mentésre került.',
+  'reading.redirecting': 'Átirányítás a főoldalra...',
+  'reading.removePhoto': 'Törlés',
+  'reading.meterReading': 'mérőállás',
+
+  // --- Tenant History ---
+  'history.title': 'Előzmények',
+  'history.desc': 'Fogyasztás és költségek áttekintése',
+  'history.totalCost': 'Összes költség',
+  'history.readings': 'Leolvasások',
+  'history.monthlyCosts': 'Havi költségek (Ft)',
+  'history.noReadings': 'Még nincs mérőállás rögzítve.',
+
+  // --- Tenant Profile ---
+  'profile.title': 'Profil',
+  'profile.contact': 'Kapcsolattartó',
+  'profile.email': 'E-mail',
+  'profile.phone': 'Telefon',
+  'profile.address': 'Cím',
+  'profile.rent': 'Bérleti díj',
+  'profile.type': 'Típus',
+  'profile.propertyInfo': 'Ingatlan információk',
+
+  // --- Tenant Layout (bottom nav) ---
+  'nav.home': 'Főoldal',
+  'nav.record': 'Rögzítés',
+  'nav.history': 'Előzmények',
+  'nav.profile': 'Profil',
+
+  // --- Admin Layout ---
+  'admin.management': 'Kezelés',
+  'admin.analytics': 'Analitika & Rendszer',
+  'admin.backHome': 'Vissza a főoldalra',
+  'admin.label': 'Admin',
+
+  // --- Admin Dashboard ---
+  'adminDash.title': 'Dashboard',
+  'adminDash.desc': 'Áttekintés a portfóliódról',
+  'adminDash.properties': 'Ingatlanok',
+  'adminDash.readings': 'Mérőállások',
+  'adminDash.payments': 'Befizetések összesen',
+  'adminDash.openTodos': 'Nyitott feladatok',
+  'adminDash.recentReadings': 'Legutóbbi leolvasások',
+  'adminDash.name': 'Név',
+  'adminDash.type': 'Típus',
+  'adminDash.monthlyRent': 'Bérleti díj',
+
+  // --- Admin Properties ---
+  'props.title': 'Ingatlanok',
+  'props.subtitle': 'ingatlan kezelése',
+  'props.new': 'Új ingatlan',
+  'props.editTitle': 'Ingatlan szerkesztése',
+  'props.newTitle': 'Új ingatlan',
+  'props.name': 'Név',
+  'props.type': 'Típus',
+  'props.address': 'Cím',
+  'props.addressPlaceholder': 'pl. Petőfi utca 12.',
+  'props.contactName': 'Kapcsolattartó neve',
+  'props.phone': 'Telefonszám',
+  'props.email': 'E-mail',
+  'props.monthlyRent': 'Havi bérleti díj (Ft)',
+  'props.purchasePrice': 'Vételár (Ft)',
+  'props.tariffGroup': 'Tarifa csoport',
+  'props.selectTariff': 'Válassz csoportot...',
+  'props.pin': 'Bérlő PIN kód',
+  'props.pinHint': 'hagyd üresen, ha nem változik',
+  'props.notes': 'Megjegyzés',
+  'props.deleteTitle': 'Ingatlan törlése',
+  'props.deleteConfirm': 'Biztosan törölni szeretnéd ezt az ingatlant? Ez a művelet nem vonható vissza, és az összes kapcsolódó adat (mérőállások, befizetések) is törlődik.',
+
+  // --- Admin Readings ---
+  'adminReadings.title': 'Mérőállások',
+  'adminReadings.desc': 'Összes leolvasás áttekintése',
+  'adminReadings.property': 'Ingatlan',
+  'adminReadings.allProperties': 'Összes ingatlan',
+  'adminReadings.utilityType': 'Közüzem típus',
+  'adminReadings.noResults': 'Nincs találat a szűréshez.',
+  'adminReadings.meterValue': 'Mérőállás',
+  'adminReadings.consumption': 'Fogyasztás',
+  'adminReadings.cost': 'Költség',
+  'adminReadings.date': 'Dátum',
+  'adminReadings.photo': 'Fotó',
+  'adminReadings.deleteTitle': 'Leolvasás törlése',
+  'adminReadings.deleteConfirm': 'Biztosan törölni szeretnéd ezt a leolvasást?',
+
+  // --- Admin Payments ---
+  'payments.title': 'Befizetések',
+  'payments.desc': 'Bérleti díjak és befizetések kezelése',
+  'payments.new': 'Új befizetés',
+  'payments.filterProperty': 'Szűrés ingatlanra',
+  'payments.allProperties': 'Összes ingatlan',
+  'payments.noPayments': 'Nincs befizetés rögzítve.',
+  'payments.newTitle': 'Új befizetés',
+  'payments.editTitle': 'Befizetés szerkesztése',
+  'payments.newDesc': 'Rögzíts egy új bérleti díj befizetést.',
+  'payments.property': 'Ingatlan',
+  'payments.selectProperty': 'Válassz ingatlant...',
+  'payments.amount': 'Összeg (Ft)',
+  'payments.amountPlaceholder': 'pl. 150 000',
+  'payments.paymentDate': 'Befizetés dátuma',
+  'payments.paymentMethod': 'Fizetési mód',
+  'payments.cash': 'Készpénz',
+  'payments.transfer': 'Átutalás',
+  'payments.periodFrom': 'Időszak kezdete',
+  'payments.periodTo': 'Időszak vége',
+  'payments.notes': 'Megjegyzés',
+  'payments.notesPlaceholder': 'Opcionális megjegyzés...',
+
+  // --- Admin Maintenance ---
+  'maint.title': 'Karbantartás',
+  'maint.subtitle': 'bejegyzés',
+  'maint.new': 'Új bejegyzés',
+  'maint.noEntries': 'Még nincs karbantartási bejegyzés.',
+  'maint.newTitle': 'Új karbantartási bejegyzés',
+  'maint.editTitle': 'Karbantartási bejegyzés szerkesztése',
+  'maint.newDesc': 'Rögzíts egy új karbantartási vagy javítási tételt.',
+  'maint.property': 'Ingatlan (nem kötelező)',
+  'maint.selectProperty': 'Válassz ingatlant...',
+  'maint.description': 'Leírás',
+  'maint.descPlaceholder': 'Mi történt, mit kellett csinálni...',
+  'maint.category': 'Kategória',
+  'maint.catRepair': 'Javítás',
+  'maint.catMaintenance': 'Karbantartás',
+  'maint.catRenovation': 'Felújítás',
+  'maint.catReplacement': 'Csere',
+  'maint.cost': 'Költség (Ft)',
+  'maint.performedBy': 'Ki végezte',
+  'maint.date': 'Dátum',
+  'maint.deleteTitle': 'Bejegyzés törlése',
+  'maint.deleteConfirm': 'Biztosan törölni szeretnéd ezt a karbantartási bejegyzést?',
+
+  // --- Admin Todos ---
+  'todos.title': 'Feladatok',
+  'todos.openTasks': 'nyitott feladat',
+  'todos.new': 'Új feladat',
+  'todos.pending': 'Függőben',
+  'todos.inProgress': 'Folyamatban',
+  'todos.done': 'Kész',
+  'todos.noTasks': 'Nincs ilyen feladat.',
+  'todos.newTitle': 'Új feladat',
+  'todos.editTitle': 'Feladat szerkesztése',
+  'todos.newDesc': 'Adj hozzá egy új tennivalót.',
+  'todos.taskTitle': 'Cím',
+  'todos.taskTitlePlaceholder': 'pl. Csaptelep csere a fürdőben',
+  'todos.description': 'Leírás',
+  'todos.priority': 'Prioritás',
+  'todos.low': 'Alacsony',
+  'todos.medium': 'Közepes',
+  'todos.high': 'Magas',
+  'todos.property': 'Ingatlan (nem kötelező)',
+  'todos.selectProperty': 'Válassz ingatlant...',
+  'todos.dueDate': 'Határidő',
+
+  // --- Admin Tariffs ---
+  'tariffs.title': 'Tarifák',
+  'tariffs.desc': 'Közüzemi díjak kezelése csoportonként',
+  'tariffs.new': 'Új tarifa',
+  'tariffs.noGroups': 'Nincsenek tarifa csoportok.',
+  'tariffs.noTariffs': 'Még nincsenek tarifák ebben a csoportban.',
+  'tariffs.utilityType': 'Közüzem típus',
+  'tariffs.rate': 'Díj',
+  'tariffs.unit': 'Egység',
+  'tariffs.validFrom': 'Érvényes',
+  'tariffs.newTitle': 'Új tarifa',
+  'tariffs.editTitle': 'Tarifa szerkesztése',
+  'tariffs.newDesc': 'Adj hozzá egy új közüzemi tarifát.',
+  'tariffs.group': 'Tarifa csoport',
+  'tariffs.selectGroup': 'Válassz csoportot...',
+  'tariffs.rateFt': 'Díj (Ft)',
+  'tariffs.ratePlaceholder': 'pl. 36,00',
+  'tariffs.unitPlaceholder': 'pl. kWh, m³',
+  'tariffs.validFromDate': 'Érvényes dátumtól',
+  'tariffs.deleteTitle': 'Tarifa törlése',
+  'tariffs.deleteConfirm': 'Biztosan törölni szeretnéd ezt a tarifát?',
+
+  // --- Admin ROI ---
+  'roi.title': 'ROI Kalkulátor',
+  'roi.desc': 'Befektetés megtérülése ingatlanonként',
+  'roi.empty': 'Nincs ingatlan vételárral és bérleti díjjal. Add meg ezeket az ingatlan szerkesztésénél.',
+  'roi.purchasePrice': 'Vételár',
+  'roi.monthlyRent': 'Havi bérleti díj',
+  'roi.totalMaintenance': 'Összes karbantartás',
+  'roi.annualYield': 'Éves hozam',
+  'roi.breakeven': 'Megtérülés',
+  'roi.breakevenDate': 'Break-even dátum',
+  'roi.months': 'hónap',
+
+  // --- Admin System ---
+  'system.title': 'Rendszer',
+  'system.desc': 'Verziókezelés és frissítések',
+  'system.versionInfo': 'Verzió információ',
+  'system.version': 'Verzió',
+  'system.branch': 'Branch',
+  'system.commit': 'Commit',
+  'system.commitDate': 'Commit dátum',
+  'system.commitMsg': 'Commit üzenet',
+  'system.updateAvailable': 'Elérhető frissítés',
+  'system.newCommits': 'új commit',
+  'system.upToDate': 'Naprakész',
+  'system.upToDateDesc': 'Az alkalmazás a legfrissebb verzión fut.',
+  'system.gitPull': 'Git Pull',
+  'system.gitPulling': 'Git Pull folyamatban...',
+  'system.gitPullSuccess': 'Git pull sikeres.',
+  'system.rebuild': 'Frissítés + Újraindítás',
+  'system.rebuilding': 'Újraépítés...',
+  'system.rebuildConfirmTitle': 'Újraépítés és újraindítás',
+  'system.rebuildConfirmDesc': 'Ez a művelet újraépíti a frontendet és újraindítja az alkalmazást. A folyamat közben az oldal átmenetileg nem lesz elérhető. Biztosan folytatod?',
+  'system.rebuildStarted': 'Újraépítés elindítva. Az alkalmazás hamarosan újraindul...',
+  'system.output': 'Kimenet',
+
+  // --- Admin Settings ---
+  'settings.title': 'Beállítások',
+  'settings.desc': 'Fiók és biztonsági beállítások',
+  'settings.passwordChange': 'Jelszó módosítás',
+  'settings.passwordChangeDesc': 'Változtasd meg az admin jelszavadat',
+  'settings.currentPassword': 'Jelenlegi jelszó',
+  'settings.newPassword': 'Új jelszó',
+  'settings.confirmPassword': 'Új jelszó megerősítése',
+  'settings.passwordMismatch': 'Az új jelszavak nem egyeznek!',
+  'settings.passwordTooShort': 'Az új jelszónak legalább 4 karakter hosszúnak kell lennie!',
+  'settings.passwordError': 'Hiba történt a jelszó módosítása közben.',
+  'settings.passwordSuccess': 'Jelszó sikeresen módosítva!',
+  'settings.changePassword': 'Jelszó módosítása',
+  'settings.logoutTitle': 'Kijelentkezés',
+  'settings.logoutDesc': 'Kilépés az admin felületről',
+  'settings.logoutConfirm': 'Biztosan ki szeretnél jelentkezni az admin felületről?',
+
+  // --- Not Found ---
+  'notFound.title': 'Az oldal nem található',
+  'notFound.back': 'Vissza a főoldalra',
+};
+
+
+// ============================================================
+// ENGLISH translations
+// ============================================================
+const en: Record<string, string> = {
+  // --- Common ---
+  'common.appName': 'Utility Tracker',
+  'common.save': 'Save',
+  'common.saving': 'Saving...',
+  'common.cancel': 'Cancel',
+  'common.delete': 'Delete',
+  'common.edit': 'Edit',
+  'common.back': 'Back',
+  'common.next': 'Next',
+  'common.close': 'Close',
+  'common.all': 'All',
+  'common.loading': 'Loading...',
+  'common.error': 'An error occurred',
+  'common.success': 'Success',
+  'common.yes': 'Yes',
+  'common.no': 'No',
+  'common.noData': 'No data',
+  'common.optional': 'optional',
+  'common.required': 'required',
+  'common.villany': 'Electricity',
+  'common.viz': 'Water',
+  'common.csatorna': 'Sewage',
+  'common.lakas': 'Apartment',
+  'common.uzlet': 'Commercial',
+  'common.egyeb': 'Other',
+  'common.ft': 'HUF',
+  'common.db': 'pcs',
+  'common.details': 'Details',
+  'common.filter': 'Filter',
+  'common.search': 'Search',
+  'common.logout': 'Logout',
+  'common.login': 'Login',
+  'common.register': 'Register',
+
+  // --- Landing ---
+  'landing.tagline': 'Utility tracking, simplified',
+  'landing.tenantBtn': 'Tenant login',
+  'landing.landlordBtn': 'Landlord',
+  'landing.heroTitle1': 'Keep your',
+  'landing.heroTitle2': 'utility costs',
+  'landing.heroDesc': 'Meter reading entry, automatic cost calculation, tenant communication and full property management — in one place, from your phone.',
+  'landing.tenantCard': "I'm a tenant",
+  'landing.tenantCardDesc': 'Record your meter readings in seconds. Track your consumption and costs in real time.',
+  'landing.tenantCardLink': 'Record meter reading',
+  'landing.landlordCard': "I'm a landlord",
+  'landing.landlordCardDesc': 'Manage your property portfolio, track your income, bills and optimize your yield in one interface.',
+  'landing.landlordCardLink': 'Admin panel',
+  'landing.featuresTitle': 'All the features you need',
+  'landing.featuresDesc': 'Utility tracking, property management and financial records in one place.',
+  'landing.feat1': 'Photo reading',
+  'landing.feat1Desc': 'Take a photo of your meter — the system stores and tracks readings automatically.',
+  'landing.feat2': 'Automatic cost calculation',
+  'landing.feat2Desc': 'Instantly calculates expected costs based on current tariffs.',
+  'landing.feat3': 'ROI calculator',
+  'landing.feat3Desc': 'Calculate your investment return and track the break-even point.',
+  'landing.feat4': 'Electricity · Water · Sewage',
+  'landing.feat4Desc': 'All utility meters in one place, with a unified interface.',
+  'landing.feat5': 'Billing & payments',
+  'landing.feat5Desc': 'Invoicing integration, payment reminders, online payments with one click.',
+  'landing.feat6': 'PDF reports',
+  'landing.feat6Desc': 'Consumption reports and summaries in PDF, automatically.',
+  'landing.footer': 'Utility tracking and property management, simplified.',
+
+  // --- Tenant Login ---
+  'tenantLogin.title': 'Tenant login',
+  'tenantLogin.registerTitle': 'Create new account',
+  'tenantLogin.orEmail': 'or with e-mail',
+  'tenantLogin.google': 'Continue with Google',
+  'tenantLogin.facebook': 'Continue with Facebook',
+  'tenantLogin.apple': 'Continue with Apple',
+  'tenantLogin.name': 'Your name',
+  'tenantLogin.email': 'E-mail address',
+  'tenantLogin.password': 'Password',
+  'tenantLogin.loginBtn': 'Login',
+  'tenantLogin.loggingIn': 'Logging in...',
+  'tenantLogin.registerBtn': 'Register',
+  'tenantLogin.registering': 'Registering...',
+  'tenantLogin.noAccount': "Don't have an account?",
+  'tenantLogin.hasAccount': 'Already have an account?',
+  'tenantLogin.errorLogin': 'Invalid e-mail or password!',
+  'tenantLogin.errorRegister': 'Error during registration!',
+  'tenantLogin.successRegister': 'Registration successful! You can now log in.',
+  'tenantLogin.landlordLogin': 'Landlord login',
+  'tenantLogin.socialSoon': 'Coming soon',
+
+  // --- Admin Login ---
+  'adminLogin.title': 'Landlord login',
+  'adminLogin.username': 'Username',
+  'adminLogin.password': 'Password',
+  'adminLogin.errorLogin': 'Invalid username or password!',
+  'adminLogin.loginBtn': 'Login',
+  'adminLogin.loggingIn': 'Logging in...',
+  'adminLogin.tenantLogin': 'Tenant login',
+
+  // --- Property Select ---
+  'propSelect.title': 'Select property',
+  'propSelect.desc': 'Which property would you like to access?',
+
+  // --- Tenant Dashboard ---
+  'tenant.welcome': 'Welcome,',
+  'tenant.readingCta': 'Record meter reading',
+  'tenant.readingCtaDesc': 'Enter electricity or water meter reading',
+  'tenant.monthlyCost': 'Estimated monthly cost',
+  'tenant.lastMonths': 'Last months consumption',
+  'tenant.currentTariffs': 'Current tariffs',
+  'tenant.meterValue': 'Meter reading',
+
+  // --- Meter Reading ---
+  'reading.title': 'Record meter reading',
+  'reading.step0': 'Select meter type',
+  'reading.step1': 'Enter current meter reading',
+  'reading.step2': 'Review and save',
+  'reading.villanyDesc': 'Current electricity meter reading',
+  'reading.vizDesc': 'Current water meter reading',
+  'reading.previous': 'Previous',
+  'reading.consumption': 'Consumption',
+  'reading.estimatedCost': 'Estimated cost',
+  'reading.total': 'Total',
+  'reading.photo': 'Photo of meter',
+  'reading.takePhoto': 'Take photo',
+  'reading.gallery': 'Gallery',
+  'reading.date': 'Date',
+  'reading.notes': 'Notes (optional)',
+  'reading.notesPlaceholder': 'Notes...',
+  'reading.summary': 'Summary',
+  'reading.meterType': 'Meter type',
+  'reading.newReading': 'New reading',
+  'reading.photoAttached': 'Attached',
+  'reading.submit': 'Submit',
+  'reading.submitting': 'Saving...',
+  'reading.success': 'Successfully recorded!',
+  'reading.successDesc': 'The meter reading has been saved.',
+  'reading.redirecting': 'Redirecting to home...',
+  'reading.removePhoto': 'Remove',
+  'reading.meterReading': 'meter reading',
+
+  // --- Tenant History ---
+  'history.title': 'History',
+  'history.desc': 'Consumption and cost overview',
+  'history.totalCost': 'Total cost',
+  'history.readings': 'Readings',
+  'history.monthlyCosts': 'Monthly costs (HUF)',
+  'history.noReadings': 'No meter readings recorded yet.',
+
+  // --- Tenant Profile ---
+  'profile.title': 'Profile',
+  'profile.contact': 'Contact person',
+  'profile.email': 'E-mail',
+  'profile.phone': 'Phone',
+  'profile.address': 'Address',
+  'profile.rent': 'Monthly rent',
+  'profile.type': 'Type',
+  'profile.propertyInfo': 'Property information',
+
+  // --- Tenant Layout (bottom nav) ---
+  'nav.home': 'Home',
+  'nav.record': 'Record',
+  'nav.history': 'History',
+  'nav.profile': 'Profile',
+
+  // --- Admin Layout ---
+  'admin.management': 'Management',
+  'admin.analytics': 'Analytics & System',
+  'admin.backHome': 'Back to homepage',
+  'admin.label': 'Admin',
+
+  // --- Admin Dashboard ---
+  'adminDash.title': 'Dashboard',
+  'adminDash.desc': 'Overview of your portfolio',
+  'adminDash.properties': 'Properties',
+  'adminDash.readings': 'Meter readings',
+  'adminDash.payments': 'Total payments',
+  'adminDash.openTodos': 'Open tasks',
+  'adminDash.recentReadings': 'Recent readings',
+  'adminDash.name': 'Name',
+  'adminDash.type': 'Type',
+  'adminDash.monthlyRent': 'Monthly rent',
+
+  // --- Admin Properties ---
+  'props.title': 'Properties',
+  'props.subtitle': 'properties managed',
+  'props.new': 'New property',
+  'props.editTitle': 'Edit property',
+  'props.newTitle': 'New property',
+  'props.name': 'Name',
+  'props.type': 'Type',
+  'props.address': 'Address',
+  'props.addressPlaceholder': 'e.g. 12 Main Street',
+  'props.contactName': 'Contact name',
+  'props.phone': 'Phone number',
+  'props.email': 'E-mail',
+  'props.monthlyRent': 'Monthly rent (HUF)',
+  'props.purchasePrice': 'Purchase price (HUF)',
+  'props.tariffGroup': 'Tariff group',
+  'props.selectTariff': 'Select group...',
+  'props.pin': 'Tenant PIN code',
+  'props.pinHint': 'leave empty if unchanged',
+  'props.notes': 'Notes',
+  'props.deleteTitle': 'Delete property',
+  'props.deleteConfirm': 'Are you sure you want to delete this property? This action cannot be undone, and all related data (readings, payments) will also be deleted.',
+
+  // --- Admin Readings ---
+  'adminReadings.title': 'Meter readings',
+  'adminReadings.desc': 'Overview of all readings',
+  'adminReadings.property': 'Property',
+  'adminReadings.allProperties': 'All properties',
+  'adminReadings.utilityType': 'Utility type',
+  'adminReadings.noResults': 'No results matching filter.',
+  'adminReadings.meterValue': 'Meter value',
+  'adminReadings.consumption': 'Consumption',
+  'adminReadings.cost': 'Cost',
+  'adminReadings.date': 'Date',
+  'adminReadings.photo': 'Photo',
+  'adminReadings.deleteTitle': 'Delete reading',
+  'adminReadings.deleteConfirm': 'Are you sure you want to delete this reading?',
+
+  // --- Admin Payments ---
+  'payments.title': 'Payments',
+  'payments.desc': 'Manage rent and payment records',
+  'payments.new': 'New payment',
+  'payments.filterProperty': 'Filter by property',
+  'payments.allProperties': 'All properties',
+  'payments.noPayments': 'No payments recorded.',
+  'payments.newTitle': 'New payment',
+  'payments.editTitle': 'Edit payment',
+  'payments.newDesc': 'Record a new rent payment.',
+  'payments.property': 'Property',
+  'payments.selectProperty': 'Select property...',
+  'payments.amount': 'Amount (HUF)',
+  'payments.amountPlaceholder': 'e.g. 150,000',
+  'payments.paymentDate': 'Payment date',
+  'payments.paymentMethod': 'Payment method',
+  'payments.cash': 'Cash',
+  'payments.transfer': 'Bank transfer',
+  'payments.periodFrom': 'Period start',
+  'payments.periodTo': 'Period end',
+  'payments.notes': 'Notes',
+  'payments.notesPlaceholder': 'Optional notes...',
+
+  // --- Admin Maintenance ---
+  'maint.title': 'Maintenance',
+  'maint.subtitle': 'entries',
+  'maint.new': 'New entry',
+  'maint.noEntries': 'No maintenance entries yet.',
+  'maint.newTitle': 'New maintenance entry',
+  'maint.editTitle': 'Edit maintenance entry',
+  'maint.newDesc': 'Record a new maintenance or repair item.',
+  'maint.property': 'Property (optional)',
+  'maint.selectProperty': 'Select property...',
+  'maint.description': 'Description',
+  'maint.descPlaceholder': 'What happened, what needed to be done...',
+  'maint.category': 'Category',
+  'maint.catRepair': 'Repair',
+  'maint.catMaintenance': 'Maintenance',
+  'maint.catRenovation': 'Renovation',
+  'maint.catReplacement': 'Replacement',
+  'maint.cost': 'Cost (HUF)',
+  'maint.performedBy': 'Performed by',
+  'maint.date': 'Date',
+  'maint.deleteTitle': 'Delete entry',
+  'maint.deleteConfirm': 'Are you sure you want to delete this maintenance entry?',
+
+  // --- Admin Todos ---
+  'todos.title': 'Tasks',
+  'todos.openTasks': 'open tasks',
+  'todos.new': 'New task',
+  'todos.pending': 'Pending',
+  'todos.inProgress': 'In progress',
+  'todos.done': 'Done',
+  'todos.noTasks': 'No tasks found.',
+  'todos.newTitle': 'New task',
+  'todos.editTitle': 'Edit task',
+  'todos.newDesc': 'Add a new to-do item.',
+  'todos.taskTitle': 'Title',
+  'todos.taskTitlePlaceholder': 'e.g. Replace faucet in bathroom',
+  'todos.description': 'Description',
+  'todos.priority': 'Priority',
+  'todos.low': 'Low',
+  'todos.medium': 'Medium',
+  'todos.high': 'High',
+  'todos.property': 'Property (optional)',
+  'todos.selectProperty': 'Select property...',
+  'todos.dueDate': 'Due date',
+
+  // --- Admin Tariffs ---
+  'tariffs.title': 'Tariffs',
+  'tariffs.desc': 'Manage utility rates by group',
+  'tariffs.new': 'New tariff',
+  'tariffs.noGroups': 'No tariff groups found.',
+  'tariffs.noTariffs': 'No tariffs in this group yet.',
+  'tariffs.utilityType': 'Utility type',
+  'tariffs.rate': 'Rate',
+  'tariffs.unit': 'Unit',
+  'tariffs.validFrom': 'Valid from',
+  'tariffs.newTitle': 'New tariff',
+  'tariffs.editTitle': 'Edit tariff',
+  'tariffs.newDesc': 'Add a new utility tariff.',
+  'tariffs.group': 'Tariff group',
+  'tariffs.selectGroup': 'Select group...',
+  'tariffs.rateFt': 'Rate (HUF)',
+  'tariffs.ratePlaceholder': 'e.g. 36.00',
+  'tariffs.unitPlaceholder': 'e.g. kWh, m³',
+  'tariffs.validFromDate': 'Valid from date',
+  'tariffs.deleteTitle': 'Delete tariff',
+  'tariffs.deleteConfirm': 'Are you sure you want to delete this tariff?',
+
+  // --- Admin ROI ---
+  'roi.title': 'ROI Calculator',
+  'roi.desc': 'Investment return per property',
+  'roi.empty': 'No properties with purchase price and monthly rent. Set these in property editing.',
+  'roi.purchasePrice': 'Purchase price',
+  'roi.monthlyRent': 'Monthly rent',
+  'roi.totalMaintenance': 'Total maintenance',
+  'roi.annualYield': 'Annual yield',
+  'roi.breakeven': 'Break-even',
+  'roi.breakevenDate': 'Break-even date',
+  'roi.months': 'months',
+
+  // --- Admin System ---
+  'system.title': 'System',
+  'system.desc': 'Version control and updates',
+  'system.versionInfo': 'Version information',
+  'system.version': 'Version',
+  'system.branch': 'Branch',
+  'system.commit': 'Commit',
+  'system.commitDate': 'Commit date',
+  'system.commitMsg': 'Commit message',
+  'system.updateAvailable': 'Update available',
+  'system.newCommits': 'new commits',
+  'system.upToDate': 'Up to date',
+  'system.upToDateDesc': 'Application is running the latest version.',
+  'system.gitPull': 'Git Pull',
+  'system.gitPulling': 'Git Pull in progress...',
+  'system.gitPullSuccess': 'Git pull successful.',
+  'system.rebuild': 'Update + Restart',
+  'system.rebuilding': 'Rebuilding...',
+  'system.rebuildConfirmTitle': 'Rebuild and restart',
+  'system.rebuildConfirmDesc': 'This will rebuild the frontend and restart the application. The page will be temporarily unavailable. Continue?',
+  'system.rebuildStarted': 'Rebuild started. Application will restart soon...',
+  'system.output': 'Output',
+
+  // --- Admin Settings ---
+  'settings.title': 'Settings',
+  'settings.desc': 'Account and security settings',
+  'settings.passwordChange': 'Change password',
+  'settings.passwordChangeDesc': 'Change your admin password',
+  'settings.currentPassword': 'Current password',
+  'settings.newPassword': 'New password',
+  'settings.confirmPassword': 'Confirm new password',
+  'settings.passwordMismatch': "New passwords don't match!",
+  'settings.passwordTooShort': 'New password must be at least 4 characters!',
+  'settings.passwordError': 'Error changing password.',
+  'settings.passwordSuccess': 'Password changed successfully!',
+  'settings.changePassword': 'Change password',
+  'settings.logoutTitle': 'Logout',
+  'settings.logoutDesc': 'Exit the admin panel',
+  'settings.logoutConfirm': 'Are you sure you want to log out of the admin panel?',
+
+  // --- Not Found ---
+  'notFound.title': 'Page not found',
+  'notFound.back': 'Back to homepage',
+};
+
+// ============================================================
+// Translations map
+// ============================================================
+const translations: Record<Locale, Record<string, string>> = { hu, en };
+
+// ============================================================
+// React Context
+// ============================================================
+interface I18nContextValue {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}
+
+const I18nContext = createContext<I18nContextValue>({
+  locale: 'hu',
+  setLocale: () => {},
+  t: (key) => key,
+});
+
+const STORAGE_KEY = 'rezsi-lang';
+
+export const I18nProvider = ({ children }: { children: ReactNode }) => {
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'hu' || stored === 'en') return stored;
+    return 'hu';
+  });
+
+  const setLocale = useCallback((newLocale: Locale) => {
+    setLocaleState(newLocale);
+    localStorage.setItem(STORAGE_KEY, newLocale);
+    document.documentElement.lang = newLocale;
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
+  const t = useCallback((key: string, params?: Record<string, string | number>): string => {
+    let text = translations[locale]?.[key] || translations['hu']?.[key] || key;
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        text = text.replace(`{${k}}`, String(v));
+      });
+    }
+    return text;
+  }, [locale]);
+
+  return (
+    <I18nContext.Provider value={{ locale, setLocale, t }}>
+      {children}
+    </I18nContext.Provider>
+  );
+};
+
+export const useI18n = () => useContext(I18nContext);
+export default useI18n;

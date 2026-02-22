@@ -8,8 +8,10 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { useI18n } from "@/lib/i18n";
 
 const AdminSettings = () => {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -25,12 +27,12 @@ const AdminSettings = () => {
     setSuccess(false);
 
     if (newPassword !== confirmPassword) {
-      setError("Az új jelszavak nem egyeznek!");
+      setError(t('settings.passwordMismatch'));
       return;
     }
 
     if (newPassword.length < 4) {
-      setError("Az új jelszónak legalább 4 karakter hosszúnak kell lennie!");
+      setError(t('settings.passwordTooShort'));
       return;
     }
 
@@ -42,7 +44,7 @@ const AdminSettings = () => {
       setNewPassword("");
       setConfirmPassword("");
     } catch (e: any) {
-      setError(e.message || "Hiba történt a jelszó módosítása közben.");
+      setError(e.message || t('settings.passwordError'));
     } finally {
       setSaving(false);
     }
@@ -61,8 +63,8 @@ const AdminSettings = () => {
   return (
     <div className="space-y-6">
       <div className="animate-in">
-        <h1 className="font-display text-2xl font-bold">Beállítások</h1>
-        <p className="text-muted-foreground text-sm mt-1">Fiók és biztonsági beállítások</p>
+        <h1 className="font-display text-2xl font-bold">{t('settings.title')}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{t('settings.desc')}</p>
       </div>
 
       {/* Password change card */}
@@ -72,39 +74,39 @@ const AdminSettings = () => {
             <Lock className="h-5 w-5 text-accent-foreground" />
           </div>
           <div>
-            <h2 className="font-display font-bold">Jelszó módosítás</h2>
-            <p className="text-xs text-muted-foreground">Változtasd meg az admin jelszavadat</p>
+            <h2 className="font-display font-bold">{t('settings.passwordChange')}</h2>
+            <p className="text-xs text-muted-foreground">{t('settings.passwordChangeDesc')}</p>
           </div>
         </div>
 
         <form onSubmit={handlePasswordChange} className="space-y-4">
           <div>
-            <label className="text-sm text-muted-foreground block mb-1">Jelenlegi jelszó</label>
+            <label className="text-sm text-muted-foreground block mb-1">{t('settings.currentPassword')}</label>
             <Input
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Jelenlegi jelszó"
+              placeholder={t('settings.currentPassword')}
             />
           </div>
 
           <div>
-            <label className="text-sm text-muted-foreground block mb-1">Új jelszó</label>
+            <label className="text-sm text-muted-foreground block mb-1">{t('settings.newPassword')}</label>
             <Input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Új jelszó"
+              placeholder={t('settings.newPassword')}
             />
           </div>
 
           <div>
-            <label className="text-sm text-muted-foreground block mb-1">Új jelszó megerősítése</label>
+            <label className="text-sm text-muted-foreground block mb-1">{t('settings.confirmPassword')}</label>
             <Input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Új jelszó ismét"
+              placeholder={t('settings.confirmPassword')}
             />
           </div>
 
@@ -113,7 +115,7 @@ const AdminSettings = () => {
           {success && (
             <div className="flex items-center gap-2 text-green-600 text-sm">
               <CheckCircle2 className="h-4 w-4" />
-              <span>Jelszó sikeresen módosítva!</span>
+              <span>{t('settings.passwordSuccess')}</span>
             </div>
           )}
 
@@ -122,7 +124,7 @@ const AdminSettings = () => {
             disabled={saving || !currentPassword || !newPassword || !confirmPassword}
             className="w-full gradient-primary-bg border-0"
           >
-            {saving ? "Mentés..." : "Jelszó módosítása"}
+            {saving ? t('common.saving') : t('settings.changePassword')}
           </Button>
         </form>
       </div>
@@ -134,8 +136,8 @@ const AdminSettings = () => {
             <LogOut className="h-5 w-5 text-accent-foreground" />
           </div>
           <div>
-            <h2 className="font-display font-bold">Kijelentkezés</h2>
-            <p className="text-xs text-muted-foreground">Kilépés az admin felületről</p>
+            <h2 className="font-display font-bold">{t('settings.logoutTitle')}</h2>
+            <p className="text-xs text-muted-foreground">{t('settings.logoutDesc')}</p>
           </div>
         </div>
 
@@ -145,7 +147,7 @@ const AdminSettings = () => {
           className="w-full border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
         >
           <LogOut className="h-4 w-4 mr-2" />
-          Kijelentkezés
+          {t('common.logout')}
         </Button>
       </div>
 
@@ -153,15 +155,15 @@ const AdminSettings = () => {
       <AlertDialog open={logoutConfirm} onOpenChange={setLogoutConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-display">Kijelentkezés</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">{t('settings.logoutTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Biztosan ki szeretnél jelentkezni az admin felületről?
+              {t('settings.logoutConfirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Mégse</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleLogout}>
-              Kijelentkezés
+              {t('common.logout')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

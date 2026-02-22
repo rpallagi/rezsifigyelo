@@ -20,6 +20,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n";
 
 const emptyForm = {
   name: "",
@@ -36,6 +37,7 @@ const emptyForm = {
 };
 
 const AdminProperties = () => {
+  const { t } = useI18n();
   const [properties, setProperties] = useState<AdminProperty[]>([]);
   const [tariffGroups, setTariffGroups] = useState<TariffGroupItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +108,7 @@ const AdminProperties = () => {
       setDialogOpen(false);
       load();
     } catch (e: any) {
-      alert(e.message || "Hiba történt");
+      alert(e.message || t('common.error'));
     } finally {
       setSaving(false);
     }
@@ -119,16 +121,16 @@ const AdminProperties = () => {
       setDeleteId(null);
       load();
     } catch (e: any) {
-      alert(e.message || "Hiba történt");
+      alert(e.message || t('common.error'));
     }
   };
 
   const typeBadge = (type: string) => {
     if (type === "lakas")
-      return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 text-xs">Lakás</Badge>;
+      return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 text-xs">{t('common.lakas')}</Badge>;
     if (type === "uzlet")
-      return <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-xs">Üzlet</Badge>;
-    return <Badge variant="outline" className="text-xs">Egyéb</Badge>;
+      return <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-xs">{t('common.uzlet')}</Badge>;
+    return <Badge variant="outline" className="text-xs">{t('common.egyeb')}</Badge>;
   };
 
   const set = (key: string, val: string) => setForm((f) => ({ ...f, [key]: val }));
@@ -148,11 +150,11 @@ const AdminProperties = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between animate-in">
         <div>
-          <h1 className="font-display text-2xl font-bold">Ingatlanok</h1>
-          <p className="text-muted-foreground text-sm mt-1">{properties.length} ingatlan kezelése</p>
+          <h1 className="font-display text-2xl font-bold">{t('props.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{properties.length} {t('props.subtitle')}</p>
         </div>
         <Button onClick={openNew} className="gradient-primary-bg border-0">
-          <Plus className="h-4 w-4 mr-2" /> Új ingatlan
+          <Plus className="h-4 w-4 mr-2" /> {t('props.new')}
         </Button>
       </div>
 
@@ -196,13 +198,13 @@ const AdminProperties = () => {
 
             <div className="mt-auto pt-3 border-t border-border/50 flex items-center justify-between text-sm">
               <div>
-                <p className="text-xs text-muted-foreground">Bérleti díj</p>
+                <p className="text-xs text-muted-foreground">{t('props.monthlyRent')}</p>
                 <p className="font-display font-bold format-hu">
                   {p.monthly_rent ? formatHuf(p.monthly_rent) : "—"}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-muted-foreground">Vételár</p>
+                <p className="text-xs text-muted-foreground">{t('props.purchasePrice')}</p>
                 <p className="font-display font-bold format-hu">
                   {p.purchase_price ? formatHuf(p.purchase_price) : "—"}
                 </p>
@@ -211,7 +213,7 @@ const AdminProperties = () => {
 
             {p.tariff_group_name && (
               <p className="text-xs text-muted-foreground">
-                Tarifa csoport: <span className="font-medium text-foreground">{p.tariff_group_name}</span>
+                {t('props.tariffGroup')}: <span className="font-medium text-foreground">{p.tariff_group_name}</span>
               </p>
             )}
           </div>
@@ -223,67 +225,67 @@ const AdminProperties = () => {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display">
-              {editingId ? "Ingatlan szerkesztése" : "Új ingatlan"}
+              {editingId ? t('props.editTitle') : t('props.newTitle')}
             </DialogTitle>
             <DialogDescription>
-              {editingId ? "Módosítsd az ingatlan adatait." : "Add meg az új ingatlan adatait."}
+              {editingId ? t('props.editTitle') : t('props.newTitle')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Név *</label>
-              <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="pl. Petőfi utca 12." />
+              <label className="text-sm text-muted-foreground block mb-1">{t('props.name')} *</label>
+              <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={t('props.addressPlaceholder')} />
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Típus</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('props.type')}</label>
               <Select value={form.property_type} onValueChange={(v) => set("property_type", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="lakas">Lakás</SelectItem>
-                  <SelectItem value="uzlet">Üzlet</SelectItem>
-                  <SelectItem value="egyeb">Egyéb</SelectItem>
+                  <SelectItem value="lakas">{t('common.lakas')}</SelectItem>
+                  <SelectItem value="uzlet">{t('common.uzlet')}</SelectItem>
+                  <SelectItem value="egyeb">{t('common.egyeb')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Cím</label>
-              <Input value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Cím" />
+              <label className="text-sm text-muted-foreground block mb-1">{t('props.address')}</label>
+              <Input value={form.address} onChange={(e) => set("address", e.target.value)} placeholder={t('props.address')} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm text-muted-foreground block mb-1">Kapcsolattartó neve</label>
+                <label className="text-sm text-muted-foreground block mb-1">{t('props.contactName')}</label>
                 <Input value={form.contact_name} onChange={(e) => set("contact_name", e.target.value)} />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground block mb-1">Telefonszám</label>
+                <label className="text-sm text-muted-foreground block mb-1">{t('props.phone')}</label>
                 <Input value={form.contact_phone} onChange={(e) => set("contact_phone", e.target.value)} />
               </div>
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">E-mail</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('props.email')}</label>
               <Input type="email" value={form.contact_email} onChange={(e) => set("contact_email", e.target.value)} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm text-muted-foreground block mb-1">Havi bérleti díj (Ft)</label>
+                <label className="text-sm text-muted-foreground block mb-1">{t('props.monthlyRent')}</label>
                 <Input type="number" value={form.monthly_rent} onChange={(e) => set("monthly_rent", e.target.value)} />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground block mb-1">Vételár (Ft)</label>
+                <label className="text-sm text-muted-foreground block mb-1">{t('props.purchasePrice')}</label>
                 <Input type="number" value={form.purchase_price} onChange={(e) => set("purchase_price", e.target.value)} />
               </div>
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Tarifa csoport</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('props.tariffGroup')}</label>
               <Select value={form.tariff_group_id} onValueChange={(v) => set("tariff_group_id", v)}>
-                <SelectTrigger><SelectValue placeholder="Válassz..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('props.selectTariff')} /></SelectTrigger>
                 <SelectContent>
                   {tariffGroups.map((tg) => (
                     <SelectItem key={tg.id} value={String(tg.id)}>{tg.name}</SelectItem>
@@ -294,21 +296,21 @@ const AdminProperties = () => {
 
             <div>
               <label className="text-sm text-muted-foreground block mb-1">
-                Bérlő PIN kód {editingId && "(hagyd üresen, ha nem változik)"}
+                {t('props.pin')} {editingId && `(${t('props.pinHint')})`}
               </label>
               <Input value={form.pin} onChange={(e) => set("pin", e.target.value)} placeholder="4-6 jegyű kód" />
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Megjegyzés</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('props.notes')}</label>
               <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={3} />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Mégse</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>
             <Button onClick={handleSave} disabled={saving || !form.name} className="gradient-primary-bg border-0">
-              {saving ? "Mentés..." : "Mentés"}
+              {saving ? t('common.saving') : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -318,15 +320,15 @@ const AdminProperties = () => {
       <AlertDialog open={deleteId != null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-display">Ingatlan törlése</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">{t('props.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Biztosan törölni szeretnéd ezt az ingatlant? Ez a művelet nem vonható vissza, és az összes kapcsolódó adat (mérőállások, befizetések) is törlődik.
+              {t('props.deleteConfirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Mégse</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Törlés
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

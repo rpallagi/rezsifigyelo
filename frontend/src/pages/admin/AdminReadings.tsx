@@ -14,20 +14,22 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const utilityTypes = [
-  { value: "all", label: "Összes" },
-  { value: "villany", label: "Villany" },
-  { value: "viz", label: "Víz" },
-  { value: "csatorna", label: "Csatorna" },
-];
+import { useI18n } from "@/lib/i18n";
 
 const AdminReadings = () => {
+  const { t } = useI18n();
   const [readings, setReadings] = useState<ReadingItem[]>([]);
   const [properties, setProperties] = useState<AdminProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterProperty, setFilterProperty] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
+
+  const utilityTypes = [
+    { value: "all", label: t('common.all') },
+    { value: "villany", label: t('common.villany') },
+    { value: "viz", label: t('common.viz') },
+    { value: "csatorna", label: t('common.csatorna') },
+  ];
 
   useEffect(() => {
     getAdminProperties().then((data) => setProperties(data.properties));
@@ -52,18 +54,18 @@ const AdminReadings = () => {
   return (
     <div className="space-y-6">
       <div className="animate-in">
-        <h1 className="font-display text-2xl font-bold">Mérőállások</h1>
-        <p className="text-muted-foreground text-sm mt-1">Összes leolvasás áttekintése</p>
+        <h1 className="font-display text-2xl font-bold">{t('adminReadings.title')}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{t('adminReadings.desc')}</p>
       </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 animate-in-delay-1">
         <div className="w-full sm:w-64">
-          <label className="text-sm text-muted-foreground block mb-1">Ingatlan</label>
+          <label className="text-sm text-muted-foreground block mb-1">{t('adminReadings.property')}</label>
           <Select value={filterProperty} onValueChange={setFilterProperty}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Összes ingatlan</SelectItem>
+              <SelectItem value="all">{t('adminReadings.allProperties')}</SelectItem>
               {properties.map((p) => (
                 <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
               ))}
@@ -72,11 +74,11 @@ const AdminReadings = () => {
         </div>
 
         <div className="flex-1">
-          <label className="text-sm text-muted-foreground block mb-1">Közüzem típus</label>
+          <label className="text-sm text-muted-foreground block mb-1">{t('adminReadings.utilityType')}</label>
           <Tabs value={filterType} onValueChange={setFilterType}>
             <TabsList>
-              {utilityTypes.map((t) => (
-                <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
+              {utilityTypes.map((ut) => (
+                <TabsTrigger key={ut.value} value={ut.value}>{ut.label}</TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
@@ -92,19 +94,19 @@ const AdminReadings = () => {
         ) : readings.length === 0 ? (
           <div className="p-12 text-center">
             <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">Nincs találat a szűréshez.</p>
+            <p className="text-muted-foreground text-sm">{t('adminReadings.noResults')}</p>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Ingatlan</TableHead>
-                <TableHead>Típus</TableHead>
-                <TableHead className="text-right">Mérőállás</TableHead>
-                <TableHead className="text-right">Fogyasztás</TableHead>
-                <TableHead className="text-right">Költség</TableHead>
-                <TableHead>Dátum</TableHead>
-                <TableHead className="text-center">Fotó</TableHead>
+                <TableHead>{t('adminReadings.property')}</TableHead>
+                <TableHead>{t('adminReadings.utilityType')}</TableHead>
+                <TableHead className="text-right">{t('adminReadings.meterValue')}</TableHead>
+                <TableHead className="text-right">{t('adminReadings.consumption')}</TableHead>
+                <TableHead className="text-right">{t('adminReadings.cost')}</TableHead>
+                <TableHead>{t('adminReadings.date')}</TableHead>
+                <TableHead className="text-center">{t('adminReadings.photo')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

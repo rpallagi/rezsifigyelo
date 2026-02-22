@@ -16,6 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { useI18n } from "@/lib/i18n";
 
 const priorityIcon: Record<string, string> = {
   low: "\uD83D\uDFE2",
@@ -23,24 +24,25 @@ const priorityIcon: Record<string, string> = {
   high: "\uD83D\uDD34",
 };
 
-const priorityLabel: Record<string, string> = {
-  low: "Alacsony",
-  medium: "Közepes",
-  high: "Magas",
-};
-
-const statusSections = [
-  { key: "pending", label: "Függőben", color: "text-amber-500" },
-  { key: "in_progress", label: "Folyamatban", color: "text-blue-500" },
-  { key: "done", label: "Kész", color: "text-green-500" },
-] as const;
-
 const AdminTodos = () => {
+  const { t } = useI18n();
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [properties, setProperties] = useState<AdminProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const priorityLabel: Record<string, string> = {
+    low: t('todos.low'),
+    medium: t('todos.medium'),
+    high: t('todos.high'),
+  };
+
+  const statusSections = [
+    { key: "pending", label: t('todos.pending'), color: "text-amber-500" },
+    { key: "in_progress", label: t('todos.inProgress'), color: "text-blue-500" },
+    { key: "done", label: t('todos.done'), color: "text-green-500" },
+  ] as const;
 
   const [form, setForm] = useState({
     title: "",
@@ -86,7 +88,7 @@ const AdminTodos = () => {
       setDialogOpen(false);
       loadTodos();
     } catch (e: any) {
-      alert(e.message || "Hiba történt");
+      alert(e.message || t('common.error'));
     } finally {
       setSaving(false);
     }
@@ -97,7 +99,7 @@ const AdminTodos = () => {
       await toggleTodo(id);
       loadTodos();
     } catch (e: any) {
-      alert(e.message || "Hiba történt");
+      alert(e.message || t('common.error'));
     }
   };
 
@@ -106,7 +108,7 @@ const AdminTodos = () => {
       await deleteTodo(id);
       loadTodos();
     } catch (e: any) {
-      alert(e.message || "Hiba történt");
+      alert(e.message || t('common.error'));
     }
   };
 
@@ -129,11 +131,11 @@ const AdminTodos = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between animate-in">
         <div>
-          <h1 className="font-display text-2xl font-bold">Feladatok</h1>
-          <p className="text-muted-foreground text-sm mt-1">{todos.filter((t) => t.status !== "done").length} nyitott feladat</p>
+          <h1 className="font-display text-2xl font-bold">{t('todos.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{todos.filter((t) => t.status !== "done").length} {t('todos.openTasks')}</p>
         </div>
         <Button onClick={openNew} className="gradient-primary-bg border-0">
-          <Plus className="h-4 w-4 mr-2" /> Új feladat
+          <Plus className="h-4 w-4 mr-2" /> {t('todos.new')}
         </Button>
       </div>
 
@@ -151,7 +153,7 @@ const AdminTodos = () => {
               </div>
 
               {items.length === 0 ? (
-                <p className="text-sm text-muted-foreground pl-1">Nincs ilyen feladat.</p>
+                <p className="text-sm text-muted-foreground pl-1">{t('todos.noTasks')}</p>
               ) : (
                 <div className="space-y-2">
                   {items.map((todo) => (
@@ -197,7 +199,6 @@ const AdminTodos = () => {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => handleToggle(todo.id)}
-                          title="Állapot váltása"
                         >
                           <ArrowRightCircle className="h-4 w-4" />
                         </Button>
@@ -206,7 +207,6 @@ const AdminTodos = () => {
                           size="icon"
                           className="h-8 w-8 text-destructive"
                           onClick={() => handleDelete(todo.id)}
-                          title="Törlés"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -224,46 +224,46 @@ const AdminTodos = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display">Új feladat</DialogTitle>
-            <DialogDescription>Adj hozzá egy új tennivalót.</DialogDescription>
+            <DialogTitle className="font-display">{t('todos.newTitle')}</DialogTitle>
+            <DialogDescription>{t('todos.newDesc')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Cím *</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('todos.taskTitle')} *</label>
               <Input
                 value={form.title}
                 onChange={(e) => set("title", e.target.value)}
-                placeholder="pl. Csaptelep csere a fürdőben"
+                placeholder={t('todos.taskTitlePlaceholder')}
               />
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Leírás</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('todos.description')}</label>
               <Textarea
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
                 rows={3}
-                placeholder="Részletek..."
+                placeholder={t('common.details')}
               />
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Prioritás</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('todos.priority')}</label>
               <Select value={form.priority} onValueChange={(v) => set("priority", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">{priorityIcon.low} Alacsony</SelectItem>
-                  <SelectItem value="medium">{priorityIcon.medium} Közepes</SelectItem>
-                  <SelectItem value="high">{priorityIcon.high} Magas</SelectItem>
+                  <SelectItem value="low">{priorityIcon.low} {t('todos.low')}</SelectItem>
+                  <SelectItem value="medium">{priorityIcon.medium} {t('todos.medium')}</SelectItem>
+                  <SelectItem value="high">{priorityIcon.high} {t('todos.high')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Ingatlan (opcionális)</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('todos.property')}</label>
               <Select value={form.property_id} onValueChange={(v) => set("property_id", v)}>
-                <SelectTrigger><SelectValue placeholder="Válassz..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('todos.selectProperty')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Nincs megadva</SelectItem>
                   {properties.map((p) => (
@@ -274,19 +274,19 @@ const AdminTodos = () => {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">Határidő</label>
+              <label className="text-sm text-muted-foreground block mb-1">{t('todos.dueDate')}</label>
               <Input type="date" value={form.due_date} onChange={(e) => set("due_date", e.target.value)} />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Mégse</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>
             <Button
               onClick={handleSave}
               disabled={saving || !form.title}
               className="gradient-primary-bg border-0"
             >
-              {saving ? "Mentés..." : "Mentés"}
+              {saving ? t('common.saving') : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, ChevronRight, Zap } from "lucide-react";
 import { tenantSelectProperty, type PropertyItem } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 const PropertySelect = () => {
   const [properties, setProperties] = useState<PropertyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   useEffect(() => {
     const stored = sessionStorage.getItem("pending_properties");
@@ -26,7 +28,7 @@ const PropertySelect = () => {
       sessionStorage.removeItem("pending_properties");
       navigate("/tenant");
     } catch (err: any) {
-      setError(err.message || "Hiba tortent!");
+      setError(err.message || t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -38,8 +40,8 @@ const PropertySelect = () => {
         <div className="w-16 h-16 rounded-2xl gradient-tenant-bg flex items-center justify-center mx-auto mb-5">
           <Zap className="h-8 w-8 text-primary-foreground" />
         </div>
-        <h1 className="font-display text-2xl font-bold mb-2">Valassz ingatlant</h1>
-        <p className="text-muted-foreground">Melyik ingatlanba szeretnel belépni?</p>
+        <h1 className="font-display text-2xl font-bold mb-2">{t('propSelect.title')}</h1>
+        <p className="text-muted-foreground">{t('propSelect.desc')}</p>
       </div>
 
       {error && <p className="text-destructive text-sm mb-4">{error}</p>}

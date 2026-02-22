@@ -7,11 +7,14 @@ import { Area, AreaChart, ResponsiveContainer, Bar, BarChart, XAxis, Tooltip } f
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import ThemeToggle from "@/components/ThemeToggle";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useI18n } from "@/lib/i18n";
 
 const TenantDashboard = () => {
   const [data, setData] = useState<TenantDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   useEffect(() => {
     getTenantDashboard()
@@ -62,7 +65,7 @@ const TenantDashboard = () => {
 
   const statCards = [
     {
-      label: "Villany",
+      label: t('common.villany'),
       type: "villany",
       icon: Zap,
       color: "hsl(45, 93%, 47%)",
@@ -75,7 +78,7 @@ const TenantDashboard = () => {
       date: data.last_villany?.reading_date,
     },
     {
-      label: "Viz",
+      label: t('common.viz'),
       type: "viz",
       icon: Droplets,
       color: "hsl(199, 89%, 48%)",
@@ -88,7 +91,7 @@ const TenantDashboard = () => {
       date: data.last_viz?.reading_date,
     },
     {
-      label: "Csatorna",
+      label: t('common.csatorna'),
       type: "csatorna",
       icon: Waves,
       color: "hsl(280, 60%, 55%)",
@@ -107,13 +110,14 @@ const TenantDashboard = () => {
       {/* Header */}
       <div className="pt-2 mb-5 animate-in flex items-start justify-between">
         <div>
-          <p className="text-muted-foreground text-sm">Udv,</p>
+          <p className="text-muted-foreground text-sm">{t('tenant.welcome')}</p>
           <h1 className="font-display text-2xl font-bold">{data.property.name}</h1>
           {data.property.address && (
             <p className="text-muted-foreground text-xs mt-0.5">{data.property.address}</p>
           )}
         </div>
         <div className="flex items-center gap-1">
+          <LanguageToggle />
           <ThemeToggle />
           <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground h-9 w-9">
             <LogOut className="h-4 w-4" />
@@ -131,8 +135,8 @@ const TenantDashboard = () => {
               <ClipboardEdit className="h-7 w-7 text-primary-foreground" />
             </div>
             <div className="flex-1">
-              <p className="font-display font-bold text-lg text-primary-foreground">Meroallas rogzites</p>
-              <p className="text-primary-foreground/70 text-sm mt-0.5">Villany vagy viz meroallas felvitele</p>
+              <p className="font-display font-bold text-lg text-primary-foreground">{t('tenant.readingCta')}</p>
+              <p className="text-primary-foreground/70 text-sm mt-0.5">{t('tenant.readingCtaDesc')}</p>
             </div>
             <ChevronRight className="h-6 w-6 text-primary-foreground/60 flex-shrink-0" />
           </div>
@@ -146,7 +150,7 @@ const TenantDashboard = () => {
             style={{ background: "var(--gradient-primary)" }} />
           <div className="relative">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground font-medium">Havi becsult koltseg</span>
+              <span className="text-sm text-muted-foreground font-medium">{t('tenant.monthlyCost')}</span>
               <div className="flex items-center gap-2">
                 {data.last_villany?.reading_date && (
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -210,7 +214,7 @@ const TenantDashboard = () => {
 
       {/* Utility detail cards with sparklines - clickable → history with type */}
       <div className="space-y-3 mb-5 animate-in-delay-2">
-        {statCards.filter(c => c.label !== "Csatorna").map((card) => (
+        {statCards.filter(c => c.type !== "csatorna").map((card) => (
           <Link key={card.label} to={`/tenant/history?type=${card.type}`} className="block">
             <div className="glass-card-hover p-4">
               <div className="flex items-center justify-between mb-3">
@@ -224,7 +228,7 @@ const TenantDashboard = () => {
                   <div>
                     <p className="font-display font-semibold text-sm">{card.label}</p>
                     <p className="text-xs text-muted-foreground">
-                      {card.date ? formatDateShort(card.date) : "Nincs adat"}
+                      {card.date ? formatDateShort(card.date) : t('common.noData')}
                     </p>
                   </div>
                 </div>
@@ -267,14 +271,14 @@ const TenantDashboard = () => {
               {/* Reading details */}
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
                 <div className="text-xs text-muted-foreground">
-                  <span>Meroallas: </span>
+                  <span>{t('tenant.meterValue')}: </span>
                   <span className="font-medium text-foreground">
                     {card.value != null ? `${formatNumber(card.value)} ${card.unit}` : "\u2014"}
                   </span>
                 </div>
                 {data.tariffs[card.type as 'villany' | 'viz'] && (
                   <div className="text-xs text-muted-foreground">
-                    {data.tariffs[card.type as 'villany' | 'viz']!.rate_huf.toLocaleString("hu-HU")} Ft/{card.unit}
+                    {data.tariffs[card.type as 'villany' | 'viz']!.rate_huf.toLocaleString("hu-HU")} {t('common.ft')}/{card.unit}
                   </div>
                 )}
               </div>
@@ -287,9 +291,9 @@ const TenantDashboard = () => {
       {barData.length > 1 && (
         <div className="glass-card p-4 mb-5 animate-in-delay-3">
           <div className="flex items-center justify-between mb-3">
-            <p className="font-display font-semibold text-sm">Utolso honapok fogyasztasa</p>
+            <p className="font-display font-semibold text-sm">{t('tenant.lastMonths')}</p>
             <Link to="/tenant/history" className="text-xs text-primary font-medium flex items-center gap-1 hover:underline">
-              Reszletek <ChevronRight className="h-3 w-3" />
+              {t('common.details')} <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
           <div className="h-32">
@@ -306,7 +310,7 @@ const TenantDashboard = () => {
                   }}
                   formatter={(value: number, name: string) => [
                     `${formatNumber(value)} ${name === "villany" ? "kWh" : "m\u00B3"}`,
-                    name === "villany" ? "Villany" : "Viz",
+                    name === "villany" ? t('common.villany') : t('common.viz'),
                   ]}
                 />
                 <Bar dataKey="villany" fill="hsl(45, 93%, 47%)" radius={[3, 3, 0, 0]} />
@@ -319,26 +323,26 @@ const TenantDashboard = () => {
 
       {/* Tariff info - compact (stays static) */}
       <div className="glass-card p-4 animate-in-delay-3">
-        <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Aktualis tarifak</p>
+        <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">{t('tenant.currentTariffs')}</p>
         <div className="grid grid-cols-3 gap-3">
           {data.tariffs.villany && (
             <div className="text-center">
               <Zap className="h-3.5 w-3.5 mx-auto mb-1" style={{ color: "hsl(45, 93%, 47%)" }} />
-              <p className="text-xs font-medium format-hu">{data.tariffs.villany.rate_huf.toLocaleString("hu-HU")} Ft</p>
+              <p className="text-xs font-medium format-hu">{data.tariffs.villany.rate_huf.toLocaleString("hu-HU")} {t('common.ft')}</p>
               <p className="text-[10px] text-muted-foreground">/{data.tariffs.villany.unit}</p>
             </div>
           )}
           {data.tariffs.viz && (
             <div className="text-center">
               <Droplets className="h-3.5 w-3.5 mx-auto mb-1" style={{ color: "hsl(199, 89%, 48%)" }} />
-              <p className="text-xs font-medium format-hu">{data.tariffs.viz.rate_huf.toLocaleString("hu-HU")} Ft</p>
+              <p className="text-xs font-medium format-hu">{data.tariffs.viz.rate_huf.toLocaleString("hu-HU")} {t('common.ft')}</p>
               <p className="text-[10px] text-muted-foreground">/{data.tariffs.viz.unit}</p>
             </div>
           )}
           {data.tariffs.csatorna && (
             <div className="text-center">
               <Waves className="h-3.5 w-3.5 mx-auto mb-1" style={{ color: "hsl(280, 60%, 55%)" }} />
-              <p className="text-xs font-medium format-hu">{data.tariffs.csatorna.rate_huf.toLocaleString("hu-HU")} Ft</p>
+              <p className="text-xs font-medium format-hu">{data.tariffs.csatorna.rate_huf.toLocaleString("hu-HU")} {t('common.ft')}</p>
               <p className="text-[10px] text-muted-foreground">/{data.tariffs.csatorna.unit}</p>
             </div>
           )}
