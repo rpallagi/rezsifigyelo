@@ -193,7 +193,7 @@ const MeterReading = () => {
               <div className="flex justify-between"><span className="text-muted-foreground">Új mérőállás</span><span className="font-medium">{currentValue.toLocaleString('hu-HU')} {selectedType.unit}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Fogyasztás</span><span className="font-medium">{consumption.toLocaleString('hu-HU')} {selectedType.unit}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Dátum</span><span className="font-medium">{readingDate}</span></div>
-              {photo && <div className="flex justify-between"><span className="text-muted-foreground">Fotó</span><span className="font-medium">📸 Csatolva</span></div>}
+              {photo && <div className="flex justify-between"><span className="text-muted-foreground">Foto</span><span className="font-medium">Csatolva</span></div>}
               <hr className="border-border" />
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Becsült költség</span>

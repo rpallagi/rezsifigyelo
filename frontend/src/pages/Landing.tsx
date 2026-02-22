@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Key, BarChart3, Camera, Calculator, TrendingUp, ArrowRight, Zap, Droplets, FileText, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const Landing = () => {
   return (
@@ -12,12 +13,13 @@ const Landing = () => {
             <Zap className="h-6 w-6 text-primary" />
             <span className="font-display font-bold text-lg">Rezsi Követés</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/tenant/login">Bérlő belépés</Link>
+              <Link to="/tenant/login">Berlo belepes</Link>
             </Button>
             <Button size="sm" className="gradient-primary-bg border-0" asChild>
-              <Link to="/admin/login">Bérbeadó</Link>
+              <Link to="/admin/login">Berbeado</Link>
             </Button>
           </div>
         </div>

@@ -67,7 +67,7 @@ const TenantProfile = () => {
           )}
           <div className="flex justify-between py-2">
             <span className="text-muted-foreground">Típus</span>
-            <span className="font-medium">{profile.property_type === 'uzlet' ? '🏪 Üzlet' : '🏠 Lakás'}</span>
+            <span className="font-medium">{profile.property_type === 'uzlet' ? 'Uzlet' : 'Lakas'}</span>
           </div>
         </div>
       </div>

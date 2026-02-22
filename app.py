@@ -7,7 +7,7 @@ from flask import Flask, jsonify, send_from_directory
 from flask_login import LoginManager
 
 from config import config
-from models import db, AdminUser, TariffGroup, Tariff
+from models import db, AdminUser, TenantUser, Property, TariffGroup, Tariff
 
 APP_VERSION = '1.0.0'
 
@@ -146,6 +146,24 @@ def seed_initial_data(app):
         db.session.add_all(tariffs)
         db.session.commit()
         print("[SEED] Default tariff groups and tariffs created.")
+
+    # Create demo tenant user if none exists
+    if TenantUser.query.count() == 0:
+        demo_password = bcrypt.hashpw('demo123'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        demo_tenant = TenantUser(
+            email='demo@rezsikoves.hu',
+            password_hash=demo_password,
+            name='Demo Berlo',
+        )
+        db.session.add(demo_tenant)
+        db.session.commit()
+
+        # Assign all properties to demo tenant
+        all_props = Property.query.all()
+        for prop in all_props:
+            demo_tenant.properties.append(prop)
+        db.session.commit()
+        print(f"[SEED] Demo tenant created: demo@rezsikoves.hu / demo123 ({len(all_props)} properties)")
 
 
 # ============================================================

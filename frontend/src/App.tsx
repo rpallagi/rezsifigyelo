@@ -4,7 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
-import PinLogin from "./pages/tenant/PinLogin";
+import TenantLogin from "./pages/tenant/TenantLogin";
+import PropertySelect from "./pages/tenant/PropertySelect";
 import TenantLayout from "./pages/tenant/TenantLayout";
 import TenantDashboard from "./pages/tenant/TenantDashboard";
 import MeterReading from "./pages/tenant/MeterReading";
@@ -38,7 +39,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/tenant/login" element={<PinLogin />} />
+          <Route path="/tenant/login" element={<TenantLogin />} />
+          <Route path="/tenant/select-property" element={<PropertySelect />} />
           <Route path="/tenant" element={<TenantLayout />}>
             <Route index element={<TenantDashboard />} />
             <Route path="reading" element={<MeterReading />} />

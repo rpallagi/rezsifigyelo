@@ -4,6 +4,7 @@ import { Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminLogin } from "@/lib/api";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const AdminLogin = () => {
   const [username, setUsername] = useState("");
@@ -28,6 +29,7 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+      <div className="fixed top-4 right-4"><ThemeToggle /></div>
       <div className="animate-in text-center mb-8">
         <div className="w-16 h-16 rounded-2xl gradient-admin-bg flex items-center justify-center mx-auto mb-5">
           <Zap className="h-8 w-8 text-primary-foreground" />

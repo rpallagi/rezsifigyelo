@@ -13,7 +13,7 @@ from flask import (
 )
 from flask_login import login_user, logout_user, login_required, current_user
 from models import (
-    db, AdminUser, Property, TariffGroup, Tariff,
+    db, AdminUser, TenantUser, Property, TariffGroup, Tariff,
     MeterReading, Payment, MaintenanceLog, Todo
 )
 from werkzeug.utils import secure_filename
@@ -138,47 +138,122 @@ def health():
 
 
 # ============================================================
-# Property List (public, for login dropdown)
+# Tenant Auth (email + jelszo)
 # ============================================================
 
-@api_bp.route('/properties')
-def list_properties():
-    props = Property.query.order_by(Property.name).all()
-    return jsonify({
-        'properties': [{'id': p.id, 'name': p.name, 'property_type': p.property_type} for p in props]
-    })
+def tenant_user_to_dict(t):
+    return {
+        'id': t.id,
+        'email': t.email,
+        'name': t.name,
+        'phone': t.phone,
+    }
 
-
-# ============================================================
-# Tenant Auth
-# ============================================================
 
 @api_bp.route('/tenant/login', methods=['POST'])
 def tenant_login():
     data = request.get_json()
-    property_id = data.get('property_id')
-    pin = data.get('pin', '')
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password', '')
 
-    if not property_id or not pin:
-        return jsonify({'error': 'Válassz ingatlant és add meg a PIN kódot!'}), 400
+    if not email or not password:
+        return jsonify({'error': 'Add meg az e-mail cimedet es a jelszavad!'}), 400
 
-    prop = Property.query.get(int(property_id))
-    if not prop:
-        return jsonify({'error': 'Az ingatlan nem található!'}), 404
+    tenant = TenantUser.query.filter_by(email=email).first()
+    if not tenant or not tenant.password_hash:
+        return jsonify({'error': 'Hibas e-mail cim vagy jelszo!'}), 401
 
-    if bcrypt.checkpw(pin.encode('utf-8'), prop.pin_hash.encode('utf-8')):
-        session['property_id'] = prop.id
-        session['property_name'] = prop.name
-        return jsonify({
-            'success': True,
-            'property': property_to_dict(prop),
-        })
+    if bcrypt.checkpw(password.encode('utf-8'), tenant.password_hash.encode('utf-8')):
+        session['tenant_user_id'] = tenant.id
+
+        # If tenant has exactly one property, auto-select it
+        props = tenant.properties
+        if len(props) == 1:
+            session['property_id'] = props[0].id
+            session['property_name'] = props[0].name
+            return jsonify({
+                'success': True,
+                'tenant': tenant_user_to_dict(tenant),
+                'property': property_to_dict(props[0]),
+                'needs_property_select': False,
+            })
+        elif len(props) > 1:
+            return jsonify({
+                'success': True,
+                'tenant': tenant_user_to_dict(tenant),
+                'properties': [{'id': p.id, 'name': p.name, 'property_type': p.property_type} for p in props],
+                'needs_property_select': True,
+            })
+        else:
+            return jsonify({'error': 'Nincs ingatlan hozzarendelve a fiokodhoz. Kerlek, fordulj a berbeadohoz!'}), 403
     else:
-        return jsonify({'error': 'Hibás PIN kód!'}), 401
+        return jsonify({'error': 'Hibas e-mail cim vagy jelszo!'}), 401
+
+
+@api_bp.route('/tenant/select-property', methods=['POST'])
+def tenant_select_property():
+    """After login, if tenant has multiple properties, they select one."""
+    tenant_id = session.get('tenant_user_id')
+    if not tenant_id:
+        return jsonify({'error': 'Nem vagy bejelentkezve'}), 401
+
+    data = request.get_json()
+    property_id = data.get('property_id')
+    if not property_id:
+        return jsonify({'error': 'Valassz ingatlant!'}), 400
+
+    tenant = db.session.get(TenantUser, tenant_id)
+    if not tenant:
+        return jsonify({'error': 'Felhasznalo nem talalhato'}), 404
+
+    # Check tenant has access to this property
+    prop = db.session.get(Property, int(property_id))
+    if not prop or prop not in tenant.properties:
+        return jsonify({'error': 'Nincs hozzaferesed ehhez az ingatlanhoz!'}), 403
+
+    session['property_id'] = prop.id
+    session['property_name'] = prop.name
+    return jsonify({
+        'success': True,
+        'property': property_to_dict(prop),
+    })
+
+
+@api_bp.route('/tenant/register', methods=['POST'])
+def tenant_register():
+    """Tenant self-registration - admin still needs to assign property."""
+    data = request.get_json()
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password', '')
+    name = (data.get('name') or '').strip()
+
+    if not email or not password:
+        return jsonify({'error': 'E-mail es jelszo kotelezo!'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'A jelszonak legalabb 6 karakter hosszunak kell lennie!'}), 400
+
+    existing = TenantUser.query.filter_by(email=email).first()
+    if existing:
+        return jsonify({'error': 'Ez az e-mail cim mar regisztralva van!'}), 409
+
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    tenant = TenantUser(
+        email=email,
+        password_hash=password_hash,
+        name=name or None,
+    )
+    db.session.add(tenant)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': 'Sikeres regisztracio! A berbeado fogja hozzarendelni az ingatlanodat.',
+    })
 
 
 @api_bp.route('/tenant/logout', methods=['POST'])
 def tenant_logout():
+    session.pop('tenant_user_id', None)
     session.pop('property_id', None)
     session.pop('property_name', None)
     return jsonify({'success': True})
@@ -186,11 +261,29 @@ def tenant_logout():
 
 @api_bp.route('/tenant/session')
 def tenant_session():
+    tenant_id = session.get('tenant_user_id')
     property_id = session.get('property_id')
-    if property_id:
-        prop = Property.query.get(property_id)
-        if prop:
-            return jsonify({'logged_in': True, 'property': property_to_dict(prop)})
+    if tenant_id:
+        tenant = db.session.get(TenantUser, tenant_id)
+        if tenant:
+            result = {'logged_in': True, 'tenant': tenant_user_to_dict(tenant)}
+            if property_id:
+                prop = db.session.get(Property, property_id)
+                if prop:
+                    result['property'] = property_to_dict(prop)
+            else:
+                # Tenant logged in but no property selected
+                props = tenant.properties
+                if len(props) == 1:
+                    session['property_id'] = props[0].id
+                    session['property_name'] = props[0].name
+                    result['property'] = property_to_dict(props[0])
+                elif len(props) > 1:
+                    result['needs_property_select'] = True
+                    result['properties'] = [
+                        {'id': p.id, 'name': p.name, 'property_type': p.property_type} for p in props
+                    ]
+            return jsonify(result)
     return jsonify({'logged_in': False})
 
 
@@ -490,13 +583,14 @@ def admin_properties_list():
 def admin_property_add():
     data = request.get_json()
     name = data.get('name', '').strip()
-    pin = data.get('pin', '')
     tariff_group_id = data.get('tariff_group_id')
 
-    if not name or not pin or not tariff_group_id:
-        return jsonify({'error': 'Név, PIN és tarifa csoport kötelező!'}), 400
+    if not name or not tariff_group_id:
+        return jsonify({'error': 'Nev es tarifa csoport kotelezo!'}), 400
 
-    pin_hash = bcrypt.hashpw(pin.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    # PIN is optional now (legacy)
+    pin = data.get('pin', '')
+    pin_hash = bcrypt.hashpw(pin.encode('utf-8'), bcrypt.gensalt()).decode('utf-8') if pin else None
 
     prop = Property(
         name=name,
@@ -887,5 +981,101 @@ def admin_change_password():
     current_user.password_hash = bcrypt.hashpw(
         new_password.encode('utf-8'), bcrypt.gensalt()
     ).decode('utf-8')
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+# ============================================================
+# Admin Tenant Users Management
+# ============================================================
+
+@api_bp.route('/admin/tenants', methods=['GET'])
+@login_required
+def admin_tenants_list():
+    tenants = TenantUser.query.order_by(TenantUser.created_at.desc()).all()
+    return jsonify({
+        'tenants': [{
+            'id': t.id,
+            'email': t.email,
+            'name': t.name,
+            'phone': t.phone,
+            'has_google': bool(t.google_id),
+            'has_facebook': bool(t.facebook_id),
+            'has_apple': bool(t.apple_id),
+            'properties': [{'id': p.id, 'name': p.name} for p in t.properties],
+            'created_at': t.created_at.isoformat() if t.created_at else None,
+        } for t in tenants]
+    })
+
+
+@api_bp.route('/admin/tenants', methods=['POST'])
+@login_required
+def admin_tenant_add():
+    """Admin creates a tenant user and assigns property."""
+    data = request.get_json()
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password', '')
+    name = (data.get('name') or '').strip()
+    property_ids = data.get('property_ids', [])
+
+    if not email:
+        return jsonify({'error': 'E-mail kotelezo!'}), 400
+
+    existing = TenantUser.query.filter_by(email=email).first()
+    if existing:
+        return jsonify({'error': 'Ez az e-mail cim mar regisztralva van!'}), 409
+
+    password_hash = None
+    if password:
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    tenant = TenantUser(email=email, password_hash=password_hash, name=name or None)
+
+    # Assign properties
+    for pid in property_ids:
+        prop = db.session.get(Property, int(pid))
+        if prop:
+            tenant.properties.append(prop)
+
+    db.session.add(tenant)
+    db.session.commit()
+    return jsonify({'success': True, 'id': tenant.id})
+
+
+@api_bp.route('/admin/tenants/<int:tenant_id>', methods=['PUT'])
+@login_required
+def admin_tenant_edit(tenant_id):
+    tenant = db.session.get(TenantUser, tenant_id)
+    if not tenant:
+        return jsonify({'error': 'Berlo nem talalhato'}), 404
+
+    data = request.get_json()
+    tenant.name = data.get('name', tenant.name)
+    tenant.phone = data.get('phone', tenant.phone)
+
+    new_password = data.get('password', '').strip()
+    if new_password:
+        tenant.password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    # Update property assignments
+    if 'property_ids' in data:
+        tenant.properties = []
+        for pid in data['property_ids']:
+            prop = db.session.get(Property, int(pid))
+            if prop:
+                tenant.properties.append(prop)
+
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/tenants/<int:tenant_id>', methods=['DELETE'])
+@login_required
+def admin_tenant_delete(tenant_id):
+    tenant = db.session.get(TenantUser, tenant_id)
+    if not tenant:
+        return jsonify({'error': 'Berlo nem talalhato'}), 404
+    tenant.properties = []
+    db.session.delete(tenant)
     db.session.commit()
     return jsonify({'success': True})

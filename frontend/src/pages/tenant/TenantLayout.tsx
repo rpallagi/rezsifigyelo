@@ -18,8 +18,14 @@ const TenantLayout = () => {
   useEffect(() => {
     tenantSession()
       .then((data) => {
-        if (!data.logged_in) navigate("/tenant/login");
-        else setChecked(true);
+        if (!data.logged_in) {
+          navigate("/tenant/login");
+        } else if (data.needs_property_select) {
+          sessionStorage.setItem("pending_properties", JSON.stringify(data.properties));
+          navigate("/tenant/select-property");
+        } else {
+          setChecked(true);
+        }
       })
       .catch(() => navigate("/tenant/login"));
   }, []);

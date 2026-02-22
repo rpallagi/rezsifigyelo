@@ -112,7 +112,7 @@ const TenantHistory = () => {
               <p className="text-xs text-muted-foreground format-hu">
                 {r.value.toLocaleString('hu-HU')} {r.utility_type === 'villany' ? 'kWh' : 'm³'}
               </p>
-              {r.photo_filename && <span className="text-xs">📸</span>}
+              {r.photo_filename && <span className="text-xs text-muted-foreground">Foto</span>}
             </div>
           </div>
         ))}

@@ -24,17 +24,29 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // ============ Auth ============
 
-export const tenantLogin = (property_id: number, pin: string) =>
-  request<{ success: boolean; property: TenantProperty }>('/tenant/login', {
+export const tenantLogin = (email: string, password: string) =>
+  request<TenantLoginResponse>('/tenant/login', {
     method: 'POST',
-    body: JSON.stringify({ property_id, pin }),
+    body: JSON.stringify({ email, password }),
+  });
+
+export const tenantRegister = (email: string, password: string, name?: string) =>
+  request<{ success: boolean; message: string }>('/tenant/register', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, name }),
+  });
+
+export const tenantSelectProperty = (property_id: number) =>
+  request<{ success: boolean; property: TenantProperty }>('/tenant/select-property', {
+    method: 'POST',
+    body: JSON.stringify({ property_id }),
   });
 
 export const tenantLogout = () =>
   request<{ success: boolean }>('/tenant/logout', { method: 'POST' });
 
 export const tenantSession = () =>
-  request<{ logged_in: boolean; property?: TenantProperty }>('/tenant/session');
+  request<TenantSessionResponse>('/tenant/session');
 
 export const adminLogin = (username: string, password: string) =>
   request<{ success: boolean }>('/admin/login', {
@@ -331,4 +343,20 @@ export interface SystemInfo {
   has_update: boolean;
   behind: number;
   new_commits: string[];
+}
+
+export interface TenantLoginResponse {
+  success: boolean;
+  tenant: { id: number; email: string; name: string | null; phone: string | null };
+  property?: TenantProperty;
+  properties?: PropertyItem[];
+  needs_property_select: boolean;
+}
+
+export interface TenantSessionResponse {
+  logged_in: boolean;
+  tenant?: { id: number; email: string; name: string | null; phone: string | null };
+  property?: TenantProperty;
+  needs_property_select?: boolean;
+  properties?: PropertyItem[];
 }

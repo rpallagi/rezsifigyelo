@@ -29,9 +29,9 @@ export const formatDateShort = (date: string): string => {
 
 export const utilityLabel = (type: string): string => {
   const map: Record<string, string> = {
-    villany: '⚡ Villany',
-    viz: '💧 Víz',
-    csatorna: '🚰 Csatorna',
+    villany: 'Villany',
+    viz: 'Viz',
+    csatorna: 'Csatorna',
   };
   return map[type] || type;
 };

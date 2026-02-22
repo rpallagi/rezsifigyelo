@@ -146,9 +146,9 @@ const TenantDashboard = () => {
       <div className="mt-5 glass-card p-4 animate-in-delay-3">
         <p className="text-xs font-medium text-muted-foreground mb-2">Aktuális tarifák</p>
         <div className="space-y-1 text-xs text-muted-foreground">
-          {data.tariffs.villany && <p>⚡ Villany: {data.tariffs.villany.rate_huf.toLocaleString('hu-HU')} Ft/{data.tariffs.villany.unit}</p>}
-          {data.tariffs.viz && <p>💧 Víz: {data.tariffs.viz.rate_huf.toLocaleString('hu-HU')} Ft/{data.tariffs.viz.unit}</p>}
-          {data.tariffs.csatorna && <p>🚰 Csatorna: {data.tariffs.csatorna.rate_huf.toLocaleString('hu-HU')} Ft/{data.tariffs.csatorna.unit}</p>}
+          {data.tariffs.villany && <p>Villany: {data.tariffs.villany.rate_huf.toLocaleString('hu-HU')} Ft/{data.tariffs.villany.unit}</p>}
+          {data.tariffs.viz && <p>Viz: {data.tariffs.viz.rate_huf.toLocaleString('hu-HU')} Ft/{data.tariffs.viz.unit}</p>}
+          {data.tariffs.csatorna && <p>Csatorna: {data.tariffs.csatorna.rate_huf.toLocaleString('hu-HU')} Ft/{data.tariffs.csatorna.unit}</p>}
         </div>
       </div>
 

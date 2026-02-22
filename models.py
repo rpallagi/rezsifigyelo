@@ -24,6 +24,43 @@ class AdminUser(UserMixin, db.Model):
 
 
 # ============================================================
+# Tenant User (berlo)
+# ============================================================
+
+class TenantUser(db.Model):
+    """Berlo felhasznalo - email + jelszo bejelentkezes."""
+    __tablename__ = 'tenant_users'
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)  # nullable for social login only users
+    name = db.Column(db.String(100), nullable=True)
+    phone = db.Column(db.String(30), nullable=True)
+
+    # Social login providers
+    google_id = db.Column(db.String(255), unique=True, nullable=True)
+    facebook_id = db.Column(db.String(255), unique=True, nullable=True)
+    apple_id = db.Column(db.String(255), unique=True, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Many-to-many: tenant can access multiple properties
+    properties = db.relationship('Property', secondary='tenant_property_access',
+                                  backref=db.backref('tenants', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<TenantUser {self.email}>'
+
+
+# Association table: which tenant can access which properties
+tenant_property_access = db.Table('tenant_property_access',
+    db.Column('tenant_user_id', db.Integer, db.ForeignKey('tenant_users.id'), primary_key=True),
+    db.Column('property_id', db.Integer, db.ForeignKey('properties.id'), primary_key=True),
+)
+
+
+# ============================================================
 # Tarifa Csoportok es Tarifak
 # ============================================================
 
@@ -71,7 +108,7 @@ class Property(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)  # pl. "1. Lakas", "Uzlet"
     property_type = db.Column(db.String(20), nullable=False, default='lakas')  # lakas/uzlet/egyeb
-    pin_hash = db.Column(db.String(255), nullable=False)  # bcrypt hash
+    pin_hash = db.Column(db.String(255), nullable=True)  # legacy PIN auth (optional)
     tariff_group_id = db.Column(db.Integer, db.ForeignKey('tariff_groups.id'), nullable=False)
 
     # Kapcsolattarto
