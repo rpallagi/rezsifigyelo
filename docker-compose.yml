@@ -26,6 +26,9 @@ services:
     build: .
     container_name: rezsi-app-dev
     restart: unless-stopped
+    labels:
+      - "net.unraid.docker.webui=http://[IP]:[PORT:5003]/"
+      - "net.unraid.docker.icon=https://raw.githubusercontent.com/rpallagi/rezsifigyelo/main/static/img/icon-192.png"
     depends_on:
       postgres:
         condition: service_healthy
