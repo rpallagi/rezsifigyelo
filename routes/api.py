@@ -698,9 +698,13 @@ def admin_property_edit(prop_id):
     if data.get('monthly_rent') is not None:
         prop.monthly_rent = float(data['monthly_rent']) if data['monthly_rent'] else None
 
-    new_pin = data.get('pin', '').strip()
-    if new_pin:
-        prop.pin_hash = bcrypt.hashpw(new_pin.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    # PIN is optional now (legacy) - only update if provided
+    if 'pin' in data:
+        new_pin = data.get('pin', '').strip()
+        if new_pin:
+            prop.pin_hash = bcrypt.hashpw(new_pin.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        else:
+            prop.pin_hash = None
 
     db.session.commit()
     return jsonify({'success': True})
