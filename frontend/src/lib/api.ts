@@ -855,3 +855,25 @@ export const testSmartMeter = (deviceDbId: number, payload: any) =>
 export const getSmartMeterStatus = () =>
   request<{ devices: SmartMeterDeviceItem[]; mqtt_connected: boolean; mqtt_enabled: boolean; ttn_enabled: boolean }>(
     '/admin/smart-meters/status');
+
+// ============ WiFi Networks ============
+
+export interface WifiNetworkItem {
+  id: number;
+  property_id: number;
+  ssid: string;
+  password: string | null;
+  security_type: string;
+  location: string | null;
+  is_primary: boolean;
+  notes: string | null;
+}
+
+export const getPropertyWifi = (propId: number) =>
+  request<{ networks: WifiNetworkItem[] }>(`/admin/properties/${propId}/wifi`);
+export const addWifi = (propId: number, data: any) =>
+  request<{ success: boolean; id: number }>(`/admin/properties/${propId}/wifi`, { method: 'POST', body: JSON.stringify(data) });
+export const editWifi = (wifiId: number, data: any) =>
+  request<{ success: boolean }>(`/admin/wifi/${wifiId}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteWifi = (wifiId: number) =>
+  request<{ success: boolean }>(`/admin/wifi/${wifiId}`, { method: 'DELETE' });

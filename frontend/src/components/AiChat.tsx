@@ -11,6 +11,8 @@ interface AiChatProps {
   placeholder?: string;
   mode?: 'inline' | 'floating';
   className?: string;
+  /** If true, add extra bottom margin to avoid bottom nav bar (e.g. tenant layout) */
+  bottomNav?: boolean;
 }
 
 interface ChatMsg {
@@ -18,7 +20,7 @@ interface ChatMsg {
   content: string;
 }
 
-const AiChat = ({ topic, title, placeholder, mode = 'inline', className }: AiChatProps) => {
+const AiChat = ({ topic, title, placeholder, mode = 'inline', className, bottomNav = false }: AiChatProps) => {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -180,7 +182,10 @@ const AiChat = ({ topic, title, placeholder, mode = 'inline', className }: AiCha
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full gradient-primary-bg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center"
+          className={cn(
+            "fixed right-4 z-40 w-14 h-14 rounded-full gradient-primary-bg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center",
+            bottomNav ? "bottom-24" : "bottom-6"
+          )}
         >
           <Sparkles className="h-6 w-6 text-primary-foreground" />
         </button>
@@ -188,7 +193,10 @@ const AiChat = ({ topic, title, placeholder, mode = 'inline', className }: AiCha
 
       {/* Chat overlay */}
       {open && (
-        <div className="fixed bottom-20 right-4 left-4 sm:left-auto sm:w-[380px] z-50 glass-card overflow-hidden shadow-2xl rounded-2xl animate-in fade-in-0 zoom-in-95 duration-200">
+        <div className={cn(
+          "fixed right-4 left-4 sm:left-auto sm:w-[380px] z-50 glass-card overflow-hidden shadow-2xl rounded-2xl animate-in fade-in-0 zoom-in-95 duration-200",
+          bottomNav ? "bottom-20" : "bottom-6"
+        )}>
           {chatContent}
         </div>
       )}

@@ -585,3 +585,28 @@ class SmartMeterLog(db.Model):
 
     def __repr__(self):
         return f'<SmartMeterLog {self.device_id} {self.status}>'
+
+
+# ============================================================
+# WiFi hálózatok (ingatlanonkénti WiFi jelszavak)
+# ============================================================
+
+class WifiNetwork(db.Model):
+    """WiFi hálózat adatai egy ingatlanhoz."""
+    __tablename__ = 'wifi_networks'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+    ssid = db.Column(db.String(200), nullable=False)
+    password = db.Column(db.String(200), nullable=True)
+    security_type = db.Column(db.String(20), default='WPA2')  # WPA2, WPA3, WEP, Open
+    location = db.Column(db.String(200), nullable=True)  # pl. "Nappali router", "Emelet repeater"
+    is_primary = db.Column(db.Boolean, default=False)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    property = db.relationship('Property', backref=db.backref('wifi_networks', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<WifiNetwork {self.ssid} @ property {self.property_id}>'

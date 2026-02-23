@@ -71,6 +71,13 @@ def create_app(config_name=None):
     app.register_blueprint(tenant_bp, url_prefix='/legacy')
     app.register_blueprint(admin_bp, url_prefix='/legacy/admin')
 
+    # Serve uploaded files (avatars, photos, documents)
+    @app.route('/uploads/<path:filename>')
+    def serve_uploads(filename):
+        """Serve uploaded files (avatars, meter photos, documents)."""
+        upload_folder = app.config.get('UPLOAD_FOLDER', 'uploads')
+        return send_from_directory(upload_folder, filename)
+
     # Serve React SPA (built files from frontend/dist or static/dist)
     dist_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'dist')
 

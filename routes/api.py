@@ -17,7 +17,7 @@ from models import (
     MeterReading, Payment, MaintenanceLog, Todo, Document, MarketingContent,
     PropertyTax, CommonFee, CommonFeePayment, RentalTaxConfig,
     TenantHistory, HandoverChecklist, ChatMessage, MeterInfo,
-    SmartMeterDevice, SmartMeterLog
+    SmartMeterDevice, SmartMeterLog, WifiNetwork
 )
 import json
 import uuid
@@ -3056,3 +3056,72 @@ def _refresh_mqtt_subscriptions():
             current_app.mqtt_client.refresh_subscriptions()
     except Exception as e:
         current_app.logger.warning(f"Failed to refresh MQTT subscriptions: {e}")
+
+
+# ============================================================
+# WiFi Networks CRUD
+# ============================================================
+
+@api_bp.route('/admin/properties/<int:prop_id>/wifi', methods=['GET'])
+@login_required
+def admin_get_wifi(prop_id):
+    networks = WifiNetwork.query.filter_by(property_id=prop_id).order_by(
+        WifiNetwork.is_primary.desc(), WifiNetwork.ssid
+    ).all()
+    return jsonify({'networks': [{
+        'id': n.id,
+        'property_id': n.property_id,
+        'ssid': n.ssid,
+        'password': n.password,
+        'security_type': n.security_type,
+        'location': n.location,
+        'is_primary': n.is_primary,
+        'notes': n.notes,
+    } for n in networks]})
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/wifi', methods=['POST'])
+@login_required
+def admin_add_wifi(prop_id):
+    Property.query.get_or_404(prop_id)
+    data = request.get_json()
+    ssid = (data.get('ssid') or '').strip()
+    if not ssid:
+        return jsonify({'error': 'SSID szükséges!'}), 400
+    n = WifiNetwork(
+        property_id=prop_id,
+        ssid=ssid,
+        password=data.get('password'),
+        security_type=data.get('security_type', 'WPA2'),
+        location=data.get('location'),
+        is_primary=data.get('is_primary', False),
+        notes=data.get('notes'),
+    )
+    db.session.add(n)
+    db.session.commit()
+    return jsonify({'success': True, 'id': n.id})
+
+
+@api_bp.route('/admin/wifi/<int:wifi_id>', methods=['PUT'])
+@login_required
+def admin_edit_wifi(wifi_id):
+    n = db.session.get(WifiNetwork, wifi_id)
+    if not n:
+        return jsonify({'error': 'Nem található!'}), 404
+    data = request.get_json()
+    for key in ['ssid', 'password', 'security_type', 'location', 'is_primary', 'notes']:
+        if key in data:
+            setattr(n, key, data[key])
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/wifi/<int:wifi_id>', methods=['DELETE'])
+@login_required
+def admin_delete_wifi(wifi_id):
+    n = db.session.get(WifiNetwork, wifi_id)
+    if not n:
+        return jsonify({'error': 'Nem található!'}), 404
+    db.session.delete(n)
+    db.session.commit()
+    return jsonify({'success': True})

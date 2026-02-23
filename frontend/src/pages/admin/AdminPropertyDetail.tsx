@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Building2, Zap, Droplets, CreditCard, Wrench, FileText, Megaphone,
-  Landmark, Building, MessageCircle, Radio,
+  Landmark, Building, MessageCircle, Radio, Wifi,
 } from "lucide-react";
 import { getPropertyDetail, type PropertyDetailData } from "@/lib/api";
 import { formatHuf, formatNumber } from "@/lib/format";
@@ -22,6 +22,7 @@ import PropertyTax from "./property-tabs/PropertyTax";
 import PropertyCommonFees from "./property-tabs/PropertyCommonFees";
 import PropertyChat from "./property-tabs/PropertyChat";
 import PropertySmartMeters from "./property-tabs/PropertySmartMeters";
+import PropertyWifi from "./property-tabs/PropertyWifi";
 
 const tabs = [
   { key: "basic", icon: Building2, labelKey: "propDetail.tabs.basic" },
@@ -34,6 +35,7 @@ const tabs = [
   { key: "fees", icon: Building, labelKey: "propDetail.tabs.fees" },
   { key: "chat", icon: MessageCircle, labelKey: "propDetail.tabs.chat" },
   { key: "smart-meters", icon: Radio, labelKey: "propDetail.tabs.smartMeters" },
+  { key: "wifi", icon: Wifi, labelKey: "propDetail.tabs.wifi" },
 ];
 
 const AdminPropertyDetail = () => {
@@ -185,6 +187,9 @@ const AdminPropertyDetail = () => {
         </TabsContent>
         <TabsContent value="smart-meters" className="mt-4">
           <PropertySmartMeters propertyId={propertyId} />
+        </TabsContent>
+        <TabsContent value="wifi" className="mt-4">
+          <PropertyWifi propertyId={propertyId} />
         </TabsContent>
       </Tabs>
     </div>

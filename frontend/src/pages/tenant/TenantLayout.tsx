@@ -46,6 +46,7 @@ const TenantLayout = () => {
         title={t('ai.tenantTitle')}
         placeholder={t('ai.tenantPlaceholder')}
         mode="floating"
+        bottomNav
       />
 
       <nav className="bottom-nav">
