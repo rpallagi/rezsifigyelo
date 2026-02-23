@@ -154,6 +154,8 @@ const PropertyMeters = ({ propertyId }: Props) => {
   const [haImportEntities, setHaImportEntities] = useState<HomeAssistantEntityItem[]>([]);
   const [haImportSelected, setHaImportSelected] = useState<Record<string, boolean>>({});
   const [haImportResult, setHaImportResult] = useState<{ created: number; verified: number; failed: number } | null>(null);
+  const [haImportSearch, setHaImportSearch] = useState("");
+  const [haImportUtilityFilter, setHaImportUtilityFilter] = useState<"all" | UtilityType>("all");
   const [haBackfillMonths, setHaBackfillMonths] = useState("12");
   const [haBackfillRunning, setHaBackfillRunning] = useState(false);
   const [haSetupOpen, setHaSetupOpen] = useState(false);
@@ -390,27 +392,50 @@ const PropertyMeters = ({ propertyId }: Props) => {
     }
   };
 
+  const filteredHaImportEntities = haImportEntities.filter((entity) => {
+    const utilityOk = haImportUtilityFilter === "all" || entity.utility_type === haImportUtilityFilter;
+    if (!utilityOk) return false;
+    const q = haImportSearch.trim().toLowerCase();
+    if (!q) return true;
+    const haystack = `${entity.entity_id} ${entity.friendly_name || ""} ${entity.unit || ""} ${entity.state || ""}`.toLowerCase();
+    return haystack.includes(q);
+  });
+
   const selectAllHaImportEntities = () => {
-    const next: Record<string, boolean> = {};
-    for (const entity of haImportEntities) {
+    const next = { ...haImportSelected };
+    for (const entity of filteredHaImportEntities) {
       next[entity.entity_id] = true;
     }
     setHaImportSelected(next);
   };
 
   const selectNumericHaImportEntities = () => {
-    const next: Record<string, boolean> = {};
-    for (const entity of haImportEntities) {
+    const next = { ...haImportSelected };
+    for (const entity of filteredHaImportEntities) {
       if (entity.numeric) next[entity.entity_id] = true;
     }
     setHaImportSelected(next);
   };
 
   const clearHaImportSelection = () => {
-    setHaImportSelected({});
+    if (!filteredHaImportEntities.length) {
+      setHaImportSelected({});
+      return;
+    }
+    const removeIds = new Set(filteredHaImportEntities.map((entity) => entity.entity_id));
+    const next: Record<string, boolean> = {};
+    for (const [entityId, checked] of Object.entries(haImportSelected)) {
+      if (checked && !removeIds.has(entityId)) next[entityId] = true;
+    }
+    setHaImportSelected(next);
   };
 
   const selectedHaImportCount = haImportEntities.reduce(
+    (sum, entity) => sum + (haImportSelected[entity.entity_id] ? 1 : 0),
+    0,
+  );
+
+  const selectedFilteredHaImportCount = filteredHaImportEntities.reduce(
     (sum, entity) => sum + (haImportSelected[entity.entity_id] ? 1 : 0),
     0,
   );
@@ -419,6 +444,8 @@ const PropertyMeters = ({ propertyId }: Props) => {
     const setup = await loadHaSetupFromSettings();
     const hasConnection = Boolean((setup?.ha_base_url || "").trim() && (setup?.ha_token || "").trim());
     setHaSetupOpen(!hasConnection);
+    setHaImportSearch("");
+    setHaImportUtilityFilter("all");
     setHaImportOpen(true);
     await loadHaImportEntities();
   };
@@ -461,11 +488,15 @@ const PropertyMeters = ({ propertyId }: Props) => {
         until_data_start: untilDataStart,
       });
       await load();
-      toast.success(
-        t("meters.haBackfillSuccess")
-          .replace("{created}", String(res.created || 0))
-          .replace("{skipped}", String(res.skipped || 0)),
-      );
+      if (res.no_targets || ((res.created || 0) === 0 && (res.devices || []).length === 0 && res.message)) {
+        toast.warning(res.message || t("meters.haBackfillNeedsImport"));
+      } else {
+        toast.success(
+          t("meters.haBackfillSuccess")
+            .replace("{created}", String(res.created || 0))
+            .replace("{skipped}", String(res.skipped || 0)),
+        );
+      }
       if ((res.errors || []).length) {
         toast.warning(t("meters.haBackfillPartial").replace("{count}", String(res.errors.length)));
       }
@@ -1069,24 +1100,46 @@ multiplier = 1.0`}
             </div>
 
             {haImportEntities.length > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-xs text-muted-foreground">
-                  {t("meters.haImportSelected")
-                    .replace("{selected}", String(selectedHaImportCount))
-                    .replace("{count}", String(haImportEntities.length))}
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_170px] gap-2">
+                  <Input
+                    value={haImportSearch}
+                    onChange={(e) => setHaImportSearch(e.target.value)}
+                    placeholder={t("meters.haImportSearchPlaceholder")}
+                  />
+                  <Select value={haImportUtilityFilter} onValueChange={(value) => setHaImportUtilityFilter(value as "all" | UtilityType)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("common.all")}</SelectItem>
+                      <SelectItem value="gaz">{t("common.gaz")}</SelectItem>
+                      <SelectItem value="viz">{t("common.viz")}</SelectItem>
+                      <SelectItem value="villany">{t("common.villany")}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <Button type="button" variant="outline" size="sm" onClick={selectAllHaImportEntities}>
-                    {t("meters.haSelectAll")}
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={selectNumericHaImportEntities}>
-                    {t("meters.haSelectNumeric")}
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={clearHaImportSelection}>
-                    {t("meters.haDeselectAll")}
-                  </Button>
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs text-muted-foreground">
+                    {t("meters.haImportSelected")
+                      .replace("{selected}", String(selectedFilteredHaImportCount))
+                      .replace("{count}", String(filteredHaImportEntities.length))}
+                    <span className="ml-2">{t("meters.haImportSelectedTotal").replace("{count}", String(selectedHaImportCount))}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Button type="button" variant="outline" size="sm" onClick={selectAllHaImportEntities}>
+                      {t("meters.haSelectAll")}
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={selectNumericHaImportEntities}>
+                      {t("meters.haSelectNumeric")}
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={clearHaImportSelection}>
+                      {t("meters.haDeselectAll")}
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             <div className="rounded-xl border p-3 space-y-2 bg-accent/20">
@@ -1114,7 +1167,7 @@ multiplier = 1.0`}
 
             {haImportEntities.length > 0 && (
               <div className="rounded-xl border p-2 max-h-80 overflow-y-auto space-y-1">
-                {haImportEntities.map((entity) => (
+                {filteredHaImportEntities.map((entity) => (
                   <label key={entity.entity_id} className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-accent/40">
                     <input
                       type="checkbox"
@@ -1130,6 +1183,9 @@ multiplier = 1.0`}
                     </div>
                   </label>
                 ))}
+                {filteredHaImportEntities.length === 0 && (
+                  <p className="px-2 py-2 text-xs text-muted-foreground">{t("meters.haImportNoResults")}</p>
+                )}
               </div>
             )}
 

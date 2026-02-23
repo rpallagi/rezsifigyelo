@@ -985,6 +985,8 @@ export const backfillHomeAssistantMonthly = (
     devices: Array<{ device_id: string; entity_id: string; utility_type: string; created: number; skipped: number }>;
     skipped_devices: Array<{ device_id: string; reason: string }>;
     errors: Array<{ device_id: string; entity_id: string; reading_date: string; error: string }>;
+    no_targets?: boolean;
+    message?: string;
   }>(`/admin/properties/${propId}/smart-meters/backfill-home-assistant`, {
     method: 'POST',
     body: JSON.stringify(data || {}),

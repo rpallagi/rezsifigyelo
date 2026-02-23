@@ -3813,10 +3813,16 @@ def backfill_home_assistant_monthly(prop_id):
 
     if not targets:
         return jsonify({
-            'success': False,
-            'error': 'Nincs importált Home Assistant mérő entity mappinggel.',
+            'success': True,
+            'months_back': months_back,
+            'created': 0,
+            'skipped': 0,
+            'devices': [],
             'skipped_devices': skipped_devices,
-        }), 400
+            'errors': [],
+            'no_targets': True,
+            'message': 'Előbb importálj legalább egy Home Assistant szenzort a listából.',
+        })
 
     month_starts = _month_starts_back_from_now(months_back)
 
