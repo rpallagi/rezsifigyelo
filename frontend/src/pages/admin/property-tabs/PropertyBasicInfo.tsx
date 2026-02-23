@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Camera, Upload } from "lucide-react";
+import { Camera, Upload, AlertCircle } from "lucide-react";
 import {
   editProperty, uploadPropertyAvatar, getAdminProperties,
   type AdminProperty, type TariffGroupItem,
@@ -45,6 +45,92 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
 
   const set = (key: string, val: string) => setForm((f) => ({ ...f, [key]: val }));
 
+  /**
+   * Resize image to max 800x800px and compress to max 500KB
+   * @returns Resized image as Blob or null if error
+   */
+  const resizeImage = async (file: File): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      // Check file size first
+      if (file.size > 5 * 1024 * 1024) {
+        // 5MB limit
+        alert(t('propDetail.avatarTooLarge') || 'Avatar túl nagy (max 5MB)');
+        resolve(null);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Resize if larger than 800px
+          const maxSize = 800;
+          if (width > height) {
+            if (width > maxSize) {
+              height = Math.round((height * maxSize) / width);
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = Math.round((width * maxSize) / height);
+              height = maxSize;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+          }
+
+          // Compress iteratively until under 500KB
+          let quality = 0.85;
+          let blob: Blob | null = null;
+
+          const tryQuality = () => {
+            canvas.toBlob(
+              (b) => {
+                if (!b) {
+                  resolve(null);
+                  return;
+                }
+
+                // If under 500KB or quality very low, use this
+                if (b.size <= 500 * 1024 || quality <= 0.3) {
+                  resolve(b);
+                  return;
+                }
+
+                // Try lower quality
+                quality -= 0.1;
+                tryQuality();
+              },
+              'image/jpeg',
+              quality
+            );
+          };
+
+          tryQuality();
+        };
+        img.onerror = () => {
+          alert(t('propDetail.avatarError') || 'Hiba a kép feldolgozása közben');
+          resolve(null);
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => {
+        alert(t('propDetail.avatarReadError') || 'Hiba a fájl olvasása közben');
+        resolve(null);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -72,9 +158,23 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setUploadingAvatar(true);
     try {
-      await uploadPropertyAvatar(property.id, file);
+      // Resize image before upload
+      const resizedBlob = await resizeImage(file);
+      if (!resizedBlob) {
+        setUploadingAvatar(false);
+        return;
+      }
+
+      // Convert Blob back to File for upload
+      const resizedFile = new File([resizedBlob], file.name, {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+
+      await uploadPropertyAvatar(property.id, resizedFile);
       onSaved();
     } catch (err: any) {
       alert(err.message || t('common.error'));

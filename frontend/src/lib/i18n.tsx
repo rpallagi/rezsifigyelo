@@ -420,6 +420,9 @@ const hu: Record<string, string> = {
   'propDetail.noTenant': 'Nincs bérlő',
   'propDetail.avatarUpload': 'Fotó feltöltése',
   'propDetail.changeAvatar': 'Fotó módosítása',
+  'propDetail.avatarTooLarge': 'Avatar túl nagy (max 5MB)',
+  'propDetail.avatarError': 'Hiba a kép feldolgozása közben',
+  'propDetail.avatarReadError': 'Hiba a fájl olvasása közben',
 
   // --- Admin Readings Improvements ---
   'adminReadings.newReading': 'Új mérőállás',
@@ -1259,6 +1262,9 @@ const en: Record<string, string> = {
   'propDetail.noTenant': 'No tenant',
   'propDetail.avatarUpload': 'Upload photo',
   'propDetail.changeAvatar': 'Change photo',
+  'propDetail.avatarTooLarge': 'Avatar too large (max 5MB)',
+  'propDetail.avatarError': 'Error processing image',
+  'propDetail.avatarReadError': 'Error reading file',
 
   // --- Admin Readings Improvements ---
   'adminReadings.newReading': 'New reading',
