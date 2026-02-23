@@ -908,7 +908,8 @@ multiplier = 1.0`}
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">{t("settings.haToken")}</label>
                   <Input
-                    type="password"
+                    type="text"
+                    autoComplete="off"
                     value={haSetupToken}
                     onChange={(e) => setHaSetupToken(e.target.value)}
                     placeholder={t("settings.haTokenPlaceholder")}

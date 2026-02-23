@@ -23,6 +23,7 @@ from models import (
 import json
 import uuid
 from urllib import request as urlrequest, error as urlerror
+from urllib.parse import urlparse
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
 
@@ -214,6 +215,85 @@ def _get_ha_settings():
         'tailscale_api_token': AppSetting.get('tailscale_api_token', '').strip(),
         'tailscale_tailnet': AppSetting.get('tailscale_tailnet', '').strip(),
     }
+
+
+def _normalize_ha_base_url(value):
+    raw = str(value or '').strip().rstrip('/')
+    if not raw:
+        return '', None
+
+    parsed = urlparse(raw)
+    if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+        return '', 'Home Assistant URL formátum hibás. Pl.: http://192.168.8.235:8123'
+
+    return raw, None
+
+
+def _normalize_ha_token(value):
+    token = str(value or '').strip()
+    if token.lower().startswith('bearer '):
+        token = token[7:].strip()
+
+    if not token:
+        return '', None
+
+    if 'react router future flag warning' in token.lower():
+        return token, 'A Home Assistant token mezőbe konzol figyelmeztetés került. Másold be a valódi Long-Lived Access Tokent.'
+
+    if any(ch.isspace() for ch in token):
+        return token, 'Home Assistant token formátum hibás: szóköz/sortörés nem megengedett.'
+
+    try:
+        token.encode('ascii')
+    except UnicodeEncodeError:
+        return token, 'Home Assistant token formátum hibás: csak ASCII karakterek megengedettek.'
+
+    if len(token) < 20:
+        return token, 'Home Assistant token túl rövid.'
+
+    return token, None
+
+
+def _validated_ha_connection_settings():
+    settings = _get_ha_settings()
+    raw_url = settings['ha_base_url']
+    raw_token = settings['ha_token']
+
+    if not str(raw_url or '').strip():
+        return None, None, 'Home Assistant URL hiányzik.', 400
+    if not str(raw_token or '').strip():
+        return None, None, 'Home Assistant token hiányzik.', 400
+
+    base_url, url_err = _normalize_ha_base_url(raw_url)
+    if url_err:
+        return None, None, url_err, 400
+
+    token, token_err = _normalize_ha_token(raw_token)
+    if token_err:
+        return None, None, token_err, 400
+
+    return base_url, token, None, None
+
+
+def _ha_api_error_response(code, err, fallback_message):
+    err_text = str(err or '').strip()
+    err_lower = err_text.lower()
+
+    if code in (401, 403):
+        return jsonify({'error': 'Home Assistant token érvénytelen vagy lejárt.'}), 401
+
+    if code == 404:
+        return jsonify({'error': 'Home Assistant URL hibás. Ellenőrizd a címet (pl. http://IP:8123).'}), 400
+
+    if code == 0 and err_lower:
+        if 'timed out' in err_lower:
+            return jsonify({'error': 'Home Assistant nem érhető el (timeout).'}), 504
+        if 'latin-1' in err_lower or 'ascii' in err_lower:
+            return jsonify({'error': 'Home Assistant token formátum hibás. Csak a valódi token értéket másold be.'}), 400
+        if any(k in err_lower for k in ('connection refused', 'nodename nor servname', 'name or service not known')):
+            return jsonify({'error': 'Home Assistant URL nem érhető el. Ellenőrizd a címet és hálózati elérést.'}), 502
+
+    return jsonify({'error': err_text or fallback_message}), 502
 
 
 def _ha_auth_header(token):
@@ -2661,9 +2741,17 @@ def admin_save_home_assistant_settings():
     data = request.get_json() or {}
 
     if 'ha_base_url' in data:
-        AppSetting.set('ha_base_url', str(data.get('ha_base_url') or '').strip().rstrip('/'))
+        ha_base_url, url_err = _normalize_ha_base_url(data.get('ha_base_url'))
+        if url_err:
+            return jsonify({'error': url_err}), 400
+        AppSetting.set('ha_base_url', ha_base_url)
+
     if 'ha_token' in data:
-        AppSetting.set('ha_token', str(data.get('ha_token') or '').strip())
+        ha_token, token_err = _normalize_ha_token(data.get('ha_token'))
+        if token_err:
+            return jsonify({'error': token_err}), 400
+        AppSetting.set('ha_token', ha_token)
+
     if 'tailscale_api_token' in data:
         AppSetting.set('tailscale_api_token', str(data.get('tailscale_api_token') or '').strip())
     if 'tailscale_tailnet' in data:
@@ -2676,18 +2764,13 @@ def admin_save_home_assistant_settings():
 @login_required
 def admin_test_home_assistant_connection():
     """Test Home Assistant API connectivity using saved settings."""
-    settings = _get_ha_settings()
-    base_url = settings['ha_base_url']
-    token = settings['ha_token']
-
-    if not base_url:
-        return jsonify({'error': 'Home Assistant URL hiányzik.'}), 400
-    if not token:
-        return jsonify({'error': 'Home Assistant token hiányzik.'}), 400
+    base_url, token, settings_err, status_code = _validated_ha_connection_settings()
+    if settings_err:
+        return jsonify({'error': settings_err}), status_code
 
     code, payload, err = _http_json('GET', f'{base_url}/api/states', headers=_ha_auth_header(token))
     if code != 200 or not isinstance(payload, list):
-        return jsonify({'error': err or f'Home Assistant kapcsolat hiba ({code})'}), 502
+        return _ha_api_error_response(code, err, f'Home Assistant kapcsolat hiba ({code})')
 
     sensor_count = len([s for s in payload if str(s.get('entity_id') or '').startswith('sensor.')])
     return jsonify({'success': True, 'sensor_count': sensor_count, 'total_entities': len(payload)})
@@ -2697,18 +2780,13 @@ def admin_test_home_assistant_connection():
 @login_required
 def admin_get_home_assistant_entities():
     """List relevant Home Assistant sensor entities for meter onboarding."""
-    settings = _get_ha_settings()
-    base_url = settings['ha_base_url']
-    token = settings['ha_token']
-
-    if not base_url:
-        return jsonify({'error': 'Home Assistant URL hiányzik.'}), 400
-    if not token:
-        return jsonify({'error': 'Home Assistant token hiányzik.'}), 400
+    base_url, token, settings_err, status_code = _validated_ha_connection_settings()
+    if settings_err:
+        return jsonify({'error': settings_err}), status_code
 
     code, payload, err = _http_json('GET', f'{base_url}/api/states', headers=_ha_auth_header(token))
     if code != 200 or not isinstance(payload, list):
-        return jsonify({'error': err or f'Home Assistant lekérés hiba ({code})'}), 502
+        return _ha_api_error_response(code, err, f'Home Assistant lekérés hiba ({code})')
 
     entities = _extract_ha_entities(payload)
     query = (request.args.get('q') or '').strip().lower()
@@ -3330,16 +3408,14 @@ def import_home_assistant_smart_meters(prop_id):
     # Ensure property exists
     Property.query.get_or_404(prop_id)
 
-    settings = _get_ha_settings()
-    base_url = settings['ha_base_url']
-    token = settings['ha_token']
-    if not base_url or not token:
-        return jsonify({'error': 'Home Assistant beállítás hiányzik (URL + token).'}), 400
+    base_url, token, settings_err, status_code = _validated_ha_connection_settings()
+    if settings_err:
+        return jsonify({'error': settings_err}), status_code
 
     # Fetch current HA states once for both import metadata and verification
     code, states_payload, err = _http_json('GET', f'{base_url}/api/states', headers=_ha_auth_header(token))
     if code != 200 or not isinstance(states_payload, list):
-        return jsonify({'error': err or f'Home Assistant lekérés hiba ({code})'}), 502
+        return _ha_api_error_response(code, err, f'Home Assistant lekérés hiba ({code})')
 
     state_map = {}
     for item in states_payload:

@@ -14,6 +14,36 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useI18n } from "@/lib/i18n";
 
+const normalizeHaBaseUrl = (value: string) => value.trim().replace(/\/+$/, "");
+const normalizeHaToken = (value: string) => value.trim().replace(/^Bearer\s+/i, "");
+
+const validateHaFields = (baseUrl: string, token: string, t: (key: string) => string): string | null => {
+  if (baseUrl) {
+    try {
+      const parsed = new URL(baseUrl);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        return t('settings.haInvalidUrl');
+      }
+    } catch {
+      return t('settings.haInvalidUrl');
+    }
+  }
+
+  if (token) {
+    if (/react router future flag warning/i.test(token)) {
+      return t('settings.haInvalidTokenConsole');
+    }
+    if (/\s/.test(token)) {
+      return t('settings.haInvalidTokenWhitespace');
+    }
+    if (token.length < 20) {
+      return t('settings.haInvalidTokenShort');
+    }
+  }
+
+  return null;
+};
+
 const AdminSettings = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -131,9 +161,19 @@ const AdminSettings = () => {
   };
 
   const persistHaSettings = async () => {
+    const cleanedBaseUrl = normalizeHaBaseUrl(haBaseUrl);
+    const cleanedToken = normalizeHaToken(haToken);
+    const validationError = validateHaFields(cleanedBaseUrl, cleanedToken, t);
+    if (validationError) {
+      throw new Error(validationError);
+    }
+
+    if (cleanedBaseUrl !== haBaseUrl) setHaBaseUrl(cleanedBaseUrl);
+    if (cleanedToken !== haToken) setHaToken(cleanedToken);
+
     const payload = {
-      ha_base_url: haBaseUrl.trim(),
-      ha_token: haToken.trim(),
+      ha_base_url: cleanedBaseUrl,
+      ha_token: cleanedToken,
       tailscale_api_token: tailscaleApiToken.trim(),
       tailscale_tailnet: tailscaleTailnet.trim(),
     };
@@ -316,7 +356,8 @@ const AdminSettings = () => {
           <div>
             <label className="text-sm text-muted-foreground block mb-1">{t('settings.haToken')}</label>
             <Input
-              type="password"
+              type="text"
+              autoComplete="off"
               value={haToken}
               onChange={(e) => setHaToken(e.target.value)}
               placeholder={t('settings.haTokenPlaceholder')}
@@ -327,7 +368,8 @@ const AdminSettings = () => {
             <div>
               <label className="text-sm text-muted-foreground block mb-1">{t('settings.haTailscaleToken')}</label>
               <Input
-                type="password"
+                type="text"
+                autoComplete="off"
                 value={tailscaleApiToken}
                 onChange={(e) => setTailscaleApiToken(e.target.value)}
                 placeholder={t('settings.haTailscaleTokenPlaceholder')}
@@ -452,6 +494,7 @@ const AdminSettings = () => {
             <label className="text-sm text-muted-foreground block mb-1">{t('settings.currentPassword')}</label>
             <Input
               type="password"
+              autoComplete="current-password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               placeholder={t('settings.currentPassword')}
@@ -462,6 +505,7 @@ const AdminSettings = () => {
             <label className="text-sm text-muted-foreground block mb-1">{t('settings.newPassword')}</label>
             <Input
               type="password"
+              autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder={t('settings.newPassword')}
@@ -472,6 +516,7 @@ const AdminSettings = () => {
             <label className="text-sm text-muted-foreground block mb-1">{t('settings.confirmPassword')}</label>
             <Input
               type="password"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder={t('settings.confirmPassword')}
