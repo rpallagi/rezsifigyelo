@@ -681,6 +681,14 @@ export const ocrMeterReading = (photo: File) => {
   return requestMultipart<{ success: boolean; value: number | null; confidence: string }>('/ai/ocr-reading', fd);
 };
 
+/** OCR meter reading from photo — multi-provider (Claude/Tesseract/OpenAI/Google) */
+export const ocrMeterPhoto = (photo: File, role: 'admin' | 'tenant' = 'admin') => {
+  const fd = new FormData();
+  fd.append('photo', photo);
+  const endpoint = role === 'tenant' ? '/tenant/ocr/meter' : '/admin/ocr/meter';
+  return requestMultipart<{ value: number | null; confidence: string; raw_text: string; error?: string }>(endpoint, fd);
+};
+
 // ============ AI Chat ============
 
 export const aiChat = async (message: string, topic: string, history: { role: string; content: string }[] = []) => {

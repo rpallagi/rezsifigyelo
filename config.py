@@ -55,6 +55,10 @@ class Config:
     MQTT_PASSWORD = os.environ.get('MQTT_PASSWORD', '')
     MQTT_TOPIC_PREFIX = os.environ.get('MQTT_TOPIC_PREFIX', 'rezsi/#')
 
+    # OCR -- meter reading photo recognition
+    OCR_PROVIDER = os.environ.get('OCR_PROVIDER', 'claude')
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+
     # Admin
     ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
     ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin')

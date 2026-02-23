@@ -78,11 +78,14 @@ class MQTTSmartMeterClient:
                         client.subscribe(dev.mqtt_topic)
                         logger.info(f"Subscribed to {dev.mqtt_topic}")
 
-                # Also subscribe to wildcard prefix
+                # Subscribe to wildcard prefixes (comma-separated)
                 wildcard = self.app.config.get('MQTT_TOPIC_PREFIX', 'rezsi/#')
                 if wildcard:
-                    client.subscribe(wildcard)
-                    logger.info(f"Subscribed to wildcard: {wildcard}")
+                    for topic in wildcard.split(','):
+                        topic = topic.strip()
+                        if topic:
+                            client.subscribe(topic)
+                            logger.info(f"Subscribed to wildcard: {topic}")
         else:
             self._connected = False
             logger.error(f"MQTT connect failed with rc={reason_code}")

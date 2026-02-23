@@ -3008,6 +3008,9 @@ def smart_meter_status():
         'mqtt_connected': mqtt_connected,
         'mqtt_enabled': mqtt_enabled,
         'ttn_enabled': ttn_enabled,
+        'mqtt_broker_host': current_app.config.get('MQTT_BROKER_HOST', 'mosquitto'),
+        'mqtt_broker_port': current_app.config.get('MQTT_BROKER_PORT', 1883),
+        'mqtt_topic_prefix': current_app.config.get('MQTT_TOPIC_PREFIX', 'rezsi/#'),
     })
 
 
@@ -3125,3 +3128,58 @@ def admin_delete_wifi(wifi_id):
     db.session.delete(n)
     db.session.commit()
     return jsonify({'success': True})
+
+
+# ============================================================
+# OCR — Meter Reading from Photo
+# ============================================================
+
+@api_bp.route('/admin/ocr/meter', methods=['POST'])
+@login_required
+def ocr_meter_reading():
+    """Extract meter reading from an uploaded photo using AI OCR."""
+    if 'photo' not in request.files:
+        return jsonify({'error': 'Nincs fotó feltöltve!'}), 400
+
+    photo = request.files['photo']
+    if not photo.filename:
+        return jsonify({'error': 'Üres fájl!'}), 400
+
+    image_data = photo.read()
+    if len(image_data) > 10 * 1024 * 1024:  # 10MB limit
+        return jsonify({'error': 'Túl nagy fájl (max 10MB)!'}), 400
+
+    provider = current_app.config.get('OCR_PROVIDER', 'claude')
+
+    try:
+        from services.ocr import ocr_meter_reading as do_ocr
+        result = do_ocr(image_data, provider=provider)
+        return jsonify(result)
+    except Exception as e:
+        current_app.logger.error(f"OCR error: {e}", exc_info=True)
+        return jsonify({'error': str(e), 'value': None}), 500
+
+
+@api_bp.route('/tenant/ocr/meter', methods=['POST'])
+def tenant_ocr_meter_reading():
+    """OCR for tenant meter reading photos."""
+    if 'property_id' not in session:
+        return jsonify({'error': 'Nincs bejelentkezve!'}), 401
+
+    if 'photo' not in request.files:
+        return jsonify({'error': 'Nincs fotó feltöltve!'}), 400
+
+    photo = request.files['photo']
+    image_data = photo.read()
+    if len(image_data) > 10 * 1024 * 1024:
+        return jsonify({'error': 'Túl nagy fájl (max 10MB)!'}), 400
+
+    provider = current_app.config.get('OCR_PROVIDER', 'claude')
+
+    try:
+        from services.ocr import ocr_meter_reading as do_ocr
+        result = do_ocr(image_data, provider=provider)
+        return jsonify(result)
+    except Exception as e:
+        current_app.logger.error(f"OCR error: {e}", exc_info=True)
+        return jsonify({'error': str(e), 'value': None}), 500

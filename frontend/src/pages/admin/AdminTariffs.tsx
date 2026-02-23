@@ -246,6 +246,7 @@ const AdminTariffs = () => {
                 <SelectContent>
                   <SelectItem value="villany">{t('common.villany')}</SelectItem>
                   <SelectItem value="viz">{t('common.viz')}</SelectItem>
+                  <SelectItem value="gaz">{t('common.gaz')}</SelectItem>
                   <SelectItem value="csatorna">{t('common.csatorna')}</SelectItem>
                 </SelectContent>
               </Select>

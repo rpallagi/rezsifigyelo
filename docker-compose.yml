@@ -49,12 +49,13 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - TTN_WEBHOOK_TOKEN=${TTN_WEBHOOK_TOKEN:-}
       - TTN_WEBHOOK_ENABLED=${TTN_WEBHOOK_ENABLED:-true}
-      - MQTT_ENABLED=${MQTT_ENABLED:-false}
+      - MQTT_ENABLED=${MQTT_ENABLED:-true}
       - MQTT_BROKER_HOST=${MQTT_BROKER_HOST:-mosquitto}
       - MQTT_BROKER_PORT=${MQTT_BROKER_PORT:-1883}
       - MQTT_USERNAME=${MQTT_USERNAME:-}
       - MQTT_PASSWORD=${MQTT_PASSWORD:-}
-      - MQTT_TOPIC_PREFIX=${MQTT_TOPIC_PREFIX:-rezsi/#}
+      - MQTT_TOPIC_PREFIX=${MQTT_TOPIC_PREFIX:-zigbee2mqtt/#,rezsi/#,shellies/#}
+      - OCR_PROVIDER=${OCR_PROVIDER:-claude}
     volumes:
       - ./uploads:/app/uploads
       - .:/app
@@ -68,14 +69,14 @@ services:
     networks:
       - rezsi-net
 
-  # Opcionális MQTT broker okos mérő integrációhoz
-  # Indítás: docker compose --profile mqtt up -d
+  # MQTT broker — okos mérő integráció (ESP32, Zigbee2MQTT, Shelly)
   mosquitto:
     image: eclipse-mosquitto:2
     container_name: rezsi-mosquitto
     restart: unless-stopped
-    profiles:
-      - mqtt
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "1883:1883"
     volumes:
