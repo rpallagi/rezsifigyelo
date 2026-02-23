@@ -438,8 +438,8 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center justify-between">
+          <DialogHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
                 <DialogTitle className="font-display">
                   {editingId ? t("smartMeter.editDevice") : t("smartMeter.addDevice")}
@@ -450,15 +450,17 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                     : t("smartMeter.addDeviceDesc")}
                 </DialogDescription>
               </div>
-              <button
+              <Button
                 type="button"
-                onClick={() => { setHelpTopic("mqtt"); setHelpDialogOpen(true); }}
-                className="flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline ml-2 flex-shrink-0 px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                variant="outline"
+                size="sm"
+                onClick={() => { setHelpTopic("preset"); setHelpDialogOpen(true); }}
+                className="flex items-center gap-2 flex-shrink-0 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900"
                 title="Setup help"
               >
-                <HelpCircle className="h-5 w-5" />
-                <span>Segítség</span>
-              </button>
+                <HelpCircle className="h-4 w-4" />
+                Segítség
+              </Button>
             </div>
           </DialogHeader>
 
