@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Radio, Plus, Pencil, Trash2, Activity, Wifi, AlertTriangle, Globe, BookOpen, Copy, CheckCircle2, Clock } from "lucide-react";
+import { Radio, Plus, Pencil, Trash2, Activity, Wifi, AlertTriangle, Globe, BookOpen, Copy, CheckCircle2, Clock, HelpCircle, ExternalLink } from "lucide-react";
 import {
   getPropertySmartMeters, addSmartMeter, editSmartMeter, deleteSmartMeter,
   getSmartMeterLogs,
@@ -67,6 +67,10 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
   const [logsDeviceName, setLogsDeviceName] = useState("");
   const [logs, setLogs] = useState<SmartMeterLogItem[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+
+  // Help dialogs
+  const [helpDialogOpen, setHelpDialogOpen] = useState(false);
+  const [helpTopic, setHelpTopic] = useState<"mqtt" | "webhook" | "">("");
 
   const load = () => {
     setLoading(true);
@@ -546,7 +550,17 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                 <div className="flex items-start gap-2">
                   <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">Webhook Configuration</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Webhook Configuration</p>
+                      <button
+                        type="button"
+                        onClick={() => { setHelpTopic("webhook"); setHelpDialogOpen(true); }}
+                        className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-300 hover:underline"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5" />
+                        Setup útmutató
+                      </button>
+                    </div>
 
                     {/* Webhook URL */}
                     <div className="mb-2.5">
@@ -621,14 +635,27 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
             {/* MQTT Topic (only when source=mqtt) */}
             {form.source === "mqtt" && (
               <div>
-                <label className="text-sm text-muted-foreground block mb-1">
-                  {t("smartMeter.mqttTopic")}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm text-muted-foreground block">
+                    {t("smartMeter.mqttTopic")}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => { setHelpTopic("mqtt"); setHelpDialogOpen(true); }}
+                    className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    <HelpCircle className="h-3.5 w-3.5" />
+                    Hol találom?
+                  </button>
+                </div>
                 <Input
                   value={form.mqtt_topic}
                   onChange={(e) => set("mqtt_topic", e.target.value)}
-                  placeholder="home/meters/water"
+                  placeholder="shellies/shellyem-A1B2C3D4E5F6/emeter/0/total"
                 />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Pl. Shelly 3EM: <code className="bg-muted px-1 py-0.5 rounded">shellies/shellyem-MAC/emeter/0/total</code>
+                </p>
               </div>
             )}
 
@@ -811,6 +838,111 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setLogsDialogOpen(false)}>
+              {t("common.close")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Help Dialog */}
+      <Dialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display">
+              {helpTopic === "mqtt" ? "MQTT Topic — Hol találom?" : "Webhook Setup — Útmutató"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {helpTopic === "mqtt" && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                  📡 Az MQTT topic az a "postafiók", ahova az eszköz az adatokat publikálja.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-bold mb-2">🔍 Shelly 3EM Pro — Topic megtalálása:</p>
+                  <ol className="text-sm space-y-2 ml-4 list-decimal">
+                    <li>Nyiss meg a Shelly web UI-t: <code className="bg-muted px-2 py-1 rounded text-xs">http://&lt;shelly-ip&gt;/web/</code></li>
+                    <li>Menj a <strong>Settings</strong> → <strong>Device info</strong> oldalra</li>
+                    <li>Keress rá a <strong>MAC Address</strong>-re (pl. <code className="bg-muted px-2 py-1 rounded text-xs">A81B03D4E5F6</code>)</li>
+                    <li>Az MQTT topic így néz ki:
+                      <div className="bg-slate-900 text-slate-100 rounded p-2 mt-1 font-mono text-xs overflow-x-auto">
+                        shellies/shellyem-&lt;MAC&gt;/emeter/0/total
+                      </div>
+                      Helyettesítsd a <code className="bg-muted px-1 rounded">&lt;MAC&gt;</code>-et a valódi MAC-cím-mel:
+                      <div className="bg-slate-900 text-slate-100 rounded p-2 mt-1 font-mono text-xs overflow-x-auto">
+                        shellies/shellyem-A81B03D4E5F6/emeter/0/total
+                      </div>
+                    </li>
+                  </ol>
+                </div>
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-bold mb-2">⚙️ Shelly konfigurálása MQTT-hez:</p>
+                  <ol className="text-sm space-y-2 ml-4 list-decimal">
+                    <li>Shelly web UI: <strong>Settings</strong> → <strong>Internet & Security</strong> → <strong>MQTT</strong></li>
+                    <li>MQTT Server: <code className="bg-muted px-2 py-1 rounded text-xs">192.168.8.235:1883</code></li>
+                    <li><strong>Save</strong> → ezután az eszköz automatikusan fog adatot publikálni</li>
+                  </ol>
+                </div>
+
+                <div className="border-t pt-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                  <p className="text-sm text-amber-900 dark:text-amber-100">
+                    💡 <strong>Tipp:</strong> A Shelly különböző emetereken (fázisok) publikál adatokat. <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded text-xs">/emeter/0/</code> az 1. fázis, <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded text-xs">/emeter/1/</code> a 2. fázis, stb.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {helpTopic === "webhook" && (
+            <div className="space-y-4">
+              <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <p className="text-sm font-medium text-green-900 dark:text-green-100 mb-2">
+                  🌐 A Webhook egy HTTP POST, amit az eszköz küld a szervernek.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-bold mb-2">🔍 Shelly 3EM Pro — Webhook beállítása:</p>
+                  <ol className="text-sm space-y-2 ml-4 list-decimal">
+                    <li>Nyiss meg a Shelly web UI-t: <code className="bg-muted px-2 py-1 rounded text-xs">http://&lt;shelly-ip&gt;/web/</code></li>
+                    <li>Menj a <strong>Settings</strong> → <strong>Automations</strong> → <strong>Actions</strong> oldalra</li>
+                    <li>Kattints az <strong>Add action</strong> gombra</li>
+                    <li>Action típus: <strong>HTTP Request</strong></li>
+                    <li>URL: <code className="bg-muted px-2 py-1 rounded text-xs break-all">{window.location.origin}/api/webhooks/generic</code></li>
+                    <li>Method: <strong>POST</strong></li>
+                    <li>Auth: <strong>Authorization</strong> header: <code className="bg-muted px-2 py-1 rounded text-xs">Bearer [token]</code></li>
+                    <li>JSON Body:
+                      <div className="bg-slate-900 text-slate-100 rounded p-2 mt-1 font-mono text-xs overflow-x-auto">
+{`{
+  "device_id": "shelly-3em-artfactory",
+  "value": \${emeters[0].total}
+}`}
+                      </div>
+                    </li>
+                    <li>Trigger: <strong>Power change</strong> vagy periodikus (pl. minden 5 perc)</li>
+                  </ol>
+                </div>
+
+                <div className="border-t pt-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                  <p className="text-sm text-amber-900 dark:text-amber-100 mb-2">
+                    ⚠️ <strong>Fontos:</strong> A Webhook csak akkor működik, ha az eszköz és a szerver <strong>ugyanazon a networkon</strong> van vagy az alkalmazás <strong>publikus IP-ről elérhető</strong>.
+                  </p>
+                  <p className="text-sm text-amber-900 dark:text-amber-100">
+                    Ha máshol van a Shelly, használd az <strong>MQTT</strong> módot helyette!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHelpDialogOpen(false)}>
               {t("common.close")}
             </Button>
           </DialogFooter>
