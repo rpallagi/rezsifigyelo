@@ -453,10 +453,11 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
               <button
                 type="button"
                 onClick={() => { setHelpTopic("mqtt"); setHelpDialogOpen(true); }}
-                className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline ml-2 flex-shrink-0"
+                className="flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline ml-2 flex-shrink-0 px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30"
                 title="Setup help"
               >
-                <HelpCircle className="h-4 w-4" />
+                <HelpCircle className="h-5 w-5" />
+                <span>Segítség</span>
               </button>
             </div>
           </DialogHeader>
