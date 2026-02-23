@@ -973,6 +973,27 @@ export const importHomeAssistantMeters = (
     body: JSON.stringify({ entities }),
   });
 
+export const importHomeAssistantNetMeter = (
+  propId: number,
+  data: { import_entity_id: string; export_entity_id: string; name?: string; device_id?: string }
+) =>
+  request<{
+    success: boolean;
+    created: {
+      id: number;
+      device_id: string;
+      name: string;
+      utility_type: string;
+      mode: 'p1_net';
+      import_entity_id: string;
+      export_entity_id: string;
+    };
+    verify: { ok: boolean; reason?: string; reading_id?: number; net_state: number };
+  }>(`/admin/properties/${propId}/smart-meters/import-home-assistant-net`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
 export const backfillHomeAssistantMonthly = (
   propId: number,
   data?: { months_back?: number; until_data_start?: boolean; device_ids?: number[] }

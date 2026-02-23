@@ -8,7 +8,7 @@ import {
   getPropertyMeters, addMeter, editMeter, deleteMeter,
   getPropertySmartMeters, addSmartMeter, editSmartMeter, deleteSmartMeter,
   getSmartMeterLogs, getSmartMeterStatus, ocrMeterPhoto, adminSubmitReading,
-  getHomeAssistantEntities, importHomeAssistantMeters, backfillHomeAssistantMonthly, getHomeAssistantSettings, saveHomeAssistantSettings, testHomeAssistantConnection,
+  getHomeAssistantEntities, importHomeAssistantMeters, importHomeAssistantNetMeter, backfillHomeAssistantMonthly, getHomeAssistantSettings, saveHomeAssistantSettings, testHomeAssistantConnection,
   type MeterInfoItem, type SmartMeterDeviceItem, type SmartMeterLogItem, type HomeAssistantEntityItem,
 } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -156,6 +156,10 @@ const PropertyMeters = ({ propertyId }: Props) => {
   const [haImportResult, setHaImportResult] = useState<{ created: number; verified: number; failed: number } | null>(null);
   const [haImportSearch, setHaImportSearch] = useState("");
   const [haImportUtilityFilter, setHaImportUtilityFilter] = useState<"all" | UtilityType>("all");
+  const [haNetName, setHaNetName] = useState("P1 nettó villany");
+  const [haNetImportEntity, setHaNetImportEntity] = useState("");
+  const [haNetExportEntity, setHaNetExportEntity] = useState("");
+  const [haNetImportSaving, setHaNetImportSaving] = useState(false);
   const [haBackfillMonths, setHaBackfillMonths] = useState("12");
   const [haBackfillRunning, setHaBackfillRunning] = useState(false);
   const [haSetupOpen, setHaSetupOpen] = useState(false);
@@ -375,6 +379,16 @@ const PropertyMeters = ({ propertyId }: Props) => {
         if (entity.numeric) nextSelected[entity.entity_id] = true;
       }
       setHaImportSelected(nextSelected);
+
+      const netCandidates = entities.filter((e) =>
+        e.numeric &&
+        (e.utility_type === "villany" || /kwh|wh/i.test(e.unit || ""))
+      );
+      const autoImport = haNetCandidates.find((e) => /energy[_\s-]*import|\bimport\b|from_grid/i.test(`${e.entity_id} ${e.friendly_name}`));
+      const autoExport = haNetCandidates.find((e) => /energy[_\s-]*export|\bexport\b|to_grid|feed/i.test(`${e.entity_id} ${e.friendly_name}`));
+      setHaNetImportEntity(autoImport?.entity_id || "");
+      setHaNetExportEntity(autoExport?.entity_id || "");
+
       if (!entities.length) {
         toast.warning(t("meters.haNoEntitiesFound"));
       }
@@ -400,6 +414,18 @@ const PropertyMeters = ({ propertyId }: Props) => {
     const haystack = `${entity.entity_id} ${entity.friendly_name || ""} ${entity.unit || ""} ${entity.state || ""}`.toLowerCase();
     return haystack.includes(q);
   });
+
+  const haNetCandidates = haImportEntities.filter((entity) =>
+    entity.numeric &&
+    (entity.utility_type === "villany" || /kwh|wh/i.test(entity.unit || ""))
+  );
+
+  const autoPairHaNetEntities = () => {
+    const autoImport = haNetCandidates.find((e) => /energy[_\s-]*import|\bimport\b|from_grid/i.test(`${e.entity_id} ${e.friendly_name}`));
+    const autoExport = haNetCandidates.find((e) => /energy[_\s-]*export|\bexport\b|to_grid|feed/i.test(`${e.entity_id} ${e.friendly_name}`));
+    if (autoImport) setHaNetImportEntity(autoImport.entity_id);
+    if (autoExport) setHaNetExportEntity(autoExport.entity_id);
+  };
 
   const selectAllHaImportEntities = () => {
     const next = { ...haImportSelected };
@@ -446,6 +472,9 @@ const PropertyMeters = ({ propertyId }: Props) => {
     setHaSetupOpen(!hasConnection);
     setHaImportSearch("");
     setHaImportUtilityFilter("all");
+    setHaNetName("P1 nettó villany");
+    setHaNetImportEntity("");
+    setHaNetExportEntity("");
     setHaImportOpen(true);
     await loadHaImportEntities();
   };
@@ -476,6 +505,36 @@ const PropertyMeters = ({ propertyId }: Props) => {
       toast.error(e.message || t("meters.haImportError"));
     } finally {
       setHaImportSaving(false);
+    }
+  };
+
+  const runHaNetImport = async () => {
+    if (!haNetImportEntity || !haNetExportEntity) {
+      toast.warning(t("meters.haNetNeedEntities"));
+      return;
+    }
+    if (haNetImportEntity === haNetExportEntity) {
+      toast.warning(t("meters.haNetNeedDistinct"));
+      return;
+    }
+
+    setHaNetImportSaving(true);
+    try {
+      const res = await importHomeAssistantNetMeter(propertyId, {
+        name: haNetName.trim() || "P1 nettó villany",
+        import_entity_id: haNetImportEntity,
+        export_entity_id: haNetExportEntity,
+      });
+      await load();
+      if (res.verify?.ok) {
+        toast.success(t("meters.haNetImportSuccess").replace("{reading}", String(res.verify.reading_id || "-")));
+      } else {
+        toast.warning((res.verify?.reason || t("meters.haNetImportError")) as string);
+      }
+    } catch (e: any) {
+      toast.error(e.message || t("meters.haNetImportError"));
+    } finally {
+      setHaNetImportSaving(false);
     }
   };
 
@@ -1097,6 +1156,65 @@ multiplier = 1.0`}
                 {haImportLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
                 {t("meters.haLoadEntities")}
               </Button>
+            </div>
+
+            <div className="rounded-xl border p-3 space-y-2 bg-accent/20">
+              <p className="text-xs font-medium">{t("meters.haNetTitle")}</p>
+              <p className="text-[11px] text-muted-foreground">{t("meters.haNetDesc")}</p>
+              <p className="text-[11px] text-muted-foreground">{t("meters.haNetGuide")}</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">{t("meters.haNetImportLabel")}</label>
+                  <Select value={haNetImportEntity || undefined} onValueChange={setHaNetImportEntity}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("meters.haNetImportPlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {haNetCandidates.map((entity) => (
+                        <SelectItem key={`net-import-${entity.entity_id}`} value={entity.entity_id}>
+                          {entity.entity_id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">{t("meters.haNetExportLabel")}</label>
+                  <Select value={haNetExportEntity || undefined} onValueChange={setHaNetExportEntity}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("meters.haNetExportPlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {haNetCandidates.map((entity) => (
+                        <SelectItem key={`net-export-${entity.entity_id}`} value={entity.entity_id}>
+                          {entity.entity_id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Input
+                value={haNetName}
+                onChange={(e) => setHaNetName(e.target.value)}
+                placeholder={t("meters.haNetNamePlaceholder")}
+              />
+
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={autoPairHaNetEntities} disabled={!haNetCandidates.length}>
+                  {t("meters.haNetAutoPair")}
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={runHaNetImport} disabled={haNetImportSaving || !haNetCandidates.length}>
+                  {haNetImportSaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                  {t("meters.haNetImportRun")}
+                </Button>
+              </div>
+
+              {!haNetCandidates.length && (
+                <p className="text-[11px] text-muted-foreground">{t("meters.haNetNoCandidates")}</p>
+              )}
             </div>
 
             {haImportEntities.length > 0 && (

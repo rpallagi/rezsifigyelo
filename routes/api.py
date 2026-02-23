@@ -347,11 +347,43 @@ def _ha_entity_setting_key(device_db_id):
     return f'ha_entity_device_{int(device_db_id)}'
 
 
+def _ha_entity_mode_setting_key(device_db_id):
+    return f'ha_entity_mode_device_{int(device_db_id)}'
+
+
+def _ha_import_entity_setting_key(device_db_id):
+    return f'ha_import_entity_device_{int(device_db_id)}'
+
+
+def _ha_export_entity_setting_key(device_db_id):
+    return f'ha_export_entity_device_{int(device_db_id)}'
+
+
+def _normalize_ha_entity_id(value):
+    entity_id = str(value or '').strip().lower()
+    if not entity_id:
+        return ''
+    return entity_id if entity_id.startswith('sensor.') else f'sensor.{entity_id}'
+
+
 def _set_ha_entity_for_device_nocommit(device_db_id, entity_id):
-    _set_app_setting_nocommit(_ha_entity_setting_key(device_db_id), entity_id)
+    normalized = _normalize_ha_entity_id(entity_id)
+    _set_app_setting_nocommit(_ha_entity_setting_key(device_db_id), normalized)
+    _set_app_setting_nocommit(_ha_entity_mode_setting_key(device_db_id), 'single')
+    _set_app_setting_nocommit(_ha_import_entity_setting_key(device_db_id), '')
+    _set_app_setting_nocommit(_ha_export_entity_setting_key(device_db_id), '')
 
 
-def _guess_ha_entity_from_device_id(device_id):
+def _set_ha_net_pair_for_device_nocommit(device_db_id, import_entity_id, export_entity_id):
+    import_norm = _normalize_ha_entity_id(import_entity_id)
+    export_norm = _normalize_ha_entity_id(export_entity_id)
+    _set_app_setting_nocommit(_ha_entity_mode_setting_key(device_db_id), 'p1_net')
+    _set_app_setting_nocommit(_ha_import_entity_setting_key(device_db_id), import_norm)
+    _set_app_setting_nocommit(_ha_export_entity_setting_key(device_db_id), export_norm)
+    _set_app_setting_nocommit(_ha_entity_setting_key(device_db_id), import_norm)
+
+
+def _guess_ha_entity_mapping_from_device_id(device_id):
     raw = str(device_id or '').strip().lower()
     for utility in ('villany', 'viz', 'gaz'):
         marker = f'-{utility}-'
@@ -359,16 +391,34 @@ def _guess_ha_entity_from_device_id(device_id):
         if idx >= 0 and idx + len(marker) < len(raw):
             suffix = raw[idx + len(marker):].strip('-')
             if suffix:
-                return f'sensor.{suffix}'
-    return ''
+                return {'kind': 'single', 'entity_id': f'sensor.{suffix}'}
+    return {'kind': 'none'}
+
+
+def _get_ha_entity_mapping_for_device(device):
+    mode = AppSetting.get(_ha_entity_mode_setting_key(device.id), '').strip().lower()
+    if mode == 'p1_net':
+        import_id = _normalize_ha_entity_id(AppSetting.get(_ha_import_entity_setting_key(device.id), ''))
+        export_id = _normalize_ha_entity_id(AppSetting.get(_ha_export_entity_setting_key(device.id), ''))
+        if import_id and export_id:
+            return {
+                'kind': 'p1_net',
+                'import_entity_id': import_id,
+                'export_entity_id': export_id,
+            }
+
+    mapped = _normalize_ha_entity_id(AppSetting.get(_ha_entity_setting_key(device.id), ''))
+    if mapped:
+        return {'kind': 'single', 'entity_id': mapped}
+
+    return _guess_ha_entity_mapping_from_device_id(device.device_id)
 
 
 def _get_ha_entity_for_device(device):
-    mapped = AppSetting.get(_ha_entity_setting_key(device.id), '').strip().lower()
-    if mapped:
-        return mapped if mapped.startswith('sensor.') else f'sensor.{mapped}'
-    fallback = _guess_ha_entity_from_device_id(device.device_id)
-    return fallback
+    mapping = _get_ha_entity_mapping_for_device(device)
+    if mapping.get('kind') == 'single':
+        return mapping.get('entity_id', '')
+    return ''
 
 
 def _month_start_utc(year, month):
@@ -3767,6 +3817,114 @@ def import_home_assistant_smart_meters(prop_id):
     }), 201
 
 
+@api_bp.route('/admin/properties/<int:prop_id>/smart-meters/import-home-assistant-net', methods=['POST'])
+@login_required
+def import_home_assistant_net_smart_meter(prop_id):
+    """Import a net (import-export) Home Assistant electricity meter."""
+    data = request.get_json() or {}
+
+    import_entity_id = _normalize_ha_entity_id(data.get('import_entity_id'))
+    export_entity_id = _normalize_ha_entity_id(data.get('export_entity_id'))
+    if not import_entity_id or not export_entity_id:
+        return jsonify({'error': 'Import és export entity kötelező.'}), 400
+    if import_entity_id == export_entity_id:
+        return jsonify({'error': 'Az import és export entity nem lehet azonos.'}), 400
+
+    Property.query.get_or_404(prop_id)
+
+    base_url, token, settings_err, status_code = _validated_ha_connection_settings(property_id=prop_id, fallback_global=True)
+    if settings_err:
+        return jsonify({'error': settings_err}), status_code
+
+    code, states_payload, err = _http_json('GET', f'{base_url}/api/states', headers=_ha_auth_header(token))
+    if code != 200 or not isinstance(states_payload, list):
+        return _ha_api_error_response(code, err, f'Home Assistant lekérés hiba ({code})')
+
+    state_map = {}
+    for item in states_payload:
+        entity_id = _normalize_ha_entity_id(item.get('entity_id'))
+        if entity_id:
+            state_map[entity_id] = item
+
+    import_item = state_map.get(import_entity_id)
+    export_item = state_map.get(export_entity_id)
+    if not import_item or not export_item:
+        return jsonify({'error': 'Nem található az egyik kiválasztott entity a Home Assistantban.'}), 400
+
+    import_value = _to_float(import_item.get('state'))
+    export_value = _to_float(export_item.get('state'))
+    if import_value is None or export_value is None:
+        return jsonify({'error': 'A kiválasztott import/export entity aktuális állapota nem numerikus.'}), 400
+
+    webhook_token = AppSetting.get('ha_webhook_token', '').strip()
+    if not webhook_token:
+        webhook_token = f'ha-{uuid.uuid4().hex[:24]}'
+        AppSetting.set('ha_webhook_token', webhook_token)
+
+    name = str(data.get('name') or 'P1 nettó villany').strip()[:200]
+    base_device_id = str(data.get('device_id') or f'ha-p{prop_id}-villany-p1-net').strip()
+    device_id = _unique_device_id(_slugify(base_device_id)[:180])
+
+    device = SmartMeterDevice(
+        property_id=prop_id,
+        device_id=device_id,
+        source='http',
+        utility_type='villany',
+        name=name,
+        ttn_app_id=webhook_token,
+        mqtt_topic=None,
+        value_field='energy_kwh_total',
+        multiplier=1.0,
+        offset=0.0,
+        min_interval_minutes=1,
+        is_active=True,
+    )
+    db.session.add(device)
+    db.session.flush()
+
+    _set_ha_net_pair_for_device_nocommit(device.id, import_entity_id, export_entity_id)
+
+    net_value = float(import_value) - float(export_value)
+
+    from services.smart_meter import process_smart_meter_reading
+    result = process_smart_meter_reading(
+        device_id=device.device_id,
+        raw_value=net_value,
+        source='http',
+        raw_payload=json.dumps({
+            'mode': 'p1_net',
+            'import_entity_id': import_entity_id,
+            'export_entity_id': export_entity_id,
+            'import_state': import_item.get('state'),
+            'export_state': export_item.get('state'),
+            'net_state': net_value,
+        }),
+        timestamp=datetime.utcnow(),
+    )
+
+    db.session.commit()
+    _refresh_mqtt_subscriptions()
+
+    return jsonify({
+        'success': True,
+        'created': {
+            'id': device.id,
+            'device_id': device.device_id,
+            'name': device.name,
+            'utility_type': device.utility_type,
+            'mode': 'p1_net',
+            'import_entity_id': import_entity_id,
+            'export_entity_id': export_entity_id,
+        },
+        'verify': {
+            'ok': result.get('status') == 'ok',
+            'reason': None if result.get('status') == 'ok' else result.get('error', result.get('status')),
+            'reading_id': result.get('reading_id'),
+            'net_state': net_value,
+        },
+    }), 201
+
+
 
 @api_bp.route('/admin/properties/<int:prop_id>/smart-meters/backfill-home-assistant', methods=['POST'])
 @login_required
@@ -3805,11 +3963,11 @@ def backfill_home_assistant_monthly(prop_id):
     targets = []
     skipped_devices = []
     for d in devices:
-        entity_id = _get_ha_entity_for_device(d)
-        if not entity_id:
+        mapping = _get_ha_entity_mapping_for_device(d)
+        if mapping.get('kind') == 'none':
             skipped_devices.append({'device_id': d.device_id, 'reason': 'no_entity_mapping'})
             continue
-        targets.append((d, entity_id))
+        targets.append((d, mapping))
 
     if not targets:
         return jsonify({
@@ -3832,9 +3990,15 @@ def backfill_home_assistant_monthly(prop_id):
     per_device = []
     touched_utils = set()
 
-    for device, entity_id in targets:
+    for device, mapping in targets:
         device_created = 0
         device_skipped = 0
+
+        mapping_kind = mapping.get('kind')
+        if mapping_kind == 'p1_net':
+            label_entity = f"{mapping.get('import_entity_id', '')} - {mapping.get('export_entity_id', '')}"
+        else:
+            label_entity = mapping.get('entity_id', '')
 
         for month_start in month_starts:
             reading_date = month_start.date()
@@ -3849,20 +4013,53 @@ def backfill_home_assistant_monthly(prop_id):
                 skipped_total += 1
                 continue
 
-            value, err = _ha_history_state_for_month_start(base_url, token, entity_id, month_start)
-            if err:
-                errors.append({
-                    'device_id': device.device_id,
-                    'entity_id': entity_id,
-                    'reading_date': reading_date.isoformat(),
-                    'error': err,
-                })
-                continue
+            value = None
+            if mapping_kind == 'p1_net':
+                import_entity = mapping.get('import_entity_id')
+                export_entity = mapping.get('export_entity_id')
 
-            if value is None:
-                device_skipped += 1
-                skipped_total += 1
-                continue
+                import_value, import_err = _ha_history_state_for_month_start(base_url, token, import_entity, month_start)
+                if import_err:
+                    errors.append({
+                        'device_id': device.device_id,
+                        'entity_id': import_entity,
+                        'reading_date': reading_date.isoformat(),
+                        'error': import_err,
+                    })
+                    continue
+
+                export_value, export_err = _ha_history_state_for_month_start(base_url, token, export_entity, month_start)
+                if export_err:
+                    errors.append({
+                        'device_id': device.device_id,
+                        'entity_id': export_entity,
+                        'reading_date': reading_date.isoformat(),
+                        'error': export_err,
+                    })
+                    continue
+
+                if import_value is None or export_value is None:
+                    device_skipped += 1
+                    skipped_total += 1
+                    continue
+
+                value = float(import_value) - float(export_value)
+            else:
+                entity_id = mapping.get('entity_id')
+                value, err = _ha_history_state_for_month_start(base_url, token, entity_id, month_start)
+                if err:
+                    errors.append({
+                        'device_id': device.device_id,
+                        'entity_id': entity_id,
+                        'reading_date': reading_date.isoformat(),
+                        'error': err,
+                    })
+                    continue
+
+                if value is None:
+                    device_skipped += 1
+                    skipped_total += 1
+                    continue
 
             row = MeterReading(
                 property_id=prop_id,
@@ -3873,7 +4070,7 @@ def backfill_home_assistant_monthly(prop_id):
                 tariff_id=None,
                 cost_huf=None,
                 reading_date=reading_date,
-                notes=f'HA havi history import ({entity_id})',
+                notes=f'HA havi history import ({label_entity})',
                 source='smart_ha_history',
             )
             db.session.add(row)
@@ -3883,7 +4080,7 @@ def backfill_home_assistant_monthly(prop_id):
 
         per_device.append({
             'device_id': device.device_id,
-            'entity_id': entity_id,
+            'entity_id': label_entity,
             'utility_type': device.utility_type,
             'created': device_created,
             'skipped': device_skipped,
