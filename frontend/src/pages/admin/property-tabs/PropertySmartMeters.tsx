@@ -320,10 +320,13 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                         )}
                       </>
                     ) : (
-                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 italic">
-                        <Clock className="h-3 w-3" />
-                        {t("smartMeter.noDataReceived")}
-                      </span>
+                      <div className="flex items-start gap-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                        <div className="text-amber-700 dark:text-amber-200">
+                          <p className="font-medium text-xs">Nincs kapcsolat</p>
+                          <p className="text-[11px] opacity-75">Az eszköz még nem küldött adatot. Ellenőrizd az MQTT/Webhook konfigurációt.</p>
+                        </div>
+                      </div>
                     )}
                   </div>
 
@@ -436,14 +439,26 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-display">
-              {editingId ? t("smartMeter.editDevice") : t("smartMeter.addDevice")}
-            </DialogTitle>
-            <DialogDescription>
-              {editingId
-                ? t("smartMeter.editDeviceDesc")
-                : t("smartMeter.addDeviceDesc")}
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <DialogTitle className="font-display">
+                  {editingId ? t("smartMeter.editDevice") : t("smartMeter.addDevice")}
+                </DialogTitle>
+                <DialogDescription>
+                  {editingId
+                    ? t("smartMeter.editDeviceDesc")
+                    : t("smartMeter.addDeviceDesc")}
+                </DialogDescription>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setHelpTopic("mqtt"); setHelpDialogOpen(true); }}
+                className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline ml-2 flex-shrink-0"
+                title="Setup help"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
+            </div>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
