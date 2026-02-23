@@ -70,7 +70,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
 
   // Help dialogs
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
-  const [helpTopic, setHelpTopic] = useState<"mqtt" | "webhook" | "">("");
+  const [helpTopic, setHelpTopic] = useState<"mqtt" | "webhook" | "homewizard" | "">("");
 
   const load = () => {
     setLoading(true);
@@ -566,10 +566,15 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                   <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Webhook Configuration</p>
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        {form.device_id.includes("homewizard") ? "HomeWizard Konfigurálás" : "Webhook Configuration"}
+                      </p>
                       <button
                         type="button"
-                        onClick={() => { setHelpTopic("webhook"); setHelpDialogOpen(true); }}
+                        onClick={() => {
+                          setHelpTopic(form.device_id.includes("homewizard") ? "homewizard" : "webhook");
+                          setHelpDialogOpen(true);
+                        }}
                         className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-300 hover:underline"
                       >
                         <HelpCircle className="h-3.5 w-3.5" />
@@ -864,7 +869,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display">
-              {helpTopic === "mqtt" ? "MQTT Topic — Hol találom?" : "Webhook Setup — Útmutató"}
+              {helpTopic === "mqtt" ? "MQTT Topic — Hol találom?" : helpTopic === "homewizard" ? "HomeWizard P1 — Integrálás" : "Webhook Setup — Útmutató"}
             </DialogTitle>
           </DialogHeader>
 
@@ -950,6 +955,71 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                   </p>
                   <p className="text-sm text-amber-900 dark:text-amber-100">
                     Ha máshol van a Shelly, használd az <strong>MQTT</strong> módot helyette!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {helpTopic === "homewizard" && (
+            <div className="space-y-4">
+              <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                <p className="text-sm font-medium text-purple-900 dark:text-purple-100 mb-2">
+                  ⚡ HomeWizard P1 közvetlenül olvassa az energia fogyasztást a P1 csatlakozási pontból.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-bold mb-2">1️⃣ HomeWizard IP cím megtalálása:</p>
+                  <ol className="text-sm space-y-2 ml-4 list-decimal">
+                    <li>Nyiss meg egy böngészőt és keress meg a HomeWizard eszközt az hálózaton</li>
+                    <li>Általában IP cím: <code className="bg-muted px-2 py-1 rounded text-xs">192.168.x.x</code> vagy használj <code className="bg-muted px-2 py-1 rounded text-xs">homewizard.local</code></li>
+                    <li>Vagy nézd meg a router DHCP kliensek listáját (pl. "HomeWizard P1 Meter")</li>
+                  </ol>
+                </div>
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-bold mb-2">2️⃣ Local API engedélyezése:</p>
+                  <ol className="text-sm space-y-2 ml-4 list-decimal">
+                    <li>Nyiss meg a HomeWizard alkalmazást a telefonodon</li>
+                    <li>Menj a <strong>Settings</strong> → <strong>Meters</strong> → kiválasztod az eszközt</li>
+                    <li>Engedélyezd a <strong>Local API</strong> funkciót</li>
+                  </ol>
+                </div>
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-bold mb-2">3️⃣ Tesztelés:</p>
+                  <p className="text-sm mb-2">Az API végpontok így néznek ki:</p>
+                  <div className="bg-slate-900 text-slate-100 rounded p-2 font-mono text-xs overflow-x-auto space-y-1">
+                    <div>GET http://&lt;homewizard-ip&gt;/api/v1/data</div>
+                    <div className="text-green-400">Válasz: teljes energia adatok (kWh, gáz, víz)</div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-bold mb-2">4️⃣ Az alkalmazásban:</p>
+                  <ol className="text-sm space-y-2 ml-4 list-decimal">
+                    <li>Device ID: pl. <code className="bg-muted px-2 py-1 rounded text-xs">homewizard-p1-kitchen</code></li>
+                    <li>Source: <strong>HTTP Webhook</strong></li>
+                    <li>Device neve: pl. <code className="bg-muted px-2 py-1 rounded text-xs">Konyha fogyasztás</code></li>
+                    <li>Value field: A HomeWizard válasz mezője, pl. <code className="bg-muted px-2 py-1 rounded text-xs">total_power_import_kwh</code> (teljes energia)</li>
+                  </ol>
+                </div>
+
+                <div className="border-t pt-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <p className="text-sm text-blue-900 dark:text-blue-100 font-bold mb-2">📊 Elérhető mezők:</p>
+                  <div className="text-xs text-blue-900 dark:text-blue-100 space-y-1 font-mono">
+                    <div><strong>Energia:</strong> total_power_import_kwh, total_power_export_kwh</div>
+                    <div><strong>Teljesítmény:</strong> active_power_w (aktuális watt)</div>
+                    <div><strong>Fázisok:</strong> active_power_l1_w, active_power_l2_w, active_power_l3_w</div>
+                    <div><strong>Gáz:</strong> total_gas_m3 (ha van szenzorod)</div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                  <p className="text-sm text-amber-900 dark:text-amber-100">
+                    💡 <strong>Tipp:</strong> Ha a HomeWizard és a szerverünk <strong>ugyanazon a hálózaton</strong> van, az <strong>HTTP Webhook</strong> megoldás működik. Ha eltérő hálózaton vannak, érdemes <strong>MQTT</strong> integráció vizsgálni.
                   </p>
                 </div>
               </div>
