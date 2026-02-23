@@ -193,6 +193,17 @@ const PropertyMeters = ({ propertyId }: Props) => {
   };
   const utilityUnit = (type: string) => type === "villany" ? "kWh" : "m³";
 
+  const sanitizeTopicSegment = (value: string) => {
+    const sanitized = value.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+    return sanitized || "meter-01";
+  };
+
+  const suggestedTopicForDevice = (deviceId: string) =>
+    `rpallagi/property-${propertyId}/unit-main/${sanitizeTopicSegment(deviceId || "meter-01")}/telemetry`;
+
+  const suggestedValueField = (utility: UtilityType) =>
+    utility === "villany" ? "energy_kwh_total" : "energy_m3_total";
+
   const sourceBadge = (source: string) => {
     const cls = source === "mqtt"
       ? "bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950 dark:text-purple-400"
@@ -286,11 +297,11 @@ const PropertyMeters = ({ propertyId }: Props) => {
           device_id: wiz.smartDeviceId.trim(),
           source: wiz.smartSource,
           utility_type: wiz.utilityType,
-          value_field: wiz.smartValueField.trim() || "value",
+          value_field: wiz.smartValueField.trim() || suggestedValueField(wiz.utilityType),
           multiplier: parseFloat(wiz.smartMultiplier) || 1.0,
           offset: parseFloat(wiz.smartOffset) || 0.0,
           min_interval_minutes: parseInt(wiz.smartMinInterval, 10) || 60,
-          mqtt_topic: wiz.smartSource === "mqtt" ? (wiz.smartMqttTopic.trim() || null) : null,
+          mqtt_topic: wiz.smartSource === "mqtt" ? ((wiz.smartMqttTopic.trim() || suggestedTopicForDevice(wiz.smartDeviceId)).trim()) : null,
           ttn_app_id: wiz.smartSource === "ttn" ? (wiz.smartTtnAppId.trim() || null) : null,
           is_active: wiz.smartIsActive,
         });
@@ -342,11 +353,11 @@ const PropertyMeters = ({ propertyId }: Props) => {
         device_id: smartForm.device_id.trim(),
         source: smartForm.source,
         utility_type: smartForm.utility_type,
-        value_field: smartForm.value_field.trim() || "value",
+        value_field: smartForm.value_field.trim() || suggestedValueField(smartForm.utility_type),
         multiplier: parseFloat(smartForm.multiplier) || 1.0,
         offset: parseFloat(smartForm.offset) || 0.0,
         min_interval_minutes: parseInt(smartForm.min_interval_minutes, 10) || 60,
-        mqtt_topic: smartForm.source === "mqtt" ? (smartForm.mqtt_topic.trim() || null) : null,
+        mqtt_topic: smartForm.source === "mqtt" ? ((smartForm.mqtt_topic.trim() || suggestedTopicForDevice(smartForm.device_id)).trim()) : null,
         ttn_app_id: smartForm.source === "ttn" ? (smartForm.ttn_app_id.trim() || null) : null,
         is_active: smartForm.is_active,
       });
@@ -549,6 +560,19 @@ const PropertyMeters = ({ propertyId }: Props) => {
           <p className="text-[11px] text-muted-foreground mt-1.5">{t("smartMeter.webhookUrlDesc")}</p>
         </div>
 
+        {/* Canonical payload */}
+        <div className="rounded-xl bg-accent/30 p-3">
+          <p className="text-xs font-medium mb-1">Ajánlott telemetry payload</p>
+          <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
+{`{
+  "device_id": "electricity-main",
+  "timestamp": "2026-02-23T19:00:00Z",
+  "power_w": 532,
+  "energy_kwh_total": 1243.6
+}`}
+          </pre>
+        </div>
+
         {/* ESP32 MQTT example */}
         <div className="rounded-xl bg-accent/30 p-3">
           <p className="text-xs font-medium mb-1">ESP32 Arduino MQTT</p>
@@ -566,9 +590,11 @@ void setup() {
 
 void loop() {
   mqtt.connect("esp32-meter");
-  mqtt.publish("rezsi/esp32-gas",
-    "{\\"value\\":12345.67}");
-  delay(3600000); // 1 óra
+  mqtt.publish(
+    "rpallagi/property-${propertyId}/unit-main/electricity-main/telemetry",
+    "{\"timestamp\":\"2026-02-23T19:00:00Z\",\"power_w\":532,\"energy_kwh_total\":1243.6}"
+  );
+  delay(60000); // 1 perc
 }`}
           </pre>
         </div>
@@ -598,7 +624,7 @@ multiplier = 1.0`}
       Content-Type: "application/json"
     payload: >
       {"device_id":"ha-gas-meter",
-       "value":"{{ states('sensor.gas_meter') }}"}`}
+       "energy_m3_total":"{{ states('sensor.gas_meter') }}"}`}
           </pre>
         </div>
 
@@ -821,8 +847,21 @@ multiplier = 1.0`}
                 </div>
                 {wiz.smartSource === "mqtt" && (
                   <div>
-                    <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.mqttTopic")}</label>
-                    <Input value={wiz.smartMqttTopic} onChange={e => setW("smartMqttTopic", e.target.value)} placeholder="zigbee2mqtt/gas-sensor" />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-sm text-muted-foreground block">{t("smartMeter.mqttTopic")}</label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setW("smartMqttTopic", suggestedTopicForDevice(wiz.smartDeviceId))}
+                      >
+                        Ajánlott topic
+                      </Button>
+                    </div>
+                    <Input value={wiz.smartMqttTopic} onChange={e => setW("smartMqttTopic", e.target.value)} placeholder="rpallagi/property-12/unit-main/electricity-main/telemetry" />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Javasolt forma: <code className="bg-muted px-1 py-0.5 rounded">{suggestedTopicForDevice(wiz.smartDeviceId || "meter-01")}</code>
+                    </p>
                   </div>
                 )}
                 {wiz.smartSource === "ttn" && (
@@ -1014,8 +1053,21 @@ multiplier = 1.0`}
             </div>
             {smartForm.source === "mqtt" && (
               <div>
-                <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.mqttTopic")}</label>
-                <Input value={smartForm.mqtt_topic} onChange={e => setSmartForm(f => ({ ...f, mqtt_topic: e.target.value }))} />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm text-muted-foreground block">{t("smartMeter.mqttTopic")}</label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSmartForm(f => ({ ...f, mqtt_topic: suggestedTopicForDevice(f.device_id) }))}
+                  >
+                    Ajánlott topic
+                  </Button>
+                </div>
+                <Input value={smartForm.mqtt_topic} onChange={e => setSmartForm(f => ({ ...f, mqtt_topic: e.target.value }))} placeholder="rpallagi/property-12/unit-main/electricity-main/telemetry" />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Javasolt forma: <code className="bg-muted px-1 py-0.5 rounded">{suggestedTopicForDevice(smartForm.device_id || "meter-01")}</code>
+                </p>
               </div>
             )}
             {smartForm.source === "ttn" && (

@@ -5,7 +5,7 @@ Reuses the same consumption + cost calculation as manual readings.
 """
 import json
 import logging
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 
 from models import db, SmartMeterDevice, SmartMeterLog, MeterReading, Property
 
@@ -30,42 +30,97 @@ def get_active_tariff(tariff_group_id, utility_type):
     ).order_by(Tariff.valid_from.desc()).first()
 
 
-def extract_value_from_payload(payload, value_field):
-    """Extract a numeric value from a decoded payload dict or raw value.
-
-    payload can be:
-      - a dict (decoded TTN payload) -> extract value_field key
-      - a number -> use directly
-      - a string -> try to parse as float
-    """
-    if isinstance(payload, (int, float)):
-        return float(payload)
-
-    if isinstance(payload, str):
+def _to_float(val):
+    """Best-effort numeric conversion for meter values."""
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
         try:
-            return float(payload)
+            return float(val.strip().replace(',', '.'))
         except (ValueError, TypeError):
             return None
+    return None
 
-    if isinstance(payload, dict):
-        # Try the configured value_field
-        val = payload.get(value_field)
-        if val is not None:
-            try:
-                return float(val)
-            except (ValueError, TypeError):
-                pass
 
-        # Try common field names as fallback
-        for key in ['meter_value', 'value', 'energy', 'total_energy',
-                    'volume', 'total_volume', 'index', 'meter_reading',
-                    'reading', 'counter']:
-            val = payload.get(key)
-            if val is not None:
-                try:
-                    return float(val)
-                except (ValueError, TypeError):
-                    continue
+def _extract_by_path(data, path):
+    """Extract value from nested dict using dotted paths (e.g. a.b.c)."""
+    if not isinstance(data, dict) or not path:
+        return None
+
+    current = data
+    for part in str(path).split('.'):
+        if not isinstance(current, dict):
+            return None
+        current = current.get(part)
+    return current
+
+
+def _normalize_timestamp(ts):
+    """Normalize timestamp to naive UTC datetime."""
+    if ts is None:
+        return datetime.utcnow()
+
+    if isinstance(ts, str):
+        # Accept ISO-8601 strings, including trailing Z.
+        try:
+            ts = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+        except Exception:
+            return datetime.utcnow()
+
+    if not isinstance(ts, datetime):
+        return datetime.utcnow()
+
+    if ts.tzinfo is not None:
+        return ts.astimezone(timezone.utc).replace(tzinfo=None)
+
+    return ts
+
+
+def extract_value_from_payload(payload, value_field):
+    """Extract a numeric value from payload.
+
+    Supports:
+      - direct numeric/string values
+      - flat dict fields
+      - nested telemetry/data/payload dicts
+      - dotted value_field paths (e.g. telemetry.energy_kwh_total)
+    """
+    direct = _to_float(payload)
+    if direct is not None:
+        return direct
+
+    if not isinstance(payload, dict):
+        return None
+
+    candidate_containers = [payload]
+    for key in ('telemetry', 'data', 'payload', 'reading', 'decoded_payload', 'uplink_message'):
+        nested = payload.get(key)
+        if isinstance(nested, dict):
+            candidate_containers.append(nested)
+
+    # 1) Try configured field first (including dotted path)
+    for container in candidate_containers:
+        val = _extract_by_path(container, value_field) if value_field else None
+        parsed = _to_float(val)
+        if parsed is not None:
+            return parsed
+
+    # 2) Fallback common keys (canonical telemetry first)
+    fallback_keys = [
+        'energy_kwh_total', 'energy_m3_total', 'water_m3_total',
+        'meter_value', 'value', 'energy', 'total_energy',
+        'total_power_import_kwh', 'total',
+        'volume', 'total_volume', 'index', 'meter_reading',
+        'reading', 'counter',
+    ]
+
+    for container in candidate_containers:
+        for key in fallback_keys:
+            parsed = _to_float(container.get(key))
+            if parsed is not None:
+                return parsed
 
     return None
 
@@ -84,8 +139,7 @@ def process_smart_meter_reading(device_id, raw_value, source,
     Returns:
         dict with 'status' ('ok', 'rejected', 'error') and details
     """
-    if timestamp is None:
-        timestamp = datetime.utcnow()
+    timestamp = _normalize_timestamp(timestamp)
 
     # 1. Look up device
     device = SmartMeterDevice.query.filter_by(device_id=device_id).first()

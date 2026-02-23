@@ -2867,23 +2867,15 @@ def generic_webhook():
     if not valid:
         return jsonify({'error': 'Invalid token'}), 401
 
-    value = data.get('value')
-    if value is None:
-        return jsonify({'error': 'value required'}), 400
-
-    timestamp = None
-    ts_str = data.get('timestamp')
-    if ts_str:
-        try:
-            from dateutil.parser import parse as parse_date
-            timestamp = parse_date(ts_str)
-        except Exception:
-            pass
+    # Canonical payload mode: if "value" is missing, try extracting from full JSON payload
+    # (e.g. energy_kwh_total / energy_m3_total / nested telemetry.* fields).
+    raw_value = data.get('value', data)
+    timestamp = data.get('timestamp')
 
     from services.smart_meter import process_smart_meter_reading
     result = process_smart_meter_reading(
         device_id=device_id,
-        raw_value=value,
+        raw_value=raw_value,
         source='http',
         raw_payload=json.dumps(data),
         timestamp=timestamp,
@@ -3015,6 +3007,13 @@ def get_property_smart_meters(prop_id):
     return jsonify({'devices': [smart_meter_to_dict(d) for d in devices]})
 
 
+def _default_mqtt_topic(property_id, device_id):
+    """Generate a predictable topic for lightweight onboarding."""
+    safe_device = ''.join(ch if ch.isalnum() or ch in '-_.' else '-' for ch in str(device_id or 'meter-01')).strip('-')
+    safe_device = safe_device or 'meter-01'
+    return f'rpallagi/property-{property_id}/unit-main/{safe_device}/telemetry'
+
+
 @api_bp.route('/admin/properties/<int:prop_id>/smart-meters', methods=['POST'])
 @login_required
 def add_smart_meter(prop_id):
@@ -3028,14 +3027,19 @@ def add_smart_meter(prop_id):
     if existing:
         return jsonify({'error': f'Device ID {data["device_id"]} already registered'}), 409
 
+    source = data.get('source', 'ttn')
+    mqtt_topic = data.get('mqtt_topic')
+    if source == 'mqtt' and (not mqtt_topic or not str(mqtt_topic).strip()):
+        mqtt_topic = _default_mqtt_topic(prop_id, data['device_id'])
+
     device = SmartMeterDevice(
         property_id=prop_id,
         device_id=data['device_id'],
-        source=data.get('source', 'ttn'),
+        source=source,
         utility_type=data.get('utility_type', 'villany'),
         name=data.get('name'),
         ttn_app_id=data.get('ttn_app_id'),
-        mqtt_topic=data.get('mqtt_topic'),
+        mqtt_topic=mqtt_topic,
         value_field=data.get('value_field', 'meter_value'),
         multiplier=float(data.get('multiplier', 1.0)),
         offset=float(data.get('offset', 0.0)),
@@ -3067,6 +3071,7 @@ def edit_smart_meter(device_db_id):
             return jsonify({'error': f'Device ID {data["device_id"]} already registered'}), 409
         device.device_id = data['device_id']
 
+    new_source = data.get('source', device.source)
     if 'source' in data:
         device.source = data['source']
     if 'utility_type' in data:
@@ -3076,7 +3081,10 @@ def edit_smart_meter(device_db_id):
     if 'ttn_app_id' in data:
         device.ttn_app_id = data['ttn_app_id']
     if 'mqtt_topic' in data:
-        device.mqtt_topic = data['mqtt_topic']
+        incoming_topic = data['mqtt_topic']
+        device.mqtt_topic = incoming_topic.strip() if isinstance(incoming_topic, str) else incoming_topic
+    if new_source == 'mqtt' and (not device.mqtt_topic or not str(device.mqtt_topic).strip()):
+        device.mqtt_topic = _default_mqtt_topic(device.property_id, data.get('device_id', device.device_id))
     if 'value_field' in data:
         device.value_field = data['value_field']
     if 'multiplier' in data:
@@ -3123,7 +3131,8 @@ def smart_meter_status():
     mqtt_connected = False
     mqtt_enabled = current_app.config.get('MQTT_ENABLED', False)
     if mqtt_enabled and hasattr(current_app, 'mqtt_client'):
-        mqtt_connected = current_app.mqtt_client.is_connected()
+        connected_attr = getattr(current_app.mqtt_client, 'is_connected', False)
+        mqtt_connected = connected_attr() if callable(connected_attr) else bool(connected_attr)
 
     ttn_enabled = current_app.config.get('TTN_WEBHOOK_ENABLED', True)
 
