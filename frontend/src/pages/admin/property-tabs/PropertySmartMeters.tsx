@@ -70,7 +70,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
 
   // Help dialogs
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
-  const [helpTopic, setHelpTopic] = useState<"mqtt" | "webhook" | "homewizard" | "preset" | "">("");
+  const [helpTopic, setHelpTopic] = useState<"mqtt" | "webhook" | "homewizard" | "preset" | "source" | "">("");
 
   const load = () => {
     setLoading(true);
@@ -519,15 +519,25 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                 />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground block mb-1">
-                  {t("smartMeter.source")} *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm text-muted-foreground block">
+                    {t("smartMeter.source")} *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => { setHelpTopic("source"); setHelpDialogOpen(true); }}
+                    className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    <HelpCircle className="h-3.5 w-3.5" />
+                    Melyik mód?
+                  </button>
+                </div>
                 <Select value={form.source} onValueChange={(v) => set("source", v)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="http">HTTP Webhook</SelectItem>
+                    <SelectItem value="http">HTTP / API</SelectItem>
                     <SelectItem value="ttn">TTN (LoRaWAN)</SelectItem>
                     <SelectItem value="mqtt">MQTT</SelectItem>
                   </SelectContent>
@@ -569,7 +579,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
               </div>
             )}
 
-            {/* HTTP Webhook Setup (only when source=http) */}
+            {/* HTTP API Setup (only when source=http) */}
             {form.source === "http" && (
               <div className="space-y-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                 <div className="flex items-start gap-2">
@@ -592,71 +602,92 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                       </button>
                     </div>
 
-                    {/* Webhook URL */}
-                    <div className="mb-2.5">
-                      <label className="text-xs text-blue-800 dark:text-blue-200 block mb-1">Webhook URL (copy to device):</label>
-                      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-1.5">
-                        <code className="text-[11px] flex-1 break-all">{window.location.origin}/api/webhooks/generic</code>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6 flex-shrink-0"
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/generic`);
-                            toast.success("Copied!");
-                          }}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
+                    {/* HomeWizard: IP address */}
+                    {form.device_id.includes("homewizard") && (
+                      <div className="mb-2.5">
+                        <label className="text-xs text-blue-800 dark:text-blue-200 block mb-1">HomeWizard IP cím:</label>
+                        <Input
+                          type="text"
+                          value={form.ttn_app_id || ""}
+                          onChange={(e) => set("ttn_app_id", e.target.value)}
+                          placeholder="192.168.1.100 vagy homewizard.local"
+                          className="bg-white dark:bg-slate-900 border-blue-300 dark:border-blue-700"
+                        />
+                        <p className="text-[10px] text-blue-700 dark:text-blue-300 mt-1">
+                          Az alkalmazás http://&lt;IP&gt;/api/v1/data adatokat fog lekérdezni
+                        </p>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Auth Token */}
-                    <div className="mb-2.5">
-                      <label className="text-xs text-blue-800 dark:text-blue-200 block mb-1">Auth Token (Bearer header):</label>
-                      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-1.5">
-                        <code className="text-[11px] flex-1 break-all font-mono">
-                          {form.ttn_app_id || "Generate token below →"}
-                        </code>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6 flex-shrink-0"
-                          onClick={() => {
-                            if (form.ttn_app_id) {
-                              navigator.clipboard.writeText(form.ttn_app_id);
-                              toast.success("Token copied!");
-                            }
-                          }}
-                          disabled={!form.ttn_app_id}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
+                    {/* Webhook: Webhook URL */}
+                    {!form.device_id.includes("homewizard") && (
+                      <>
+                        <div className="mb-2.5">
+                          <label className="text-xs text-blue-800 dark:text-blue-200 block mb-1">Webhook URL (copy to device):</label>
+                          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-1.5">
+                            <code className="text-[11px] flex-1 break-all">{window.location.origin}/api/webhooks/generic</code>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 flex-shrink-0"
+                              onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/generic`);
+                                toast.success("Copied!");
+                              }}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
 
-                    {/* Device ID */}
-                    <div className="mb-3">
-                      <label className="text-xs text-blue-800 dark:text-blue-200 block mb-1">Device ID (use in JSON body):</label>
-                      <code className="text-[11px] bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-1.5 block break-all">
-                        {form.device_id || "enter-device-id"}
-                      </code>
-                    </div>
+                        {/* Webhook: Auth Token */}
+                        <div className="mb-2.5">
+                          <label className="text-xs text-blue-800 dark:text-blue-200 block mb-1">Auth Token (Bearer header):</label>
+                          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-1.5">
+                            <code className="text-[11px] flex-1 break-all font-mono">
+                              {form.ttn_app_id || "Generate token below →"}
+                            </code>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 flex-shrink-0"
+                              onClick={() => {
+                                if (form.ttn_app_id) {
+                                  navigator.clipboard.writeText(form.ttn_app_id);
+                                  toast.success("Token copied!");
+                                }
+                              }}
+                              disabled={!form.ttn_app_id}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
 
-                    {/* Example JSON */}
-                    <div className="bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-2 text-[10px] overflow-x-auto">
-                      <p className="text-blue-800 dark:text-blue-200 font-medium mb-1">JSON Body Example:</p>
-                      <code className="block whitespace-pre text-slate-700 dark:text-slate-300">
+                        {/* Device ID */}
+                        <div className="mb-3">
+                          <label className="text-xs text-blue-800 dark:text-blue-200 block mb-1">Device ID (use in JSON body):</label>
+                          <code className="text-[11px] bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-1.5 block break-all">
+                            {form.device_id || "enter-device-id"}
+                          </code>
+                        </div>
+
+                        {/* Example JSON */}
+                        <div className="bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-2 text-[10px] overflow-x-auto">
+                          <p className="text-blue-800 dark:text-blue-200 font-medium mb-1">JSON Body Example:</p>
+                          <code className="block whitespace-pre text-slate-700 dark:text-slate-300">
 {`{
   "device_id": "${form.device_id || "shelly-3em-artfactory"}",
   "value": 12345.67
 }`}
-                      </code>
-                    </div>
+                          </code>
+                        </div>
 
-                    <p className="text-[10px] text-blue-700 dark:text-blue-300 mt-2">
-                      💡 Paste the Webhook URL into your device&apos;s HTTP Action settings.
-                    </p>
+                        <p className="text-[10px] text-blue-700 dark:text-blue-300 mt-2">
+                          💡 Paste the Webhook URL into your device&apos;s HTTP Action settings.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -879,7 +910,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display">
-              {helpTopic === "mqtt" ? "MQTT Topic — Hol találom?" : helpTopic === "homewizard" ? "HomeWizard P1 — Integrálás" : helpTopic === "preset" ? "Melyik eszköz?" : "Webhook Setup — Útmutató"}
+              {helpTopic === "mqtt" ? "MQTT Topic — Hol találom?" : helpTopic === "homewizard" ? "HomeWizard P1 — Integrálás" : helpTopic === "preset" ? "Melyik eszköz?" : helpTopic === "source" ? "Adatforrás módok" : "Webhook Setup — Útmutató"}
             </DialogTitle>
           </DialogHeader>
 
@@ -1085,6 +1116,61 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                     <li>Kattints a <strong>"Setup útmutató"</strong> gombra az eszköz-specifikus utasításokhoz</li>
                     <li>Konfigurálj az eszközön (pl. MQTT szerver, Webhook URL)</li>
                   </ol>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {helpTopic === "source" && (
+            <div className="space-y-4">
+              <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <p className="text-sm font-medium text-green-900 dark:text-green-100 mb-2">
+                  🔌 Az adatforrás azt adja meg, hogyan kommunikál az eszköz az alkalmazással.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-bold mb-2 text-blue-700 dark:text-blue-300">📡 HTTP / API</p>
+                  <p className="text-sm mb-3">Az alkalmazás <strong>AKTÍVAN</strong> kérdezi le az eszköz API-ját.</p>
+                  <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-3 text-sm space-y-2">
+                    <div><strong>Hogyan működik:</strong> Az alkalmazás időnként GET kéréseket küld az eszköz API-jára, és lekéri az aktuális adatokat.</div>
+                    <div><strong>Eszközök:</strong> HomeWizard P1, Shelly (API mód), ESP32 (ha van API szervere)</div>
+                    <div><strong>Előny:</strong> Az eszköz nem kell hogy tudjon HTTP POST-ot küldeni</div>
+                    <div><strong>Hátrány:</strong> Az alkalmazás szükséges az eszköz IP-jéhez (ugyanazon hálózaton kell lennie)</div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <p className="text-sm font-bold mb-2 text-purple-700 dark:text-purple-300">🚀 Webhook</p>
+                  <p className="text-sm mb-3">Az <strong>ESZKÖZ</strong> küld POST kéréseket az alkalmazásnak.</p>
+                  <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded p-3 text-sm space-y-2">
+                    <div><strong>Hogyan működik:</strong> Az eszköz (pl. Shelly) beállít egy HTTP Action-öt, és időnként POST-ot küld az alkalmazásnak az adatokkal.</div>
+                    <div><strong>Eszközök:</strong> Shelly 3EM (Webhook módban), Home Assistant REST, bármilyen IoT eszköz ami képes POST-ot küldeni</div>
+                    <div><strong>Előny:</strong> Valós idejű adatok, nem kell aktívan kérdezgetni</div>
+                    <div><strong>Hátrány:</strong> Az eszköznek elérhető kell lennie az alkalmazásnak (ugyanazon hálózaton VAGY publikus IP)</div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <p className="text-sm font-bold mb-2 text-orange-700 dark:text-orange-300">📶 MQTT</p>
+                  <p className="text-sm mb-3">Az eszköz MQTT üzeneteket küld egy MQTT szervernek.</p>
+                  <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded p-3 text-sm space-y-2">
+                    <div><strong>Hogyan működik:</strong> Az eszköz (pl. Shelly) MQTT-en keresztül publikálja az adatokat. Az alkalmazás feliratkozik az MQTT topic-ra és szinkronizálja az adatokat.</div>
+                    <div><strong>Eszközök:</strong> Shelly 3EM, HomeWizard (ha MQTT-t támogat), TTN (LoRaWAN gateway)</div>
+                    <div><strong>Előny:</strong> Az eszköz és az alkalmazás nem kell hogy közvetlenül kommunikáljanak. Működik eltérő hálózatokon is, ha ugyanaz az MQTT szerver elérhető.</div>
+                    <div><strong>Hátrány:</strong> Szükséges egy MQTT szerver (Mosquitto)</div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                  <p className="text-sm font-bold text-amber-900 dark:text-amber-100 mb-2">💡 Melyiket válasszam?</p>
+                  <ul className="text-sm text-amber-900 dark:text-amber-100 space-y-1 ml-4 list-disc">
+                    <li><strong>HomeWizard:</strong> → HTTP/API (az alkalmazás kérdez le)</li>
+                    <li><strong>Shelly (1 hálózaton):</strong> → HTTP Webhook vagy MQTT</li>
+                    <li><strong>Shelly (különböző hálózaton):</strong> → MQTT (javasolt)</li>
+                    <li><strong>Home Assistant:</strong> → Webhook (REST command)</li>
+                  </ul>
                 </div>
               </div>
             </div>
