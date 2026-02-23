@@ -67,14 +67,26 @@ const AdminLayout = () => {
   }, []);
 
   // Poll unread chat count
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
+
   const fetchUnread = useCallback(() => {
     getAdminChatUnread()
       .then((data) => {
-        const total = Object.values(data.unread as Record<string, number>).reduce((a, b) => a + b, 0);
-        setTotalUnread(total);
+        const map = (data.unread || {}) as Record<string, number>;
+        setUnreadMap(map);
+        setTotalUnread(Object.values(map).reduce((a, b) => a + b, 0));
       })
       .catch(() => {});
   }, []);
+
+  const handleChatClick = () => {
+    const active = Object.entries(unreadMap).filter(([_, c]) => c > 0);
+    if (active.length === 1) {
+      navigate(`/admin/properties/${active[0][0]}?tab=chat`);
+    } else {
+      navigate('/admin/properties');
+    }
+  };
 
   useEffect(() => {
     if (!checked) return;
@@ -153,7 +165,7 @@ const AdminLayout = () => {
             <SidebarTrigger />
             <span className="text-sm font-medium text-muted-foreground">{t('admin.label')}</span>
             <button
-              onClick={() => navigate('/admin/properties')}
+              onClick={handleChatClick}
               className="ml-auto relative p-2 rounded-lg hover:bg-accent transition-colors"
               title={t('chat.title')}
             >

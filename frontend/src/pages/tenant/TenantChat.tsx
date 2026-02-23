@@ -204,7 +204,7 @@ const TenantChat = () => {
   const grouped = groupByDate(messages);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-5rem)] max-w-lg mx-auto">
+    <div className="flex flex-col h-[calc(100vh-8.5rem)] max-w-lg mx-auto">
       {/* ---- Header ---- */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
         <Button

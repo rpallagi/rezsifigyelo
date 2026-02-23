@@ -4,7 +4,7 @@ import {
   ArrowLeft, Building2, Zap, Droplets, CreditCard, Wrench, FileText, Megaphone,
   Landmark, Building, MessageCircle, Gauge, Wifi,
 } from "lucide-react";
-import { getPropertyDetail, type PropertyDetailData } from "@/lib/api";
+import { getPropertyDetail, getAdminChatUnread, type PropertyDetailData } from "@/lib/api";
 import { formatHuf, formatNumber } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,7 @@ const AdminPropertyDetail = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<PropertyDetailData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chatUnread, setChatUnread] = useState(0);
 
   const activeTab = searchParams.get("tab") || "basic";
 
@@ -59,7 +60,19 @@ const AdminPropertyDetail = () => {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [propertyId]);
+  const fetchChatUnread = () => {
+    getAdminChatUnread()
+      .then((res) => setChatUnread((res.unread || {})[String(propertyId)] || 0))
+      .catch(() => {});
+  };
+
+  useEffect(() => { load(); fetchChatUnread(); }, [propertyId]);
+
+  // Poll chat unread every 30s
+  useEffect(() => {
+    const iv = setInterval(fetchChatUnread, 30_000);
+    return () => clearInterval(iv);
+  }, [propertyId]);
 
   const setTab = (tab: string) => {
     setSearchParams({ tab });
@@ -128,7 +141,7 @@ const AdminPropertyDetail = () => {
       </div>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 animate-in-delay-1">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 animate-in-delay-1">
         <div className="glass-card p-3 text-center">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('propDetail.totalReadings')}</p>
           <p className="font-display font-bold text-lg">{stats.total_readings}</p>
@@ -144,6 +157,17 @@ const AdminPropertyDetail = () => {
         <div className="glass-card p-3 text-center">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('propDetail.totalDocuments')}</p>
           <p className="font-display font-bold text-lg">{stats.total_documents}</p>
+        </div>
+        <div
+          className={`glass-card p-3 text-center cursor-pointer transition-all hover:ring-2 hover:ring-primary/30 ${chatUnread > 0 ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
+          onClick={() => setTab("chat")}
+        >
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('chat.title')}</p>
+          <div className="flex items-center justify-center gap-1.5">
+            <MessageCircle className="h-4 w-4" />
+            <p className="font-display font-bold text-lg">{chatUnread}</p>
+          </div>
+          {chatUnread > 0 && <p className="text-[10px] text-primary font-medium mt-0.5">{t('chat.newMessage')}</p>}
         </div>
       </div>
 

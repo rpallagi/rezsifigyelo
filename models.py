@@ -610,3 +610,25 @@ class WifiNetwork(db.Model):
 
     def __repr__(self):
         return f'<WifiNetwork {self.ssid} @ property {self.property_id}>'
+
+
+class AppSetting(db.Model):
+    """Key-value alkalmazás beállítások (email, stb.)."""
+    __tablename__ = 'app_settings'
+
+    key = db.Column(db.String(100), primary_key=True)
+    value = db.Column(db.Text, nullable=True)
+
+    @staticmethod
+    def get(key: str, default: str = '') -> str:
+        row = AppSetting.query.get(key)
+        return row.value if row and row.value else default
+
+    @staticmethod
+    def set(key: str, value: str):
+        row = AppSetting.query.get(key)
+        if row:
+            row.value = value
+        else:
+            db.session.add(AppSetting(key=key, value=value))
+        db.session.commit()

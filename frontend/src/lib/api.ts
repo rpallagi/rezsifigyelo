@@ -877,6 +877,30 @@ export interface WifiNetworkItem {
   notes: string | null;
 }
 
+// ============ Broadcast Chat ============
+
+export const broadcastChat = (property_ids: number[], message: string) =>
+  request<{ success: boolean; count: number }>('/admin/chat/broadcast', {
+    method: 'POST',
+    body: JSON.stringify({ property_ids, message }),
+  });
+
+// ============ Email Settings ============
+
+export const getEmailSettings = () =>
+  request<{ enabled: boolean; admin_email: string; smtp_configured: boolean }>('/admin/settings/email');
+
+export const saveEmailSettings = (data: { enabled?: boolean; admin_email?: string }) =>
+  request<{ success: boolean }>('/admin/settings/email', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const testEmail = () =>
+  request<{ success: boolean }>('/admin/settings/email/test', { method: 'POST' });
+
+// ============ WiFi Networks ============
+
 export const getPropertyWifi = (propId: number) =>
   request<{ networks: WifiNetworkItem[] }>(`/admin/properties/${propId}/wifi`);
 export const addWifi = (propId: number, data: any) =>

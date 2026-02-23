@@ -87,14 +87,16 @@ const TenantLayout = () => {
 
       <Outlet />
 
-      {/* Floating AI Chat for tenants */}
-      <AiChat
-        topic="tenant-help"
-        title={t('ai.tenantTitle')}
-        placeholder={t('ai.tenantPlaceholder')}
-        mode="floating"
-        bottomNav
-      />
+      {/* Floating AI Chat — hidden on chat page to avoid overlapping send button */}
+      {location.pathname !== "/tenant/chat" && (
+        <AiChat
+          topic="tenant-help"
+          title={t('ai.tenantTitle')}
+          placeholder={t('ai.tenantPlaceholder')}
+          mode="floating"
+          bottomNav
+        />
+      )}
 
       <nav className="bottom-nav">
         <div className="flex items-center justify-around py-2 px-2 max-w-lg mx-auto">

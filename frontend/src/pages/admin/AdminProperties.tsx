@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Plus, Pencil, Trash2, MapPin, Phone, Mail, User, ChevronRight, MessageCircle } from "lucide-react";
+import { Building2, Plus, Pencil, Trash2, MapPin, Phone, Mail, User, ChevronRight, MessageCircle, Megaphone } from "lucide-react";
 import {
   getAdminProperties, addProperty, editProperty, deleteProperty,
-  getAdminChatUnread,
+  getAdminChatUnread, broadcastChat,
   type AdminProperty, type TariffGroupItem,
 } from "@/lib/api";
 import { formatHuf } from "@/lib/format";
@@ -34,7 +34,6 @@ const emptyForm = {
   monthly_rent: "",
   purchase_price: "",
   tariff_group_id: "",
-  pin: "",
   notes: "",
 };
 
@@ -51,6 +50,10 @@ const AdminProperties = () => {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const [broadcastMsg, setBroadcastMsg] = useState("");
+  const [broadcastSelected, setBroadcastSelected] = useState<number[]>([]);
+  const [broadcastSending, setBroadcastSending] = useState(false);
 
   const fetchUnread = () => {
     getAdminChatUnread()
@@ -98,8 +101,6 @@ const AdminProperties = () => {
         tariff_group_id: form.tariff_group_id ? Number(form.tariff_group_id) : null,
         notes: form.notes || null,
       };
-      if (form.pin) payload.pin = form.pin;
-
       if (editingId) {
         await editProperty(editingId, payload);
       } else {
@@ -175,9 +176,14 @@ const AdminProperties = () => {
           <h1 className="font-display text-2xl font-bold">{t('props.title')}</h1>
           <p className="text-muted-foreground text-sm mt-1">{filteredProperties.length} {t('props.subtitle')}</p>
         </div>
-        <Button onClick={openNew} className="gradient-primary-bg border-0">
-          <Plus className="h-4 w-4 mr-2" /> {t('props.new')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { setBroadcastSelected(properties.map(p => p.id)); setBroadcastMsg(""); setBroadcastOpen(true); }}>
+            <Megaphone className="h-4 w-4 mr-2" /> {t('chat.broadcast')}
+          </Button>
+          <Button onClick={openNew} className="gradient-primary-bg border-0">
+            <Plus className="h-4 w-4 mr-2" /> {t('props.new')}
+          </Button>
+        </div>
       </div>
 
       {/* Type filter badges */}
@@ -369,13 +375,6 @@ const AdminProperties = () => {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">
-                {t('props.pin')} {editingId && `(${t('props.pinHint')})`}
-              </label>
-              <Input value={form.pin} onChange={(e) => set("pin", e.target.value)} placeholder="4-6 jegy\u0171 k\u00f3d" />
-            </div>
-
-            <div>
               <label className="text-sm text-muted-foreground block mb-1">{t('props.notes')}</label>
               <Textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={3} />
             </div>
@@ -407,6 +406,86 @@ const AdminProperties = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Broadcast dialog */}
+      <Dialog open={broadcastOpen} onOpenChange={setBroadcastOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <Megaphone className="h-5 w-5" /> {t('chat.broadcastTitle')}
+            </DialogTitle>
+            <DialogDescription>{t('chat.broadcastDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Select / deselect all */}
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setBroadcastSelected(properties.map(p => p.id))}>
+                {t('chat.broadcastSelectAll')}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setBroadcastSelected([])}>
+                {t('chat.broadcastSelectNone')}
+              </Button>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {broadcastSelected.length}/{properties.length}
+              </span>
+            </div>
+            {/* Property checkboxes */}
+            <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2">
+              {properties.map((p) => (
+                <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={broadcastSelected.includes(p.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) setBroadcastSelected(s => [...s, p.id]);
+                      else setBroadcastSelected(s => s.filter(id => id !== p.id));
+                    }}
+                    className="rounded"
+                  />
+                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm">{p.name}</span>
+                  {typeBadge(p.property_type)}
+                </label>
+              ))}
+            </div>
+            {/* Message */}
+            <div>
+              <label className="text-sm text-muted-foreground block mb-1">{t('chat.broadcastMessage')}</label>
+              <Textarea
+                value={broadcastMsg}
+                onChange={(e) => setBroadcastMsg(e.target.value)}
+                placeholder={t('chat.broadcastMessagePlaceholder')}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBroadcastOpen(false)}>{t('common.cancel')}</Button>
+            <Button
+              onClick={async () => {
+                if (broadcastSelected.length === 0) { alert(t('chat.broadcastNoSelection')); return; }
+                if (!broadcastMsg.trim()) { alert(t('chat.broadcastNoMessage')); return; }
+                setBroadcastSending(true);
+                try {
+                  const res = await broadcastChat(broadcastSelected, broadcastMsg.trim());
+                  setBroadcastOpen(false);
+                  setBroadcastMsg("");
+                  alert(`${t('chat.broadcastSuccess')} (${res.count} ${t('chat.broadcastSentTo')})`);
+                  fetchUnread();
+                } catch (e: any) {
+                  alert(e.message || t('common.error'));
+                } finally {
+                  setBroadcastSending(false);
+                }
+              }}
+              disabled={broadcastSending || !broadcastMsg.trim() || broadcastSelected.length === 0}
+              className="gradient-primary-bg border-0"
+            >
+              {broadcastSending ? t('chat.broadcastSending') : t('chat.broadcastSend')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

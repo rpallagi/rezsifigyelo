@@ -36,7 +36,6 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
     monthly_rent: property.monthly_rent != null ? String(property.monthly_rent) : "",
     purchase_price: property.purchase_price != null ? String(property.purchase_price) : "",
     tariff_group_id: String(property.tariff_group_id),
-    pin: "",
     notes: property.notes || "",
   });
 
@@ -61,7 +60,6 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
         tariff_group_id: form.tariff_group_id ? Number(form.tariff_group_id) : null,
         notes: form.notes || null,
       };
-      if (form.pin) payload.pin = form.pin;
       await editProperty(property.id, payload);
       onSaved();
     } catch (e: any) {
@@ -186,12 +184,6 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <label className="text-sm text-muted-foreground block mb-1">
-              {t('props.pin')} {`(${t('props.pinHint')})`}
-            </label>
-            <Input value={form.pin} onChange={(e) => set("pin", e.target.value)} placeholder="4-6 jegyű kód" />
           </div>
         </div>
 

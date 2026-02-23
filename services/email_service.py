@@ -11,9 +11,20 @@ logger = logging.getLogger(__name__)
 
 
 def is_email_enabled() -> bool:
-    """Check if email notifications are configured and enabled."""
+    """Check if email notifications are configured and enabled.
+    Uses DB setting (AppSetting) with fallback to env var."""
+    try:
+        from models import AppSetting
+        db_enabled = AppSetting.get('email_enabled', '')
+        if db_enabled:
+            enabled = db_enabled == 'true'
+        else:
+            enabled = current_app.config.get('EMAIL_NOTIFICATIONS_ENABLED', False)
+    except Exception:
+        enabled = current_app.config.get('EMAIL_NOTIFICATIONS_ENABLED', False)
+
     return (
-        current_app.config.get('EMAIL_NOTIFICATIONS_ENABLED', False)
+        enabled
         and bool(current_app.config.get('SMTP_USER'))
         and bool(current_app.config.get('SMTP_PASSWORD'))
     )
@@ -151,7 +162,12 @@ def notify_admin_of_tenant_message(property_id: int, sender_name: str, message: 
 
     from models import Property
 
-    admin_email = current_app.config.get('ADMIN_EMAIL', '')
+    # DB override → env var fallback
+    try:
+        from models import AppSetting
+        admin_email = AppSetting.get('admin_email', '') or current_app.config.get('ADMIN_EMAIL', '')
+    except Exception:
+        admin_email = current_app.config.get('ADMIN_EMAIL', '')
 
     # Fallback: use property contact_email
     if not admin_email:

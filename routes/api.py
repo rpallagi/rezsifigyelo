@@ -17,7 +17,7 @@ from models import (
     MeterReading, Payment, MaintenanceLog, Todo, Document, MarketingContent,
     PropertyTax, CommonFee, CommonFeePayment, RentalTaxConfig,
     TenantHistory, HandoverChecklist, ChatMessage, MeterInfo,
-    SmartMeterDevice, SmartMeterLog, WifiNetwork
+    SmartMeterDevice, SmartMeterLog, WifiNetwork, AppSetting
 )
 import json
 import uuid
@@ -2407,6 +2407,104 @@ def tenant_chat_unread():
         property_id=prop_id, sender_type='admin', is_read=False
     ).count()
     return jsonify({'count': count})
+
+
+# ============================================================
+# Broadcast Chat
+# ============================================================
+
+@api_bp.route('/admin/chat/broadcast', methods=['POST'])
+@login_required
+def admin_broadcast_chat():
+    """Send a message to multiple properties at once."""
+    data = request.get_json()
+    property_ids = data.get('property_ids', [])
+    message = data.get('message', '').strip()
+    if not property_ids or not message:
+        return jsonify({'error': 'Hiányzó adat'}), 400
+
+    count = 0
+    for pid in property_ids:
+        msg = ChatMessage(
+            property_id=pid,
+            sender_type='admin',
+            sender_id=current_user.id,
+            message=message,
+        )
+        db.session.add(msg)
+        count += 1
+    db.session.commit()
+
+    # Email notification to tenants of each property
+    try:
+        from services.email_service import notify_tenant_of_admin_message
+        base_url = request.host_url.rstrip('/')
+        for pid in property_ids:
+            try:
+                notify_tenant_of_admin_message(pid, 'Bérbeadó', message, base_url)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    return jsonify({'success': True, 'count': count})
+
+
+# ============================================================
+# Email Settings (Admin)
+# ============================================================
+
+@api_bp.route('/admin/settings/email')
+@login_required
+def admin_get_email_settings():
+    """Get email notification settings."""
+    from flask import current_app
+    enabled = AppSetting.get('email_enabled', 'false') == 'true'
+    admin_email = AppSetting.get('admin_email', current_app.config.get('ADMIN_EMAIL', ''))
+    smtp_configured = bool(
+        current_app.config.get('SMTP_USER') and
+        current_app.config.get('SMTP_PASSWORD')
+    )
+    return jsonify({
+        'enabled': enabled,
+        'admin_email': admin_email,
+        'smtp_configured': smtp_configured,
+    })
+
+
+@api_bp.route('/admin/settings/email', methods=['POST'])
+@login_required
+def admin_save_email_settings():
+    """Save email notification settings."""
+    data = request.get_json()
+    if 'enabled' in data:
+        AppSetting.set('email_enabled', 'true' if data['enabled'] else 'false')
+    if 'admin_email' in data:
+        AppSetting.set('admin_email', data['admin_email'] or '')
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/settings/email/test', methods=['POST'])
+@login_required
+def admin_test_email():
+    """Send a test email to verify SMTP configuration."""
+    from flask import current_app
+    admin_email = AppSetting.get('admin_email', current_app.config.get('ADMIN_EMAIL', ''))
+    if not admin_email:
+        return jsonify({'error': 'Nincs admin email cím megadva!'}), 400
+
+    smtp_user = current_app.config.get('SMTP_USER', '')
+    smtp_password = current_app.config.get('SMTP_PASSWORD', '')
+    if not smtp_user or not smtp_password:
+        return jsonify({'error': 'SMTP nincs konfigurálva (env vars)!'}), 400
+
+    try:
+        from services.email_service import _send_email, _build_html
+        html = _build_html('Rezsi Figyelő', 'Ez egy teszt email az email értesítések ellenőrzéséhez.', request.host_url.rstrip('/') + '/admin/settings')
+        _send_email(admin_email, 'Teszt email — Rezsi Figyelő', html)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ============================================================
