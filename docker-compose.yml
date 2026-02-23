@@ -56,6 +56,13 @@ services:
       - MQTT_PASSWORD=${MQTT_PASSWORD:-}
       - MQTT_TOPIC_PREFIX=${MQTT_TOPIC_PREFIX:-zigbee2mqtt/#,rezsi/#,shellies/#}
       - OCR_PROVIDER=${OCR_PROVIDER:-claude}
+      - EMAIL_NOTIFICATIONS_ENABLED=${EMAIL_NOTIFICATIONS_ENABLED:-false}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
     volumes:
       - ./uploads:/app/uploads
       - .:/app

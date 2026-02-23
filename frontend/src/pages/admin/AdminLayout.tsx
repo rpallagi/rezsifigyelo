@@ -1,15 +1,16 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   LayoutDashboard, Building2, CreditCard, Wrench, ListTodo,
   BarChart3, Settings, TrendingUp, ChevronLeft, Zap, FileText, Rocket,
+  MessageCircle,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarProvider, SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { adminSession, getTaxReminders, getCommonFeeReminders } from "@/lib/api";
+import { adminSession, getTaxReminders, getCommonFeeReminders, getAdminChatUnread } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import AiChat from "@/components/AiChat";
@@ -19,6 +20,7 @@ const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [checked, setChecked] = useState(false);
+  const [totalUnread, setTotalUnread] = useState(0);
 
   const mainNav = [
     { title: t('adminDash.title'), url: "/admin", icon: LayoutDashboard },
@@ -63,6 +65,23 @@ const AdminLayout = () => {
       })
       .catch(() => navigate("/admin/login"));
   }, []);
+
+  // Poll unread chat count
+  const fetchUnread = useCallback(() => {
+    getAdminChatUnread()
+      .then((data) => {
+        const total = Object.values(data.unread as Record<string, number>).reduce((a, b) => a + b, 0);
+        setTotalUnread(total);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!checked) return;
+    fetchUnread();
+    const iv = setInterval(fetchUnread, 30_000);
+    return () => clearInterval(iv);
+  }, [checked, fetchUnread]);
 
   if (!checked) return null;
 
@@ -133,6 +152,18 @@ const AdminLayout = () => {
           <header className="h-14 border-b border-border flex items-center px-4 gap-3 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
             <SidebarTrigger />
             <span className="text-sm font-medium text-muted-foreground">{t('admin.label')}</span>
+            <button
+              onClick={() => navigate('/admin/properties')}
+              className="ml-auto relative p-2 rounded-lg hover:bg-accent transition-colors"
+              title={t('chat.title')}
+            >
+              <MessageCircle className="h-5 w-5 text-muted-foreground" />
+              {totalUnread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+                  {totalUnread > 99 ? "99+" : totalUnread}
+                </span>
+              )}
+            </button>
           </header>
           <div className="p-6">
             <Outlet />

@@ -2305,14 +2305,24 @@ def admin_get_chat(prop_id):
 @login_required
 def admin_send_chat(prop_id):
     data = request.get_json()
+    msg_text = data.get('message', '')
     msg = ChatMessage(
         property_id=prop_id,
         sender_type='admin',
         sender_id=current_user.id,
-        message=data.get('message', ''),
+        message=msg_text,
     )
     db.session.add(msg)
     db.session.commit()
+
+    # Email notification to tenant(s)
+    try:
+        from services.email_service import notify_tenant_of_admin_message
+        base_url = request.host_url.rstrip('/')
+        notify_tenant_of_admin_message(prop_id, 'Bérbeadó', msg_text, base_url)
+    except Exception:
+        pass  # Never block chat on email failure
+
     return jsonify({'success': True, 'id': msg.id})
 
 
@@ -2361,11 +2371,12 @@ def tenant_send_chat():
     if not prop_id or not tenant_id:
         return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
     data = request.get_json()
+    msg_text = data.get('message', '')
     msg = ChatMessage(
         property_id=prop_id,
         sender_type='tenant',
         sender_id=tenant_id,
-        message=data.get('message', ''),
+        message=msg_text,
     )
     db.session.add(msg)
     # Mark admin messages as read
@@ -2373,6 +2384,17 @@ def tenant_send_chat():
         property_id=prop_id, sender_type='admin', is_read=False
     ).update({'is_read': True})
     db.session.commit()
+
+    # Email notification to admin
+    try:
+        from services.email_service import notify_admin_of_tenant_message
+        tenant = TenantUser.query.get(tenant_id)
+        sender_name = tenant.name if tenant and tenant.name else (tenant.email if tenant else 'Bérlő')
+        base_url = request.host_url.rstrip('/')
+        notify_admin_of_tenant_message(prop_id, sender_name, msg_text, base_url)
+    except Exception:
+        pass  # Never block chat on email failure
+
     return jsonify({'success': True, 'id': msg.id})
 
 

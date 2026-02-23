@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Plus, Pencil, Trash2, MapPin, Phone, Mail, User, ChevronRight } from "lucide-react";
+import { Building2, Plus, Pencil, Trash2, MapPin, Phone, Mail, User, ChevronRight, MessageCircle } from "lucide-react";
 import {
   getAdminProperties, addProperty, editProperty, deleteProperty,
+  getAdminChatUnread,
   type AdminProperty, type TariffGroupItem,
 } from "@/lib/api";
 import { formatHuf } from "@/lib/format";
@@ -49,18 +50,32 @@ const AdminProperties = () => {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  const fetchUnread = () => {
+    getAdminChatUnread()
+      .then((data) => setUnreadCounts(data.unread || {}))
+      .catch(() => {});
+  };
 
   const load = () => {
     setLoading(true);
-    getAdminProperties()
-      .then((data) => {
-        setProperties(data.properties);
-        setTariffGroups(data.tariff_groups);
+    Promise.all([getAdminProperties(), getAdminChatUnread()])
+      .then(([propData, unreadData]) => {
+        setProperties(propData.properties);
+        setTariffGroups(propData.tariff_groups);
+        setUnreadCounts(unreadData.unread || {});
       })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
+
+  // Poll unread counts every 30s (lightweight)
+  useEffect(() => {
+    const iv = setInterval(fetchUnread, 30_000);
+    return () => clearInterval(iv);
+  }, []);
 
   const openNew = () => {
     setEditingId(null);
@@ -211,7 +226,15 @@ const AdminProperties = () => {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-display font-bold text-sm">{p.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display font-bold text-sm">{p.name}</h3>
+                    {(unreadCounts[String(p.id)] || 0) > 0 && (
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                        <MessageCircle className="h-3 w-3" />
+                        {unreadCounts[String(p.id)]}
+                      </span>
+                    )}
+                  </div>
                   {typeBadge(p.property_type)}
                 </div>
               </div>
