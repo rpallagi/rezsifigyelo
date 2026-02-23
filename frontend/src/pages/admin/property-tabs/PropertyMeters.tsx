@@ -384,8 +384,8 @@ const PropertyMeters = ({ propertyId }: Props) => {
         e.numeric &&
         (e.utility_type === "villany" || /kwh|wh/i.test(e.unit || ""))
       );
-      const autoImport = haNetCandidates.find((e) => /energy[_\s-]*import|\bimport\b|from_grid/i.test(`${e.entity_id} ${e.friendly_name}`));
-      const autoExport = haNetCandidates.find((e) => /energy[_\s-]*export|\bexport\b|to_grid|feed/i.test(`${e.entity_id} ${e.friendly_name}`));
+      const autoImport = netCandidates.find((e) => /energy[_\s-]*import|\bimport\b|from_grid/i.test(`${e.entity_id} ${e.friendly_name}`));
+      const autoExport = netCandidates.find((e) => /energy[_\s-]*export|\bexport\b|to_grid|feed/i.test(`${e.entity_id} ${e.friendly_name}`));
       setHaNetImportEntity(autoImport?.entity_id || "");
       setHaNetExportEntity(autoExport?.entity_id || "");
 
@@ -492,15 +492,49 @@ const PropertyMeters = ({ propertyId }: Props) => {
         utility_type: e.utility_type as UtilityType,
         name: e.friendly_name,
       })));
-      const created = (res.created || []).length;
+      const createdItems = res.created || [];
+      const created = createdItems.length;
       const verified = (res.verify || []).filter((v: any) => v.ok).length;
       const failed = (res.verify || []).filter((v: any) => !v.ok).length;
+      const skipped = (res.skipped || []).length;
+
       setHaImportResult({ created, verified, failed });
+
+      if (created > 0) {
+        const months = Math.max(1, Math.min(120, Number(haBackfillMonths) || 12));
+        try {
+          const backfillRes = await backfillHomeAssistantMonthly(propertyId, {
+            months_back: months,
+            device_ids: createdItems.map((item) => item.id),
+          });
+          toast.info(
+            t("meters.haImportAutoBackfill")
+              .replace("{created}", String(backfillRes.created || 0))
+              .replace("{skipped}", String(backfillRes.skipped || 0)),
+          );
+          if ((backfillRes.created || 0) === 0) {
+            toast.warning(t("meters.haHistoryRetentionHint"));
+          }
+        } catch (backfillError: any) {
+          toast.warning(backfillError?.message || t("meters.haBackfillError"));
+        }
+      }
+
       await load();
-      toast.success(t("meters.haImportSuccess")
-        .replace("{created}", String(created))
-        .replace("{verified}", String(verified))
-        .replace("{failed}", String(failed)));
+      if (created > 0) {
+        toast.success(t("meters.haImportSuccess")
+          .replace("{created}", String(created))
+          .replace("{verified}", String(verified))
+          .replace("{failed}", String(failed)));
+        if (skipped > 0) {
+          toast.warning(t("meters.haImportSkipped").replace("{count}", String(skipped)));
+        }
+        setHaImportOpen(false);
+      } else if (skipped > 0) {
+        toast.warning(t("meters.haImportAlreadyImported").replace("{count}", String(skipped)));
+      } else {
+        toast.warning(t("meters.haImportError"));
+      }
     } catch (e: any) {
       toast.error(e.message || t("meters.haImportError"));
     } finally {
@@ -525,9 +559,38 @@ const PropertyMeters = ({ propertyId }: Props) => {
         import_entity_id: haNetImportEntity,
         export_entity_id: haNetExportEntity,
       });
+
+      const createdId = res?.created?.id;
+      if (createdId) {
+        const months = Math.max(1, Math.min(120, Number(haBackfillMonths) || 12));
+        try {
+          const backfillRes = await backfillHomeAssistantMonthly(propertyId, {
+            months_back: months,
+            device_ids: [createdId],
+          });
+          toast.info(
+            t("meters.haImportAutoBackfill")
+              .replace("{created}", String(backfillRes.created || 0))
+              .replace("{skipped}", String(backfillRes.skipped || 0)),
+          );
+          if ((backfillRes.created || 0) === 0) {
+            toast.warning(t("meters.haHistoryRetentionHint"));
+          }
+        } catch (backfillError: any) {
+          toast.warning(backfillError?.message || t("meters.haBackfillError"));
+        }
+      }
+
       await load();
+      if (res.existing || res.verify?.reason === "already_imported") {
+        toast.warning(t("meters.haNetAlreadyImported"));
+        setHaImportOpen(false);
+        return;
+      }
+
       if (res.verify?.ok) {
         toast.success(t("meters.haNetImportSuccess").replace("{reading}", String(res.verify.reading_id || "-")));
+        setHaImportOpen(false);
       } else {
         toast.warning((res.verify?.reason || t("meters.haNetImportError")) as string);
       }

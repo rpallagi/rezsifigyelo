@@ -968,6 +968,7 @@ export const importHomeAssistantMeters = (
     success: boolean;
     created: Array<{ id: number; device_id: string; entity_id: string; utility_type: string }>;
     verify: Array<{ entity_id: string; device_id: string; ok: boolean; reason?: string; reading_id?: number }>;
+    skipped: Array<{ entity_id: string; device_id: string; reason: string }>;
   }>(`/admin/properties/${propId}/smart-meters/import-home-assistant`, {
     method: 'POST',
     body: JSON.stringify({ entities }),
@@ -979,6 +980,7 @@ export const importHomeAssistantNetMeter = (
 ) =>
   request<{
     success: boolean;
+    existing?: boolean;
     created: {
       id: number;
       device_id: string;
@@ -988,7 +990,7 @@ export const importHomeAssistantNetMeter = (
       import_entity_id: string;
       export_entity_id: string;
     };
-    verify: { ok: boolean; reason?: string; reading_id?: number; net_state: number };
+    verify: { ok: boolean; reason?: string; reading_id?: number | null; net_state?: number | null };
   }>(`/admin/properties/${propId}/smart-meters/import-home-assistant-net`, {
     method: 'POST',
     body: JSON.stringify(data),

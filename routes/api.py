@@ -421,6 +421,43 @@ def _get_ha_entity_for_device(device):
     return ''
 
 
+def _find_existing_ha_device_for_entity(property_id, entity_id):
+    normalized = _normalize_ha_entity_id(entity_id)
+    if not normalized:
+        return None
+
+    devices = SmartMeterDevice.query.filter_by(property_id=property_id).all()
+    for device in devices:
+        mapping = _get_ha_entity_mapping_for_device(device)
+        kind = mapping.get('kind')
+        if kind == 'single' and mapping.get('entity_id') == normalized:
+            return device
+        if kind == 'p1_net' and (
+            mapping.get('import_entity_id') == normalized or
+            mapping.get('export_entity_id') == normalized
+        ):
+            return device
+    return None
+
+
+def _find_existing_ha_device_for_net_pair(property_id, import_entity_id, export_entity_id):
+    import_norm = _normalize_ha_entity_id(import_entity_id)
+    export_norm = _normalize_ha_entity_id(export_entity_id)
+    if not import_norm or not export_norm:
+        return None
+
+    devices = SmartMeterDevice.query.filter_by(property_id=property_id).all()
+    for device in devices:
+        mapping = _get_ha_entity_mapping_for_device(device)
+        if mapping.get('kind') != 'p1_net':
+            continue
+        left = mapping.get('import_entity_id')
+        right = mapping.get('export_entity_id')
+        if left == import_norm and right == export_norm:
+            return device
+    return None
+
+
 def _month_start_utc(year, month):
     return datetime(year, month, 1, 0, 0, 0, tzinfo=timezone.utc)
 
@@ -3697,6 +3734,37 @@ def import_home_assistant_smart_meters(prop_id):
     # Ensure property exists
     Property.query.get_or_404(prop_id)
 
+    existing_pair = _find_existing_ha_device_for_net_pair(prop_id, import_entity_id, export_entity_id)
+    if existing_pair:
+        mapping = _get_ha_entity_mapping_for_device(existing_pair)
+        return jsonify({
+            'success': True,
+            'existing': True,
+            'created': {
+                'id': existing_pair.id,
+                'device_id': existing_pair.device_id,
+                'name': existing_pair.name,
+                'utility_type': existing_pair.utility_type,
+                'mode': 'p1_net',
+                'import_entity_id': mapping.get('import_entity_id', import_entity_id),
+                'export_entity_id': mapping.get('export_entity_id', export_entity_id),
+            },
+            'verify': {
+                'ok': True,
+                'reason': 'already_imported',
+                'reading_id': None,
+                'net_state': None,
+            },
+        }), 200
+
+    import_conflict = _find_existing_ha_device_for_entity(prop_id, import_entity_id)
+    if import_conflict:
+        return jsonify({'error': f'Az import entitás már hozzá van rendelve: {import_conflict.device_id}'}), 409
+
+    export_conflict = _find_existing_ha_device_for_entity(prop_id, export_entity_id)
+    if export_conflict:
+        return jsonify({'error': f'Az export entitás már hozzá van rendelve: {export_conflict.device_id}'}), 409
+
     base_url, token, settings_err, status_code = _validated_ha_connection_settings(property_id=prop_id, fallback_global=True)
     if settings_err:
         return jsonify({'error': settings_err}), status_code
@@ -3719,15 +3787,23 @@ def import_home_assistant_smart_meters(prop_id):
 
     created = []
     verify = []
+    skipped = []
 
     from services.smart_meter import process_smart_meter_reading
 
     for item in entities:
-        entity_id = str((item or {}).get('entity_id') or '').strip().lower()
+        entity_id = _normalize_ha_entity_id((item or {}).get('entity_id'))
         if not entity_id:
             continue
-        if not entity_id.startswith('sensor.'):
-            entity_id = f'sensor.{entity_id}'
+
+        existing_device = _find_existing_ha_device_for_entity(prop_id, entity_id)
+        if existing_device:
+            skipped.append({
+                'entity_id': entity_id,
+                'device_id': existing_device.device_id,
+                'reason': 'already_imported',
+            })
+            continue
 
         state_item = state_map.get(entity_id)
         attrs = state_item.get('attributes', {}) if isinstance(state_item, dict) else {}
@@ -3814,6 +3890,7 @@ def import_home_assistant_smart_meters(prop_id):
         'success': True,
         'created': created,
         'verify': verify,
+        'skipped': skipped,
     }), 201
 
 
