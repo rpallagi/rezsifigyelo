@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -821,54 +822,67 @@ const PropertyMeters = ({ propertyId }: Props) => {
       )}
 
       {/* ── MQTT info + Setup Guide ── */}
-      <div className="glass-card p-5 space-y-4">
-        <div className="flex items-center gap-2 mb-1">
-          <BookOpen className="h-4 w-4 text-muted-foreground" />
-          <p className="font-display font-semibold text-sm">{t("smartMeter.howtoTitle")}</p>
-        </div>
+      <div className="glass-card p-2">
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="setup-guide" className="border-none">
+            <AccordionTrigger className="px-3 py-2 hover:no-underline">
+              <div className="flex flex-wrap items-center gap-2 text-left">
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+                <p className="font-display font-semibold text-sm">{t("smartMeter.howtoTitle")}</p>
+                {mqttInfo && (
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] ${mqttInfo.mqtt_connected ? "bg-green-50 text-green-600 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}
+                  >
+                    MQTT: {mqttInfo.mqtt_connected ? "Connected" : "Disconnected"}
+                  </Badge>
+                )}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-3 pb-3">
+              <div className="space-y-4">
+                {/* MQTT Broker Info */}
+                {mqttInfo && (
+                  <div className="rounded-xl bg-accent/30 p-3">
+                    <p className="text-xs font-medium mb-1">{t("meters.mqttSetup")}</p>
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                      <span>{t("meters.mqttBroker")}: <code className="bg-muted px-1 py-0.5 rounded">{(mqttInfo as any).mqtt_broker_host || "mosquitto"}:{(mqttInfo as any).mqtt_broker_port || 1883}</code></span>
+                      <span>MQTT: <Badge variant="outline" className={`text-[10px] ${mqttInfo.mqtt_connected ? "bg-green-50 text-green-600 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}>{mqttInfo.mqtt_connected ? "Connected" : "Disconnected"}</Badge></span>
+                    </div>
+                    {(mqttInfo as any).mqtt_topic_prefix && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {t("meters.mqttTopicPrefix")}: <code className="bg-muted px-1 py-0.5 rounded">{(mqttInfo as any).mqtt_topic_prefix}</code>
+                      </p>
+                    )}
+                  </div>
+                )}
 
-        {/* MQTT Broker Info */}
-        {mqttInfo && (
-          <div className="rounded-xl bg-accent/30 p-3">
-            <p className="text-xs font-medium mb-1">{t("meters.mqttSetup")}</p>
-            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-              <span>{t("meters.mqttBroker")}: <code className="bg-muted px-1 py-0.5 rounded">{(mqttInfo as any).mqtt_broker_host || "mosquitto"}:{(mqttInfo as any).mqtt_broker_port || 1883}</code></span>
-              <span>MQTT: <Badge variant="outline" className={`text-[10px] ${mqttInfo.mqtt_connected ? "bg-green-50 text-green-600 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}>{mqttInfo.mqtt_connected ? "Connected" : "Disconnected"}</Badge></span>
-            </div>
-            {(mqttInfo as any).mqtt_topic_prefix && (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {t("meters.mqttTopicPrefix")}: <code className="bg-muted px-1 py-0.5 rounded">{(mqttInfo as any).mqtt_topic_prefix}</code>
-              </p>
-            )}
-          </div>
-        )}
+                {/* Webhook URL */}
+                <div className="rounded-xl bg-accent/30 p-3">
+                  <p className="text-xs font-medium mb-1">{t("smartMeter.webhookUrl")}</p>
+                  <code className="text-xs bg-muted px-2 py-1 rounded block font-mono break-all">
+                    POST {window.location.origin}/api/webhooks/generic
+                  </code>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">{t("smartMeter.webhookUrlDesc")}</p>
+                </div>
 
-        {/* Webhook URL */}
-        <div className="rounded-xl bg-accent/30 p-3">
-          <p className="text-xs font-medium mb-1">{t("smartMeter.webhookUrl")}</p>
-          <code className="text-xs bg-muted px-2 py-1 rounded block font-mono break-all">
-            POST {window.location.origin}/api/webhooks/generic
-          </code>
-          <p className="text-[11px] text-muted-foreground mt-1.5">{t("smartMeter.webhookUrlDesc")}</p>
-        </div>
-
-        {/* Canonical payload */}
-        <div className="rounded-xl bg-accent/30 p-3">
-          <p className="text-xs font-medium mb-1">Ajánlott telemetry payload</p>
-          <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
+                {/* Canonical payload */}
+                <div className="rounded-xl bg-accent/30 p-3">
+                  <p className="text-xs font-medium mb-1">Ajánlott telemetry payload</p>
+                  <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
 {`{
   "device_id": "electricity-main",
   "timestamp": "2026-02-23T19:00:00Z",
   "power_w": 532,
   "energy_kwh_total": 1243.6
 }`}
-          </pre>
-        </div>
+                  </pre>
+                </div>
 
-        {/* ESP32 MQTT example */}
-        <div className="rounded-xl bg-accent/30 p-3">
-          <p className="text-xs font-medium mb-1">ESP32 Arduino MQTT</p>
-          <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
+                {/* ESP32 MQTT example */}
+                <div className="rounded-xl bg-accent/30 p-3">
+                  <p className="text-xs font-medium mb-1">ESP32 Arduino MQTT</p>
+                  <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
 {`#include <WiFi.h>
 #include <PubSubClient.h>
 
@@ -884,29 +898,29 @@ void loop() {
   mqtt.connect("esp32-meter");
   mqtt.publish(
     "rpallagi/property-${propertyId}/unit-main/electricity-main/telemetry",
-    "{\"timestamp\":\"2026-02-23T19:00:00Z\",\"power_w\":532,\"energy_kwh_total\":1243.6}"
+    "{"timestamp":"2026-02-23T19:00:00Z","power_w":532,"energy_kwh_total":1243.6}"
   );
   delay(60000); // 1 perc
 }`}
-          </pre>
-        </div>
+                  </pre>
+                </div>
 
-        {/* Zigbee2MQTT example */}
-        <div className="rounded-xl bg-accent/30 p-3">
-          <p className="text-xs font-medium mb-1">Zigbee2MQTT topic minta</p>
-          <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
+                {/* Zigbee2MQTT example */}
+                <div className="rounded-xl bg-accent/30 p-3">
+                  <p className="text-xs font-medium mb-1">Zigbee2MQTT topic minta</p>
+                  <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
 {`Topic: zigbee2mqtt/<friendly_name>
 Payload: {"energy": 12345.67, "power": 150}
 
 value_field = "energy"
 multiplier = 1.0`}
-          </pre>
-        </div>
+                  </pre>
+                </div>
 
-        {/* Home Assistant example */}
-        <div className="rounded-xl bg-accent/30 p-3">
-          <p className="text-xs font-medium mb-1">Home Assistant REST command</p>
-          <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
+                {/* Home Assistant example */}
+                <div className="rounded-xl bg-accent/30 p-3">
+                  <p className="text-xs font-medium mb-1">Home Assistant REST command</p>
+                  <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
 {`rest_command:
   send_meter:
     url: "${window.location.origin}/api/webhooks/generic"
@@ -917,16 +931,20 @@ multiplier = 1.0`}
     payload: >
       {"device_id":"ha-gas-meter",
        "energy_m3_total":"{{ states('sensor.gas_meter') }}"}`}
-          </pre>
-        </div>
+                  </pre>
+                </div>
 
-        {/* AI Chat inline */}
-        <AiChat
-          topic="smart-meter"
-          title={t("ai.smartMeterTitle")}
-          placeholder={t("ai.smartMeterPlaceholder")}
-          mode="inline"
-        />
+                {/* AI Chat inline */}
+                <AiChat
+                  topic="smart-meter"
+                  title={t("ai.smartMeterTitle")}
+                  placeholder={t("ai.smartMeterPlaceholder")}
+                  mode="inline"
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
 
       {/* Home Assistant bulk import dialog */}
