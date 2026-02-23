@@ -748,6 +748,15 @@ export const editMeter = (meterId: number, data: any) =>
 export const deleteMeter = (meterId: number) =>
   request<{ success: boolean }>(`/admin/meters/${meterId}`, { method: 'DELETE' });
 
+export const deletePropertyReadingsByUtility = (
+  propId: number,
+  utilityType: 'villany' | 'viz' | 'gaz' | 'csatorna'
+) =>
+  request<{ success: boolean; deleted: number; utility_type: string }>(
+    `/admin/properties/${propId}/readings/utility/${utilityType}`,
+    { method: 'DELETE' },
+  );
+
 // ============ Chat - Admin ============
 
 export const getAdminChat = (propId: number) =>

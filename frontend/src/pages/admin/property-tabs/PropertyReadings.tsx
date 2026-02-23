@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
-import { Zap, Droplets, Waves, Flame, TrendingUp, TrendingDown, Plus, Camera } from "lucide-react";
+import { Zap, Droplets, Waves, Flame, TrendingUp, TrendingDown, Plus, Camera, Trash2, Loader2 } from "lucide-react";
 import {
-  getPropertyReadings, adminSubmitReading,
+  getPropertyReadings, adminSubmitReading, deletePropertyReadingsByUtility,
   type PropertyReadingsData, type ReadingItem,
 } from "@/lib/api";
 import { formatHuf, formatDate, formatNumber } from "@/lib/format";
@@ -30,6 +30,7 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingUtility, setDeletingUtility] = useState<string | null>(null);
   const [readingForm, setReadingForm] = useState({
     utility_type: "villany",
     value: "",
@@ -68,6 +69,26 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
       alert(e.message || t('common.error'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteUtilityReadings = async (utilityType: string, utilityLabel: string) => {
+    const ok = window.confirm(
+      t('adminReadings.deleteUtilityConfirm')
+        .replace('{utility}', utilityLabel)
+        .replace('{property}', propertyName),
+    );
+    if (!ok) return;
+
+    setDeletingUtility(utilityType);
+    try {
+      const res = await deletePropertyReadingsByUtility(propertyId, utilityType as any);
+      alert(t('adminReadings.deleteUtilityDone').replace('{count}', String(res.deleted || 0)));
+      load();
+    } catch (e: any) {
+      alert(e.message || t('common.error'));
+    } finally {
+      setDeletingUtility(null);
     }
   };
 
@@ -128,15 +149,28 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
                     <card.icon className="h-5 w-5" style={{ color: card.color }} />
                     <span className="font-display font-semibold text-sm">{card.label}</span>
                   </div>
-                  {card.trend && (
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${isUp ? 'text-red-500 border-red-200 bg-red-50 dark:bg-red-950' : 'text-green-500 border-green-200 bg-green-50 dark:bg-green-950'}`}
+                  <div className="flex items-center gap-1.5">
+                    {card.trend && (
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${isUp ? 'text-red-500 border-red-200 bg-red-50 dark:bg-red-950' : 'text-green-500 border-green-200 bg-green-50 dark:bg-green-950'}`}
+                      >
+                        {isUp ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                        {Math.abs(changePct).toFixed(1)}%
+                      </Badge>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDeleteUtilityReadings(card.type, card.label)}
+                      disabled={deletingUtility === card.type}
+                      title={t('adminReadings.deleteUtilityTitle').replace('{utility}', card.label)}
                     >
-                      {isUp ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                      {Math.abs(changePct).toFixed(1)}%
-                    </Badge>
-                  )}
+                      {deletingUtility === card.type ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
                 </div>
                 {card.trend && (
                   <div className="flex items-end gap-4">

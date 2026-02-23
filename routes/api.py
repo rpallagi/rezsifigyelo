@@ -1675,6 +1675,26 @@ def admin_property_readings(prop_id):
     })
 
 
+@api_bp.route('/admin/properties/<int:prop_id>/readings/utility/<string:utility_type>', methods=['DELETE'])
+@login_required
+def admin_delete_property_utility_readings(prop_id, utility_type):
+    """Delete all readings for one utility type under a property."""
+    Property.query.get_or_404(prop_id)
+
+    utility = str(utility_type or '').strip().lower()
+    allowed = {'villany', 'viz', 'gaz', 'csatorna'}
+    if utility not in allowed:
+        return jsonify({'error': 'Érvénytelen utility_type'}), 400
+
+    deleted = MeterReading.query.filter_by(
+        property_id=prop_id,
+        utility_type=utility,
+    ).delete(synchronize_session=False)
+
+    db.session.commit()
+    return jsonify({'success': True, 'deleted': int(deleted), 'utility_type': utility})
+
+
 @api_bp.route('/admin/readings', methods=['POST'])
 @login_required
 def admin_reading_submit():

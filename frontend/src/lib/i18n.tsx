@@ -240,6 +240,9 @@ const hu: Record<string, string> = {
   'adminReadings.photo': 'Fotó',
   'adminReadings.deleteTitle': 'Leolvasás törlése',
   'adminReadings.deleteConfirm': 'Biztosan törölni szeretnéd ezt a leolvasást?',
+  'adminReadings.deleteUtilityTitle': '{utility} adatok törlése',
+  'adminReadings.deleteUtilityConfirm': 'Biztosan törlöd a(z) {utility} összes mérőállását ennél az ingatlannál?\n\nIngatlan: {property}',
+  'adminReadings.deleteUtilityDone': 'Törölve: {count} sor.',
 
   // --- Admin Payments ---
   'payments.title': 'Befizetések',
@@ -1204,6 +1207,9 @@ const en: Record<string, string> = {
   'adminReadings.photo': 'Photo',
   'adminReadings.deleteTitle': 'Delete reading',
   'adminReadings.deleteConfirm': 'Are you sure you want to delete this reading?',
+  'adminReadings.deleteUtilityTitle': 'Delete {utility} data',
+  'adminReadings.deleteUtilityConfirm': 'Delete all {utility} readings for this property?\n\nProperty: {property}',
+  'adminReadings.deleteUtilityDone': 'Deleted: {count} rows.',
 
   // --- Admin Payments ---
   'payments.title': 'Payments',
