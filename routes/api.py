@@ -7,6 +7,7 @@ Admin auth uses Flask-Login (current_user).
 import os
 import subprocess
 import bcrypt
+import base64
 from datetime import date, datetime
 from flask import (
     Blueprint, request, jsonify, session, current_app, send_from_directory
@@ -21,6 +22,7 @@ from models import (
 )
 import json
 import uuid
+from urllib import request as urlrequest, error as urlerror
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
 
@@ -129,6 +131,136 @@ def _git_run(cmd):
         return result.stdout.strip()
     except Exception as e:
         return str(e)
+
+
+def _to_float(value):
+    """Best-effort float conversion."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.strip().replace(',', '.'))
+        except Exception:
+            return None
+    return None
+
+
+def _slugify(value):
+    safe = ''.join(ch.lower() if ch.isalnum() or ch in '-_.' else '-' for ch in str(value or ''))
+    while '--' in safe:
+        safe = safe.replace('--', '-')
+    safe = safe.strip('-')
+    return safe or 'meter'
+
+
+def _guess_utility(entity_id, unit='', device_class=''):
+    text = f"{entity_id} {unit} {device_class}".lower()
+
+    if 'gas' in text or 'gaz' in text:
+        return 'gaz'
+    if 'water' in text or 'viz' in text:
+        return 'viz'
+    if any(k in text for k in ('kwh', 'wh', 'w ', ' kw', 'power', 'energy', 'electric', 'villany', 'p1')):
+        return 'villany'
+
+    unit_lower = str(unit or '').lower()
+    if unit_lower in ('m3', 'm³'):
+        return 'gaz'
+
+    return 'villany'
+
+
+def _default_value_field(utility_type):
+    if utility_type == 'gaz':
+        return 'energy_m3_total'
+    if utility_type == 'viz':
+        return 'water_m3_total'
+    return 'energy_kwh_total'
+
+
+def _http_json(method, url, headers=None, payload=None, timeout=12):
+    req_headers = {'Accept': 'application/json'}
+    if headers:
+        req_headers.update(headers)
+
+    data = None
+    if payload is not None:
+        req_headers['Content-Type'] = 'application/json'
+        data = json.dumps(payload).encode('utf-8')
+
+    req = urlrequest.Request(url, data=data, headers=req_headers, method=method.upper())
+    try:
+        with urlrequest.urlopen(req, timeout=timeout) as resp:
+            body = resp.read().decode('utf-8', errors='ignore')
+            parsed = json.loads(body) if body else {}
+            return resp.getcode(), parsed, None
+    except urlerror.HTTPError as e:
+        body = e.read().decode('utf-8', errors='ignore')
+        try:
+            parsed = json.loads(body) if body else {}
+        except Exception:
+            parsed = {'raw': body}
+        return e.code, parsed, parsed.get('message') if isinstance(parsed, dict) else str(parsed)
+    except Exception as e:
+        return 0, None, str(e)
+
+
+def _get_ha_settings():
+    return {
+        'ha_base_url': AppSetting.get('ha_base_url', '').strip().rstrip('/'),
+        'ha_token': AppSetting.get('ha_token', '').strip(),
+        'tailscale_api_token': AppSetting.get('tailscale_api_token', '').strip(),
+        'tailscale_tailnet': AppSetting.get('tailscale_tailnet', '').strip(),
+    }
+
+
+def _ha_auth_header(token):
+    return {'Authorization': f'Bearer {token}'} if token else {}
+
+
+def _extract_ha_entities(states):
+    entities = []
+    keywords = ('energy', 'power', 'gas', 'water', 'meter', 'consumption', 'import', 'kwh', 'm3', 'm³', 'villany', 'viz', 'gaz')
+
+    for item in states:
+        entity_id = str(item.get('entity_id') or '').strip()
+        if not entity_id.startswith('sensor.'):
+            continue
+
+        attrs = item.get('attributes') or {}
+        state_str = str(item.get('state', '')).strip()
+        unit = str(attrs.get('unit_of_measurement') or '').strip()
+        device_class = str(attrs.get('device_class') or '').strip()
+        friendly_name = str(attrs.get('friendly_name') or entity_id)
+        numeric = _to_float(state_str) is not None
+
+        text = f"{entity_id} {friendly_name} {unit} {device_class}".lower()
+        if not numeric and not any(k in text for k in keywords):
+            continue
+
+        utility = _guess_utility(entity_id, unit, device_class)
+        entities.append({
+            'entity_id': entity_id,
+            'friendly_name': friendly_name,
+            'unit': unit,
+            'state': state_str,
+            'utility_type': utility,
+            'numeric': numeric,
+        })
+
+    entities.sort(key=lambda e: (e['utility_type'], e['friendly_name'].lower(), e['entity_id']))
+    return entities
+
+
+def _unique_device_id(base_device_id):
+    candidate = base_device_id
+    i = 2
+    while SmartMeterDevice.query.filter_by(device_id=candidate).first():
+        candidate = f'{base_device_id}-{i}'
+        i += 1
+    return candidate
 
 
 # ============================================================
@@ -2512,6 +2644,137 @@ def admin_test_email():
 
 
 # ============================================================
+# Home Assistant / Tailscale Settings (Admin)
+# ============================================================
+
+@api_bp.route('/admin/settings/home-assistant', methods=['GET'])
+@login_required
+def admin_get_home_assistant_settings():
+    """Get Home Assistant and Tailscale integration settings."""
+    return jsonify(_get_ha_settings())
+
+
+@api_bp.route('/admin/settings/home-assistant', methods=['POST'])
+@login_required
+def admin_save_home_assistant_settings():
+    """Save Home Assistant and Tailscale integration settings."""
+    data = request.get_json() or {}
+
+    if 'ha_base_url' in data:
+        AppSetting.set('ha_base_url', str(data.get('ha_base_url') or '').strip().rstrip('/'))
+    if 'ha_token' in data:
+        AppSetting.set('ha_token', str(data.get('ha_token') or '').strip())
+    if 'tailscale_api_token' in data:
+        AppSetting.set('tailscale_api_token', str(data.get('tailscale_api_token') or '').strip())
+    if 'tailscale_tailnet' in data:
+        AppSetting.set('tailscale_tailnet', str(data.get('tailscale_tailnet') or '').strip())
+
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/settings/home-assistant/test', methods=['POST'])
+@login_required
+def admin_test_home_assistant_connection():
+    """Test Home Assistant API connectivity using saved settings."""
+    settings = _get_ha_settings()
+    base_url = settings['ha_base_url']
+    token = settings['ha_token']
+
+    if not base_url:
+        return jsonify({'error': 'Home Assistant URL hiányzik.'}), 400
+    if not token:
+        return jsonify({'error': 'Home Assistant token hiányzik.'}), 400
+
+    code, payload, err = _http_json('GET', f'{base_url}/api/states', headers=_ha_auth_header(token))
+    if code != 200 or not isinstance(payload, list):
+        return jsonify({'error': err or f'Home Assistant kapcsolat hiba ({code})'}), 502
+
+    sensor_count = len([s for s in payload if str(s.get('entity_id') or '').startswith('sensor.')])
+    return jsonify({'success': True, 'sensor_count': sensor_count, 'total_entities': len(payload)})
+
+
+@api_bp.route('/admin/settings/home-assistant/entities', methods=['GET'])
+@login_required
+def admin_get_home_assistant_entities():
+    """List relevant Home Assistant sensor entities for meter onboarding."""
+    settings = _get_ha_settings()
+    base_url = settings['ha_base_url']
+    token = settings['ha_token']
+
+    if not base_url:
+        return jsonify({'error': 'Home Assistant URL hiányzik.'}), 400
+    if not token:
+        return jsonify({'error': 'Home Assistant token hiányzik.'}), 400
+
+    code, payload, err = _http_json('GET', f'{base_url}/api/states', headers=_ha_auth_header(token))
+    if code != 200 or not isinstance(payload, list):
+        return jsonify({'error': err or f'Home Assistant lekérés hiba ({code})'}), 502
+
+    entities = _extract_ha_entities(payload)
+    query = (request.args.get('q') or '').strip().lower()
+    if query:
+        entities = [
+            e for e in entities
+            if query in e['entity_id'].lower() or query in e['friendly_name'].lower()
+        ]
+
+    return jsonify({'entities': entities, 'count': len(entities)})
+
+
+@api_bp.route('/admin/settings/home-assistant/tailscale/devices', methods=['GET'])
+@login_required
+def admin_get_tailscale_devices():
+    """Discover online devices via Tailscale API and suggest HA URLs."""
+    settings = _get_ha_settings()
+    api_token = settings['tailscale_api_token']
+    tailnet = settings['tailscale_tailnet']
+
+    if not api_token or not tailnet:
+        return jsonify({'error': 'Tailscale API token és tailnet szükséges.'}), 400
+
+    basic = base64.b64encode(f'{api_token}:'.encode('utf-8')).decode('ascii')
+    code, payload, err = _http_json(
+        'GET',
+        f'https://api.tailscale.com/api/v2/tailnet/{tailnet}/devices',
+        headers={'Authorization': f'Basic {basic}'},
+    )
+
+    if code != 200 or not isinstance(payload, dict):
+        return jsonify({'error': err or f'Tailscale API hiba ({code})'}), 502
+
+    devices = payload.get('devices') or []
+    result = []
+    for d in devices:
+        addresses = d.get('addresses') or []
+        ip = ''
+        for addr in addresses:
+            if isinstance(addr, str) and ':' not in addr:
+                ip = addr
+                break
+        if not ip and addresses:
+            ip = str(addresses[0])
+
+        hostname = str(d.get('hostname') or '')
+        name = str(d.get('name') or hostname or d.get('id') or '')
+        text = f'{name} {hostname}'.lower()
+        likely_ha = any(tag in text for tag in ('homeassistant', 'home-assistant', 'hass', ' ha '))
+        ha_url = f'http://{ip}:8123' if ip else ''
+
+        result.append({
+            'id': str(d.get('id') or name or ip),
+            'name': name,
+            'hostname': hostname,
+            'online': bool(d.get('online', False)),
+            'ip': ip,
+            'ha_url': ha_url,
+            'likely_home_assistant': likely_ha,
+        })
+
+    result.sort(key=lambda item: (not item['likely_home_assistant'], not item['online'], item['name'].lower()))
+    return jsonify({'devices': result, 'count': len(result)})
+
+
+# ============================================================
 # Move-In / Move-Out Workflow Endpoints
 # ============================================================
 
@@ -3053,6 +3316,138 @@ def add_smart_meter(prop_id):
     _refresh_mqtt_subscriptions()
 
     return jsonify({'success': True, 'id': device.id}), 201
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/smart-meters/import-home-assistant', methods=['POST'])
+@login_required
+def import_home_assistant_smart_meters(prop_id):
+    """Import selected Home Assistant entities as smart meters and run quick verification."""
+    data = request.get_json() or {}
+    entities = data.get('entities') or []
+    if not isinstance(entities, list) or not entities:
+        return jsonify({'error': 'entities list required'}), 400
+
+    # Ensure property exists
+    Property.query.get_or_404(prop_id)
+
+    settings = _get_ha_settings()
+    base_url = settings['ha_base_url']
+    token = settings['ha_token']
+    if not base_url or not token:
+        return jsonify({'error': 'Home Assistant beállítás hiányzik (URL + token).'}), 400
+
+    # Fetch current HA states once for both import metadata and verification
+    code, states_payload, err = _http_json('GET', f'{base_url}/api/states', headers=_ha_auth_header(token))
+    if code != 200 or not isinstance(states_payload, list):
+        return jsonify({'error': err or f'Home Assistant lekérés hiba ({code})'}), 502
+
+    state_map = {}
+    for item in states_payload:
+        entity_id = str(item.get('entity_id') or '').strip()
+        if entity_id:
+            state_map[entity_id] = item
+
+    webhook_token = AppSetting.get('ha_webhook_token', '').strip()
+    if not webhook_token:
+        webhook_token = f'ha-{uuid.uuid4().hex[:24]}'
+        AppSetting.set('ha_webhook_token', webhook_token)
+
+    created = []
+    verify = []
+
+    from services.smart_meter import process_smart_meter_reading
+
+    for item in entities:
+        entity_id = str((item or {}).get('entity_id') or '').strip().lower()
+        if not entity_id:
+            continue
+        if not entity_id.startswith('sensor.'):
+            entity_id = f'sensor.{entity_id}'
+
+        state_item = state_map.get(entity_id)
+        attrs = state_item.get('attributes', {}) if isinstance(state_item, dict) else {}
+        unit = str(attrs.get('unit_of_measurement') or '')
+        device_class = str(attrs.get('device_class') or '')
+
+        utility_type = (item or {}).get('utility_type') or _guess_utility(entity_id, unit, device_class)
+        if utility_type not in ('villany', 'viz', 'gaz'):
+            utility_type = 'villany'
+
+        base_device_id = (item or {}).get('device_id')
+        if not base_device_id:
+            suffix = _slugify(entity_id.replace('sensor.', ''))[:48]
+            base_device_id = f'ha-p{prop_id}-{utility_type}-{suffix}'
+        device_id = _unique_device_id(base_device_id[:180])
+
+        name = str((item or {}).get('name') or attrs.get('friendly_name') or entity_id)[:200]
+
+        device = SmartMeterDevice(
+            property_id=prop_id,
+            device_id=device_id,
+            source='http',
+            utility_type=utility_type,
+            name=name,
+            ttn_app_id=webhook_token,
+            mqtt_topic=None,
+            value_field=_default_value_field(utility_type),
+            multiplier=1.0,
+            offset=0.0,
+            min_interval_minutes=1 if utility_type == 'villany' else 5,
+            is_active=True,
+        )
+        db.session.add(device)
+        db.session.flush()
+
+        created.append({
+            'id': device.id,
+            'device_id': device.device_id,
+            'entity_id': entity_id,
+            'utility_type': utility_type,
+        })
+
+        if not state_item:
+            verify.append({
+                'entity_id': entity_id,
+                'device_id': device.device_id,
+                'ok': False,
+                'reason': 'entity_not_found',
+            })
+            continue
+
+        state_value = state_item.get('state')
+        numeric = _to_float(state_value)
+        if numeric is None:
+            verify.append({
+                'entity_id': entity_id,
+                'device_id': device.device_id,
+                'ok': False,
+                'reason': 'non_numeric_state',
+            })
+            continue
+
+        result = process_smart_meter_reading(
+            device_id=device.device_id,
+            raw_value=numeric,
+            source='http',
+            raw_payload=json.dumps({'entity_id': entity_id, 'state': state_value}),
+            timestamp=datetime.utcnow(),
+        )
+        verify.append({
+            'entity_id': entity_id,
+            'device_id': device.device_id,
+            'ok': result.get('status') == 'ok',
+            'reason': None if result.get('status') == 'ok' else result.get('error', result.get('status')),
+            'reading_id': result.get('reading_id'),
+        })
+
+    db.session.commit()
+    _refresh_mqtt_subscriptions()
+
+    return jsonify({
+        'success': True,
+        'created': created,
+        'verify': verify,
+    }), 201
 
 
 @api_bp.route('/admin/smart-meters/<int:device_db_id>', methods=['PUT'])

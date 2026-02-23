@@ -2,13 +2,13 @@ import { useEffect, useState, useRef } from "react";
 import {
   Gauge, Plus, Pencil, Trash2, Activity, Wifi, AlertTriangle, Globe,
   BookOpen, Zap, Droplets, Flame, ClipboardList, Radio, Camera, Upload,
-  Check, ChevronRight, ArrowLeft, Loader2, X,
+  Check, ChevronRight, ArrowLeft, Loader2, X, Copy,
 } from "lucide-react";
 import {
   getPropertyMeters, addMeter, editMeter, deleteMeter,
   getPropertySmartMeters, addSmartMeter, editSmartMeter, deleteSmartMeter,
-  getSmartMeterLogs, getSmartMeterStatus, ocrMeterPhoto, adminSubmitReading,
-  type MeterInfoItem, type SmartMeterDeviceItem, type SmartMeterLogItem,
+  getSmartMeterLogs, getSmartMeterStatus, ocrMeterPhoto, adminSubmitReading, getHomeAssistantEntities, importHomeAssistantMeters,
+  type MeterInfoItem, type SmartMeterDeviceItem, type SmartMeterLogItem, type HomeAssistantEntityItem,
 } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
@@ -82,6 +82,7 @@ interface WizardState {
   smartMinInterval: string;
   smartMqttTopic: string;
   smartTtnAppId: string;
+  smartHaEntityId: string;
   smartIsActive: boolean;
 }
 
@@ -108,6 +109,7 @@ const initialWizard: WizardState = {
   smartMinInterval: "60",
   smartMqttTopic: "",
   smartTtnAppId: "",
+  smartHaEntityId: "",
   smartIsActive: true,
 };
 
@@ -139,6 +141,17 @@ const PropertyMeters = ({ propertyId }: Props) => {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wiz, setWiz] = useState<WizardState>(initialWizard);
   const [wizSaving, setWizSaving] = useState(false);
+  const [showAdvancedSmart, setShowAdvancedSmart] = useState(false);
+  const [showOtherSmartPresets, setShowOtherSmartPresets] = useState(false);
+  const [haEntityOptions, setHaEntityOptions] = useState<HomeAssistantEntityItem[]>([]);
+  const [haEntityLoading, setHaEntityLoading] = useState(false);
+  const [haEntityError, setHaEntityError] = useState("");
+  const [haImportOpen, setHaImportOpen] = useState(false);
+  const [haImportLoading, setHaImportLoading] = useState(false);
+  const [haImportSaving, setHaImportSaving] = useState(false);
+  const [haImportEntities, setHaImportEntities] = useState<HomeAssistantEntityItem[]>([]);
+  const [haImportSelected, setHaImportSelected] = useState<Record<string, boolean>>({});
+  const [haImportResult, setHaImportResult] = useState<{ created: number; verified: number; failed: number } | null>(null);
 
   // Edit physical meter
   const [editPhysicalOpen, setEditPhysicalOpen] = useState(false);
@@ -202,7 +215,127 @@ const PropertyMeters = ({ propertyId }: Props) => {
     `rpallagi/property-${propertyId}/unit-main/${sanitizeTopicSegment(deviceId || "meter-01")}/telemetry`;
 
   const suggestedValueField = (utility: UtilityType) =>
-    utility === "villany" ? "energy_kwh_total" : "energy_m3_total";
+    utility === "villany" ? "energy_kwh_total" : utility === "gaz" ? "energy_m3_total" : "water_m3_total";
+
+  const defaultHaDeviceId = (utility: UtilityType) =>
+    `ha-p${propertyId}-${utility}-01`;
+
+  const generateApiToken = () => {
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    return `sm-${Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+  };
+
+  const normalizeHaEntityId = (value: string) => {
+    const trimmed = (value || "").trim().toLowerCase();
+    if (!trimmed) return "";
+    return trimmed.startsWith("sensor.") ? trimmed : `sensor.${trimmed}`;
+  };
+
+  const haEntitySuffix = (entityId: string) => {
+    const normalized = normalizeHaEntityId(entityId);
+    return normalized.startsWith("sensor.") ? normalized.slice(7) : normalized;
+  };
+
+  const isValidHaEntity = (entityId: string) => /^sensor\.[a-z0-9_]+$/.test(normalizeHaEntityId(entityId));
+
+  const isHaSimpleFlow = wiz.meterKind === "smart" && wiz.preset === "ha";
+  const haPayloadField = suggestedValueField(wiz.utilityType);
+  const haYamlSnippet = `rest_command:
+  rezsi_${wiz.utilityType}_send:
+    url: "${window.location.origin}/api/webhooks/generic"
+    method: POST
+    headers:
+      Authorization: "Bearer ${wiz.smartTtnAppId || "TOKEN_IDE"}"
+      Content-Type: "application/json"
+    payload: >
+      {"device_id":"${wiz.smartDeviceId || defaultHaDeviceId(wiz.utilityType)}","${haPayloadField}":"{{ states('${normalizeHaEntityId(wiz.smartHaEntityId) || "sensor.meter_entity_id"}') }}","timestamp":"{{ now().isoformat() }}"}`;
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(t("meters.haCopySuccess"));
+    } catch {
+      toast.error(t("meters.haCopyError"));
+    }
+  };
+
+  const loadHaEntitiesForWizard = async () => {
+    setHaEntityLoading(true);
+    setHaEntityError("");
+    try {
+      const res = await getHomeAssistantEntities();
+      const entities = (res.entities || [])
+        .filter((e) => e.entity_id.startsWith("sensor."))
+        .filter((e) => e.utility_type === wiz.utilityType || !e.utility_type);
+      setHaEntityOptions(entities);
+      if (!entities.length) {
+        setHaEntityError(t("meters.haNoEntitiesFound"));
+      }
+    } catch (e: any) {
+      setHaEntityError(e.message || t("meters.haLoadEntitiesError"));
+    } finally {
+      setHaEntityLoading(false);
+    }
+  };
+
+  const loadHaImportEntities = async () => {
+    setHaImportLoading(true);
+    setHaImportResult(null);
+    try {
+      const res = await getHomeAssistantEntities();
+      const entities = (res.entities || []).filter((e) => e.entity_id.startsWith("sensor."));
+      setHaImportEntities(entities);
+      const nextSelected: Record<string, boolean> = {};
+      for (const entity of entities) {
+        if (entity.numeric) nextSelected[entity.entity_id] = true;
+      }
+      setHaImportSelected(nextSelected);
+      if (!entities.length) {
+        toast.warning(t("meters.haNoEntitiesFound"));
+      }
+    } catch (e: any) {
+      toast.error(e.message || t("meters.haLoadEntitiesError"));
+      setHaImportEntities([]);
+      setHaImportSelected({});
+    } finally {
+      setHaImportLoading(false);
+    }
+  };
+
+  const openHaImportDialog = async () => {
+    setHaImportOpen(true);
+    await loadHaImportEntities();
+  };
+
+  const runHaImport = async () => {
+    const selected = haImportEntities.filter((e) => haImportSelected[e.entity_id]);
+    if (!selected.length) {
+      toast.warning(t("meters.haImportSelectAtLeastOne"));
+      return;
+    }
+    setHaImportSaving(true);
+    try {
+      const res = await importHomeAssistantMeters(propertyId, selected.map((e) => ({
+        entity_id: e.entity_id,
+        utility_type: e.utility_type as UtilityType,
+        name: e.friendly_name,
+      })));
+      const created = (res.created || []).length;
+      const verified = (res.verify || []).filter((v: any) => v.ok).length;
+      const failed = (res.verify || []).filter((v: any) => !v.ok).length;
+      setHaImportResult({ created, verified, failed });
+      await load();
+      toast.success(t("meters.haImportSuccess")
+        .replace("{created}", String(created))
+        .replace("{verified}", String(verified))
+        .replace("{failed}", String(failed)));
+    } catch (e: any) {
+      toast.error(e.message || t("meters.haImportError"));
+    } finally {
+      setHaImportSaving(false);
+    }
+  };
 
   const sourceBadge = (source: string) => {
     const cls = source === "mqtt"
@@ -219,6 +352,10 @@ const PropertyMeters = ({ propertyId }: Props) => {
 
   const openWizard = () => {
     setWiz(initialWizard);
+    setShowAdvancedSmart(false);
+    setShowOtherSmartPresets(false);
+    setHaEntityOptions([]);
+    setHaEntityError("");
     setWizardOpen(true);
   };
 
@@ -228,14 +365,51 @@ const PropertyMeters = ({ propertyId }: Props) => {
       ...w,
       preset: key,
       smartName: p.name,
-      smartDeviceId: w.smartDeviceId || p.device_id,
-      smartSource: p.source as any,
-      smartValueField: p.value_field,
+      smartDeviceId: key === "ha"
+        ? (w.smartDeviceId.trim() || defaultHaDeviceId(w.utilityType))
+        : (w.smartDeviceId || p.device_id),
+      smartSource: key === "ha" ? "http" : p.source as any,
+      smartValueField: key === "ha" ? suggestedValueField(w.utilityType) : p.value_field,
       smartMultiplier: p.multiplier,
       smartOffset: p.offset,
+      smartMinInterval: key === "ha" ? (w.utilityType === "villany" ? "1" : "5") : w.smartMinInterval,
+      smartTtnAppId: key === "ha" ? (w.smartTtnAppId || generateApiToken()) : w.smartTtnAppId,
+      smartHaEntityId: key === "ha" ? normalizeHaEntityId(w.smartHaEntityId) : w.smartHaEntityId,
       smartMqttTopic: p.mqtt_topic,
     }));
+    setShowAdvancedSmart(false);
+    if (key === "ha") setShowOtherSmartPresets(false);
   };
+
+  useEffect(() => {
+    if (!isHaSimpleFlow) return;
+    setWiz((w) => {
+      const nextDeviceId = w.smartDeviceId.trim() ? w.smartDeviceId : defaultHaDeviceId(w.utilityType);
+      const nextField = suggestedValueField(w.utilityType);
+      const nextMin = w.utilityType === "villany" ? "1" : "5";
+      if (
+        w.smartSource === "http" &&
+        w.smartValueField === nextField &&
+        w.smartMinInterval === nextMin &&
+        w.smartDeviceId === nextDeviceId
+      ) {
+        return w;
+      }
+      return {
+        ...w,
+        smartSource: "http",
+        smartValueField: nextField,
+        smartMinInterval: nextMin,
+        smartDeviceId: nextDeviceId,
+      };
+    });
+  }, [isHaSimpleFlow, wiz.utilityType]);
+
+  useEffect(() => {
+    if (!isHaSimpleFlow) return;
+    setHaEntityOptions([]);
+    setHaEntityError("");
+  }, [isHaSimpleFlow, wiz.utilityType]);
 
   // ── OCR photo ──
   const handlePhoto = async (file: File) => {
@@ -292,17 +466,23 @@ const PropertyMeters = ({ propertyId }: Props) => {
         toast.success(t("meters.saved"));
       } else {
         // Smart meter
+        const smartDeviceId = (wiz.smartDeviceId.trim() || (isHaSimpleFlow ? defaultHaDeviceId(wiz.utilityType) : "")).trim();
+        if (!smartDeviceId) {
+          throw new Error("Eszköz azonosító hiányzik.");
+        }
         await addSmartMeter(propertyId, {
-          name: wiz.smartName.trim() || null,
-          device_id: wiz.smartDeviceId.trim(),
-          source: wiz.smartSource,
+          name: wiz.smartName.trim() || (isHaSimpleFlow ? `Home Assistant ${utilityLabel(wiz.utilityType)}` : null),
+          device_id: smartDeviceId,
+          source: isHaSimpleFlow ? "http" : wiz.smartSource,
           utility_type: wiz.utilityType,
-          value_field: wiz.smartValueField.trim() || suggestedValueField(wiz.utilityType),
+          value_field: (isHaSimpleFlow ? haPayloadField : wiz.smartValueField).trim() || suggestedValueField(wiz.utilityType),
           multiplier: parseFloat(wiz.smartMultiplier) || 1.0,
           offset: parseFloat(wiz.smartOffset) || 0.0,
           min_interval_minutes: parseInt(wiz.smartMinInterval, 10) || 60,
-          mqtt_topic: wiz.smartSource === "mqtt" ? ((wiz.smartMqttTopic.trim() || suggestedTopicForDevice(wiz.smartDeviceId)).trim()) : null,
-          ttn_app_id: wiz.smartSource === "ttn" ? (wiz.smartTtnAppId.trim() || null) : null,
+          mqtt_topic: wiz.smartSource === "mqtt" ? ((wiz.smartMqttTopic.trim() || suggestedTopicForDevice(smartDeviceId)).trim()) : null,
+          ttn_app_id: (isHaSimpleFlow || wiz.smartSource === "http" || wiz.smartSource === "ttn")
+            ? (wiz.smartTtnAppId.trim() || null)
+            : null,
           is_active: wiz.smartIsActive,
         });
         toast.success(t("meters.smartSaved"));
@@ -358,7 +538,7 @@ const PropertyMeters = ({ propertyId }: Props) => {
         offset: parseFloat(smartForm.offset) || 0.0,
         min_interval_minutes: parseInt(smartForm.min_interval_minutes, 10) || 60,
         mqtt_topic: smartForm.source === "mqtt" ? ((smartForm.mqtt_topic.trim() || suggestedTopicForDevice(smartForm.device_id)).trim()) : null,
-        ttn_app_id: smartForm.source === "ttn" ? (smartForm.ttn_app_id.trim() || null) : null,
+        ttn_app_id: (smartForm.source === "ttn" || smartForm.source === "http") ? (smartForm.ttn_app_id.trim() || null) : null,
         is_active: smartForm.is_active,
       });
       setEditSmartOpen(false);
@@ -420,9 +600,14 @@ const PropertyMeters = ({ propertyId }: Props) => {
             ({physicalMeters.length} {t("meters.physical").toLowerCase()}, {smartDevices.length} {t("meters.smart").toLowerCase()})
           </span>
         </div>
-        <Button onClick={openWizard} className="gradient-primary-bg border-0">
-          <Plus className="h-4 w-4 mr-2" /> {t("meters.addNew")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={openHaImportDialog}>
+            <Globe className="h-4 w-4 mr-2" /> {t("meters.haImportButton")}
+          </Button>
+          <Button onClick={openWizard} className="gradient-primary-bg border-0">
+            <Plus className="h-4 w-4 mr-2" /> {t("meters.addNew")}
+          </Button>
+        </div>
       </div>
 
       {/* Empty state */}
@@ -637,6 +822,66 @@ multiplier = 1.0`}
         />
       </div>
 
+      {/* Home Assistant bulk import dialog */}
+      <Dialog open={haImportOpen} onOpenChange={setHaImportOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display">{t("meters.haImportTitle")}</DialogTitle>
+            <DialogDescription>{t("meters.haImportDesc")}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                {t("meters.haImportFound").replace("{count}", String(haImportEntities.length))}
+              </p>
+              <Button variant="outline" size="sm" onClick={loadHaImportEntities} disabled={haImportLoading}>
+                {haImportLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                {t("meters.haLoadEntities")}
+              </Button>
+            </div>
+
+            {haImportEntities.length > 0 && (
+              <div className="rounded-xl border p-2 max-h-80 overflow-y-auto space-y-1">
+                {haImportEntities.map((entity) => (
+                  <label key={entity.entity_id} className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-accent/40">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={Boolean(haImportSelected[entity.entity_id])}
+                      onChange={(e) => setHaImportSelected((prev) => ({ ...prev, [entity.entity_id]: e.target.checked }))}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{entity.friendly_name || entity.entity_id}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {entity.entity_id} · {utilityLabel(entity.utility_type)} · {entity.state}{entity.unit ? ` ${entity.unit}` : ""}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {haImportResult && (
+              <div className="rounded-lg border bg-accent/30 px-3 py-2 text-sm">
+                {t("meters.haImportResult")
+                  .replace("{created}", String(haImportResult.created))
+                  .replace("{verified}", String(haImportResult.verified))
+                  .replace("{failed}", String(haImportResult.failed))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHaImportOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={runHaImport} disabled={haImportSaving || haImportLoading} className="gradient-primary-bg border-0">
+              {haImportSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+              {haImportSaving ? t("common.saving") : t("meters.haImportRun")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ════════════════════════════════════════ */}
       {/* WIZARD DIALOG                            */}
       {/* ════════════════════════════════════════ */}
@@ -729,29 +974,59 @@ multiplier = 1.0`}
 
             {/* ── Step 3: Smart → preset selection ── */}
             {wiz.step === 3 && wiz.meterKind === "smart" && (
-              <div className="grid grid-cols-2 gap-3">
-                {([
-                  ["esp32_mqtt", "ESP32 MQTT", Radio, "WiFi + MQTT"],
-                  ["zigbee2mqtt", "Zigbee2MQTT", Activity, "Zigbee hub"],
-                  ["shelly_mqtt", "Shelly MQTT", Activity, "Shelly MQTT"],
-                  ["esp32_http", "ESP32 HTTP", Globe, "WiFi + HTTP"],
-                  ["ha", "Home Assistant", Globe, "HA REST"],
-                  ["shelly_http", "Shelly HTTP", Globe, "Shelly HTTP"],
-                  ["homewizard", "HomeWizard P1", Globe, "P1 meter"],
-                  ["custom", t("smartMeter.presetCustom"), Gauge, t("smartMeter.presetCustom")],
-                ] as [PresetKey, string, any, string][]).map(([key, label, Icon, desc]) => (
-                  <button
-                    key={key}
-                    onClick={() => { applyPreset(key); setW("step", 4); }}
-                    className="flex items-center gap-3 p-3 rounded-xl border-2 border-border hover:border-primary/50 transition-all text-left hover:scale-[1.02] active:scale-95"
-                  >
-                    <Icon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              <div className="space-y-3">
+                <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/30 p-3">
+                  <p className="text-sm font-semibold mb-1">{t("meters.haRecommendedTitle")}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("meters.haRecommendedDesc")}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => { applyPreset("ha"); setW("step", 4); }}
+                  className="w-full flex items-center justify-between gap-3 p-4 rounded-xl border-2 border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all text-left"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Globe className="h-5 w-5 text-primary flex-shrink-0" />
                     <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">{label}</p>
-                      <p className="text-[11px] text-muted-foreground">{desc}</p>
+                      <p className="font-semibold text-sm">{t("meters.haPresetTitle")}</p>
+                      <p className="text-[11px] text-muted-foreground">{t("meters.haPresetDesc")}</p>
                     </div>
-                  </button>
-                ))}
+                  </div>
+                  <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">{t("meters.haRecommendedBadge")}</Badge>
+                </button>
+
+                <div className="flex justify-end">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setShowOtherSmartPresets(v => !v)}>
+                    {showOtherSmartPresets ? t("meters.haHideAdvancedPresets") : t("meters.haShowAdvancedPresets")}
+                  </Button>
+                </div>
+
+                {showOtherSmartPresets && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      ["esp32_mqtt", "ESP32 MQTT", Radio, "WiFi + MQTT"],
+                      ["zigbee2mqtt", "Zigbee2MQTT", Activity, "Zigbee hub"],
+                      ["shelly_mqtt", "Shelly MQTT", Activity, "Shelly MQTT"],
+                      ["esp32_http", "ESP32 HTTP", Globe, "WiFi + HTTP"],
+                      ["shelly_http", "Shelly HTTP", Globe, "Shelly HTTP"],
+                      ["homewizard", "HomeWizard P1", Globe, "P1 meter"],
+                      ["custom", t("smartMeter.presetCustom"), Gauge, t("smartMeter.presetCustom")],
+                    ] as [PresetKey, string, any, string][]).map(([key, label, Icon, desc]) => (
+                      <button
+                        key={key}
+                        onClick={() => { applyPreset(key); setW("step", 4); }}
+                        className="flex items-center gap-3 p-3 rounded-xl border-2 border-border hover:border-primary/50 transition-all text-left hover:scale-[1.02] active:scale-95"
+                      >
+                        <Icon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm truncate">{label}</p>
+                          <p className="text-[11px] text-muted-foreground">{desc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -824,6 +1099,16 @@ multiplier = 1.0`}
             {/* ── Step 4: Smart → device configuration ── */}
             {wiz.step === 4 && wiz.meterKind === "smart" && (
               <div className="space-y-4">
+                {isHaSimpleFlow && (
+                  <div className="rounded-xl border bg-blue-50/60 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 p-3 text-sm">
+                    <p className="font-semibold mb-1">{t("meters.haQuickSetupTitle")}</p>
+                    <ol className="list-decimal ml-5 space-y-1 text-muted-foreground">
+                      <li>{t("meters.haQuickSetupStep1")}</li>
+                      <li>{t("meters.haQuickSetupStep2")}</li>
+                      <li>{t("meters.haQuickSetupStep3")}</li>
+                    </ol>
+                  </div>
+                )}
                 <div>
                   <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.name")}</label>
                   <Input value={wiz.smartName} onChange={e => setW("smartName", e.target.value)} placeholder={t("smartMeter.namePlaceholder")} />
@@ -832,20 +1117,31 @@ multiplier = 1.0`}
                   <div>
                     <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.deviceId")} *</label>
                     <Input value={wiz.smartDeviceId} onChange={e => setW("smartDeviceId", e.target.value)} placeholder="esp32-gas-01" required />
+                    {isHaSimpleFlow && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {t("meters.haAutoDeviceHint")}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.source")}</label>
-                    <Select value={wiz.smartSource} onValueChange={v => setW("smartSource", v as any)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="http">HTTP Webhook</SelectItem>
-                        <SelectItem value="mqtt">MQTT</SelectItem>
-                        <SelectItem value="ttn">TTN (LoRaWAN)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {isHaSimpleFlow ? (
+                      <div className="h-10 px-3 rounded-md border bg-muted/40 text-sm flex items-center">
+                        {t("meters.haFixedSource")}
+                      </div>
+                    ) : (
+                      <Select value={wiz.smartSource} onValueChange={v => setW("smartSource", v as any)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="http">HTTP Webhook</SelectItem>
+                          <SelectItem value="mqtt">MQTT</SelectItem>
+                          <SelectItem value="ttn">TTN (LoRaWAN)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
-                {wiz.smartSource === "mqtt" && (
+                {wiz.smartSource === "mqtt" && !isHaSimpleFlow && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-sm text-muted-foreground block">{t("smartMeter.mqttTopic")}</label>
@@ -855,47 +1151,137 @@ multiplier = 1.0`}
                         size="sm"
                         onClick={() => setW("smartMqttTopic", suggestedTopicForDevice(wiz.smartDeviceId))}
                       >
-                        Ajánlott topic
+                        {t("meters.recommendedTopic")}
                       </Button>
                     </div>
                     <Input value={wiz.smartMqttTopic} onChange={e => setW("smartMqttTopic", e.target.value)} placeholder="rpallagi/property-12/unit-main/electricity-main/telemetry" />
                     <p className="text-[11px] text-muted-foreground mt-1">
-                      Javasolt forma: <code className="bg-muted px-1 py-0.5 rounded">{suggestedTopicForDevice(wiz.smartDeviceId || "meter-01")}</code>
+                      {t("meters.recommendedFormat")}: <code className="bg-muted px-1 py-0.5 rounded">{suggestedTopicForDevice(wiz.smartDeviceId || "meter-01")}</code>
                     </p>
                   </div>
                 )}
-                {wiz.smartSource === "ttn" && (
+                {wiz.smartSource === "ttn" && !isHaSimpleFlow && (
                   <div>
                     <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.ttnAppId")}</label>
                     <Input value={wiz.smartTtnAppId} onChange={e => setW("smartTtnAppId", e.target.value)} placeholder="my-ttn-app" />
                   </div>
                 )}
-                {wiz.smartSource === "http" && (
+                {(wiz.smartSource === "http" || isHaSimpleFlow) && (
                   <div>
-                    <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.httpToken")}</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-sm text-muted-foreground block">{t("smartMeter.httpToken")}</label>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setW("smartTtnAppId", generateApiToken())}>
+                        {t("meters.newToken")}
+                      </Button>
+                    </div>
                     <Input value={wiz.smartTtnAppId} onChange={e => setW("smartTtnAppId", e.target.value)} placeholder="my-secret-token" />
-                    <p className="text-[11px] text-muted-foreground mt-1">{t("smartMeter.httpTokenHint")}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {isHaSimpleFlow
+                        ? t("meters.haTokenHint")
+                        : t("smartMeter.httpTokenHint")}
+                    </p>
                   </div>
                 )}
-                <div className="grid grid-cols-3 gap-3">
+                {isHaSimpleFlow && (
                   <div>
-                    <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.valueField")}</label>
-                    <Input value={wiz.smartValueField} onChange={e => setW("smartValueField", e.target.value)} />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-sm text-muted-foreground block">{t("meters.haEntityId")} *</label>
+                      <Button type="button" variant="outline" size="sm" onClick={loadHaEntitiesForWizard} disabled={haEntityLoading}>
+                        {haEntityLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                        {t("meters.haLoadEntities")}
+                      </Button>
+                    </div>
+                    <div className="flex">
+                      <div className="h-10 px-3 rounded-l-md border border-r-0 bg-muted/40 text-sm text-muted-foreground flex items-center">
+                        sensor.
+                      </div>
+                      <Input
+                        value={haEntitySuffix(wiz.smartHaEntityId)}
+                        onChange={e => setW("smartHaEntityId", normalizeHaEntityId(e.target.value))}
+                        placeholder={t("meters.haEntityPlaceholderSuffix")}
+                        className="rounded-l-none"
+                      />
+                    </div>
+                    {haEntityOptions.length > 0 && (
+                      <div className="mt-2">
+                        <Select
+                          value={normalizeHaEntityId(wiz.smartHaEntityId)}
+                          onValueChange={(v) => setW("smartHaEntityId", normalizeHaEntityId(v))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("meters.haSelectEntity")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {haEntityOptions.map((entity) => (
+                              <SelectItem key={entity.entity_id} value={entity.entity_id}>
+                                {entity.friendly_name || entity.entity_id} ({entity.entity_id})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {haEntityError && <p className="text-[11px] text-destructive mt-1">{haEntityError}</p>}
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {t("meters.haEntityExamples")}: <code className="bg-muted px-1 py-0.5 rounded">sensor.p1_meter_energy_import</code>,{" "}
+                      <code className="bg-muted px-1 py-0.5 rounded">sensor.gas_meter_gas_total_consumption</code>
+                    </p>
                   </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.multiplier")}</label>
-                    <Input type="number" step="any" value={wiz.smartMultiplier} onChange={e => setW("smartMultiplier", e.target.value)} />
+                )}
+
+                {isHaSimpleFlow && isValidHaEntity(wiz.smartHaEntityId) && (
+                  <div className="rounded-xl bg-accent/30 p-3">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-xs font-medium">{t("meters.haExampleTitle")}</p>
+                      <Button type="button" variant="outline" size="sm" onClick={() => copyToClipboard(haYamlSnippet)}>
+                        <Copy className="h-3.5 w-3.5 mr-1.5" /> {t("meters.haCopy")}
+                      </Button>
+                    </div>
+                    <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
+{haYamlSnippet}
+                    </pre>
+                    <div className="mt-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-2">
+                      <p className="text-[11px] font-medium mb-1">{t("meters.haTroubleshootTitle")}</p>
+                      <ul className="list-disc ml-4 text-[11px] text-muted-foreground space-y-1">
+                        <li>{t("meters.haTroubleshootUnknownDevice")}</li>
+                        <li>{t("meters.haTroubleshootInvalidToken")}</li>
+                        <li>{t("meters.haTroubleshootNoData")}</li>
+                      </ul>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.offset")}</label>
-                    <Input type="number" step="any" value={wiz.smartOffset} onChange={e => setW("smartOffset", e.target.value)} />
+                )}
+
+                {isHaSimpleFlow && (
+                  <div className="flex justify-end">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAdvancedSmart(v => !v)}>
+                      {showAdvancedSmart ? t("meters.haAdvancedHide") : t("meters.haAdvancedShow")}
+                    </Button>
                   </div>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.minInterval")}</label>
-                  <Input type="number" value={wiz.smartMinInterval} onChange={e => setW("smartMinInterval", e.target.value)} min={1} />
-                  <p className="text-[11px] text-muted-foreground mt-1">{t("smartMeter.minIntervalHint")}</p>
-                </div>
+                )}
+
+                {(!isHaSimpleFlow || showAdvancedSmart) && (
+                  <>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.valueField")}</label>
+                        <Input value={wiz.smartValueField} onChange={e => setW("smartValueField", e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.multiplier")}</label>
+                        <Input type="number" step="any" value={wiz.smartMultiplier} onChange={e => setW("smartMultiplier", e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.offset")}</label>
+                        <Input type="number" step="any" value={wiz.smartOffset} onChange={e => setW("smartOffset", e.target.value)} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground block mb-1">{t("smartMeter.minInterval")}</label>
+                      <Input type="number" value={wiz.smartMinInterval} onChange={e => setW("smartMinInterval", e.target.value)} min={1} />
+                      <p className="text-[11px] text-muted-foreground mt-1">{t("smartMeter.minIntervalHint")}</p>
+                    </div>
+                  </>
+                )}
                 <div className="flex items-center gap-3">
                   <Switch checked={wiz.smartIsActive} onCheckedChange={v => setW("smartIsActive", v)} />
                   <label className="text-sm">{t("smartMeter.active")}</label>
@@ -923,6 +1309,7 @@ multiplier = 1.0`}
                     <p>{t("smartMeter.deviceId")}: <strong>{wiz.smartDeviceId}</strong></p>
                     <p>{t("smartMeter.source")}: <strong>{wiz.smartSource.toUpperCase()}</strong></p>
                     {wiz.smartMqttTopic && <p>{t("smartMeter.mqttTopic")}: <code className="bg-muted px-1 rounded">{wiz.smartMqttTopic}</code></p>}
+                    {isHaSimpleFlow && wiz.smartHaEntityId && <p>{t("meters.haEntityId")}: <strong>{normalizeHaEntityId(wiz.smartHaEntityId)}</strong></p>}
                     <p>{t("smartMeter.valueField")}: <strong>{wiz.smartValueField}</strong></p>
                   </div>
                 )}
@@ -951,7 +1338,10 @@ multiplier = 1.0`}
               {wiz.step === 4 && (
                 <Button
                   onClick={() => setW("step", 5)}
-                  disabled={wiz.meterKind === "smart" && !wiz.smartDeviceId.trim()}
+                  disabled={wiz.meterKind === "smart" && (
+                    !wiz.smartDeviceId.trim() ||
+                    (isHaSimpleFlow && (!wiz.smartTtnAppId.trim() || !isValidHaEntity(wiz.smartHaEntityId)))
+                  )}
                   className="gradient-primary-bg border-0"
                 >
                   {t("common.next")} <ChevronRight className="h-4 w-4 ml-1" />

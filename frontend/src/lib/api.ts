@@ -899,6 +899,67 @@ export const saveEmailSettings = (data: { enabled?: boolean; admin_email?: strin
 export const testEmail = () =>
   request<{ success: boolean }>('/admin/settings/email/test', { method: 'POST' });
 
+// ============ Home Assistant / Tailscale Settings ============
+
+export interface HomeAssistantSettings {
+  ha_base_url: string;
+  ha_token: string;
+  tailscale_api_token: string;
+  tailscale_tailnet: string;
+}
+
+export interface HomeAssistantEntityItem {
+  entity_id: string;
+  friendly_name: string;
+  unit: string;
+  state: string;
+  utility_type: 'villany' | 'viz' | 'gaz';
+  numeric: boolean;
+}
+
+export interface TailscaleDeviceItem {
+  id: string;
+  name: string;
+  hostname: string;
+  online: boolean;
+  ip: string;
+  ha_url: string;
+  likely_home_assistant: boolean;
+}
+
+export const getHomeAssistantSettings = () =>
+  request<HomeAssistantSettings>('/admin/settings/home-assistant');
+
+export const saveHomeAssistantSettings = (data: Partial<HomeAssistantSettings>) =>
+  request<{ success: boolean }>('/admin/settings/home-assistant', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const testHomeAssistantConnection = () =>
+  request<{ success: boolean; sensor_count: number; total_entities: number }>('/admin/settings/home-assistant/test', {
+    method: 'POST',
+  });
+
+export const getHomeAssistantEntities = () =>
+  request<{ entities: HomeAssistantEntityItem[]; count: number }>('/admin/settings/home-assistant/entities');
+
+export const getTailscaleDevices = () =>
+  request<{ devices: TailscaleDeviceItem[]; count: number }>('/admin/settings/home-assistant/tailscale/devices');
+
+export const importHomeAssistantMeters = (
+  propId: number,
+  entities: Array<{ entity_id: string; utility_type?: 'villany' | 'viz' | 'gaz'; name?: string }>
+) =>
+  request<{
+    success: boolean;
+    created: Array<{ id: number; device_id: string; entity_id: string; utility_type: string }>;
+    verify: Array<{ entity_id: string; device_id: string; ok: boolean; reason?: string; reading_id?: number }>;
+  }>(`/admin/properties/${propId}/smart-meters/import-home-assistant`, {
+    method: 'POST',
+    body: JSON.stringify({ entities }),
+  });
+
 // ============ WiFi Networks ============
 
 export const getPropertyWifi = (propId: number) =>

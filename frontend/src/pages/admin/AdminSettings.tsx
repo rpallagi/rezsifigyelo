@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, Lock, LogOut, CheckCircle2, Mail, Send, AlertCircle } from "lucide-react";
-import { changeAdminPassword, adminLogout, getEmailSettings, saveEmailSettings, testEmail } from "@/lib/api";
+import { Lock, LogOut, CheckCircle2, Mail, Send, AlertCircle, Server, Network, Loader2 } from "lucide-react";
+import {
+  changeAdminPassword, adminLogout, getEmailSettings, saveEmailSettings, testEmail,
+  getHomeAssistantSettings, saveHomeAssistantSettings, testHomeAssistantConnection, getTailscaleDevices,
+  type TailscaleDeviceItem,
+} from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,13 +33,30 @@ const AdminSettings = () => {
   const [emailSuccess, setEmailSuccess] = useState(false);
   const [testSending, setTestSending] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [haBaseUrl, setHaBaseUrl] = useState("");
+  const [haToken, setHaToken] = useState("");
+  const [tailscaleApiToken, setTailscaleApiToken] = useState("");
+  const [tailscaleTailnet, setTailscaleTailnet] = useState("");
+  const [haSaving, setHaSaving] = useState(false);
+  const [haSaveSuccess, setHaSaveSuccess] = useState(false);
+  const [haTesting, setHaTesting] = useState(false);
+  const [haTestResult, setHaTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [tailscaleLoading, setTailscaleLoading] = useState(false);
+  const [tailscaleDevices, setTailscaleDevices] = useState<TailscaleDeviceItem[]>([]);
+  const [tailscaleResult, setTailscaleResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  // Load email settings on mount
+  // Load settings on mount
   useEffect(() => {
     getEmailSettings().then((data) => {
       setEmailEnabled(data.enabled);
       setAdminEmail(data.admin_email);
       setSmtpConfigured(data.smtp_configured);
+    }).catch(() => {});
+    getHomeAssistantSettings().then((data) => {
+      setHaBaseUrl(data.ha_base_url || "");
+      setHaToken(data.ha_token || "");
+      setTailscaleApiToken(data.tailscale_api_token || "");
+      setTailscaleTailnet(data.tailscale_tailnet || "");
     }).catch(() => {});
   }, []);
 
@@ -92,6 +113,61 @@ const AdminSettings = () => {
       setTestResult({ ok: false, msg: e.message || t('settings.testEmailError') });
     } finally {
       setTestSending(false);
+    }
+  };
+
+  const handleHaSave = async () => {
+    setHaSaving(true);
+    setHaSaveSuccess(false);
+    try {
+      await saveHomeAssistantSettings({
+        ha_base_url: haBaseUrl.trim(),
+        ha_token: haToken.trim(),
+        tailscale_api_token: tailscaleApiToken.trim(),
+        tailscale_tailnet: tailscaleTailnet.trim(),
+      });
+      setHaSaveSuccess(true);
+      setTimeout(() => setHaSaveSuccess(false), 3000);
+    } catch (e: any) {
+      alert(e.message || t('common.error'));
+    } finally {
+      setHaSaving(false);
+    }
+  };
+
+  const handleHaTest = async () => {
+    setHaTesting(true);
+    setHaTestResult(null);
+    try {
+      const res = await testHomeAssistantConnection();
+      setHaTestResult({
+        ok: true,
+        msg: t('settings.haTestOk')
+          .replace('{sensors}', String(res.sensor_count))
+          .replace('{entities}', String(res.total_entities)),
+      });
+    } catch (e: any) {
+      setHaTestResult({ ok: false, msg: e.message || t('settings.haTestError') });
+    } finally {
+      setHaTesting(false);
+    }
+  };
+
+  const handleTailscaleDiscover = async () => {
+    setTailscaleLoading(true);
+    setTailscaleResult(null);
+    try {
+      const res = await getTailscaleDevices();
+      setTailscaleDevices(res.devices || []);
+      setTailscaleResult({
+        ok: true,
+        msg: t('settings.haTailscaleFound').replace('{count}', String(res.count || 0)),
+      });
+    } catch (e: any) {
+      setTailscaleDevices([]);
+      setTailscaleResult({ ok: false, msg: e.message || t('settings.haTailscaleError') });
+    } finally {
+      setTailscaleLoading(false);
     }
   };
 
@@ -204,6 +280,138 @@ const AdminSettings = () => {
               {testSending ? t('settings.testEmailSending') : t('settings.testEmail')}
             </Button>
           </div>
+        </div>
+      </div>
+
+      {/* Home Assistant / Tailscale settings card */}
+      <div className="glass-card p-5 max-w-2xl animate-in-delay-1">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+            <Server className="h-5 w-5 text-accent-foreground" />
+          </div>
+          <div>
+            <h2 className="font-display font-bold">{t('settings.haTitle')}</h2>
+            <p className="text-xs text-muted-foreground">{t('settings.haDesc')}</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1">{t('settings.haBaseUrl')}</label>
+            <Input
+              value={haBaseUrl}
+              onChange={(e) => setHaBaseUrl(e.target.value)}
+              placeholder={t('settings.haBaseUrlPlaceholder')}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1">{t('settings.haToken')}</label>
+            <Input
+              type="password"
+              value={haToken}
+              onChange={(e) => setHaToken(e.target.value)}
+              placeholder={t('settings.haTokenPlaceholder')}
+            />
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm text-muted-foreground block mb-1">{t('settings.haTailscaleToken')}</label>
+              <Input
+                type="password"
+                value={tailscaleApiToken}
+                onChange={(e) => setTailscaleApiToken(e.target.value)}
+                placeholder={t('settings.haTailscaleTokenPlaceholder')}
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground block mb-1">{t('settings.haTailscaleTailnet')}</label>
+              <Input
+                value={tailscaleTailnet}
+                onChange={(e) => setTailscaleTailnet(e.target.value)}
+                placeholder={t('settings.haTailscaleTailnetPlaceholder')}
+              />
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">{t('settings.haHint')}</p>
+
+          {haTestResult && (
+            <div className={`flex items-center gap-2 text-sm ${haTestResult.ok ? 'text-green-600' : 'text-destructive'}`}>
+              {haTestResult.ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+              <span>{haTestResult.msg}</span>
+            </div>
+          )}
+
+          {tailscaleResult && (
+            <div className={`flex items-center gap-2 text-sm ${tailscaleResult.ok ? 'text-green-600' : 'text-destructive'}`}>
+              {tailscaleResult.ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+              <span>{tailscaleResult.msg}</span>
+            </div>
+          )}
+
+          {haSaveSuccess && (
+            <div className="flex items-center gap-2 text-green-600 text-sm">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>{t('common.success')}</span>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={handleHaSave}
+              disabled={haSaving}
+              className="gradient-primary-bg border-0"
+            >
+              {haSaving ? t('common.saving') : t('common.save')}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleHaTest}
+              disabled={haTesting || !haBaseUrl.trim() || !haToken.trim()}
+            >
+              {haTesting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Server className="h-4 w-4 mr-2" />}
+              {t('settings.haTest')}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleTailscaleDiscover}
+              disabled={tailscaleLoading || !tailscaleApiToken.trim() || !tailscaleTailnet.trim()}
+            >
+              {tailscaleLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Network className="h-4 w-4 mr-2" />}
+              {t('settings.haDiscover')}
+            </Button>
+          </div>
+
+          {tailscaleDevices.length > 0 && (
+            <div className="rounded-xl border p-3 space-y-2">
+              <p className="text-sm font-medium">{t('settings.haDiscoveredList')}</p>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {tailscaleDevices.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => {
+                      if (d.ha_url) setHaBaseUrl(d.ha_url);
+                    }}
+                    className="w-full text-left rounded-lg border px-3 py-2 hover:bg-accent/40 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium truncate">{d.name || d.hostname || d.id}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${d.online ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                        {d.online ? t('settings.haOnline') : t('settings.haOffline')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {d.ip || '-'} {d.ha_url ? `· ${d.ha_url}` : ''}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">{t('settings.haDiscoveredHint')}</p>
+            </div>
+          )}
         </div>
       </div>
 
