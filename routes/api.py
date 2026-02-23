@@ -1456,10 +1456,12 @@ def admin_property_readings(prop_id):
         'trends': {
             'villany': get_trend('villany'),
             'viz': get_trend('viz'),
+            'gaz': get_trend('gaz'),
         },
         'sparklines': {
             'villany': get_sparkline('villany'),
             'viz': get_sparkline('viz'),
+            'gaz': get_sparkline('gaz'),
         },
     })
 
@@ -1486,7 +1488,7 @@ def admin_reading_submit():
         return jsonify({'error': 'Válassz ingatlant!'}), 400
     prop = Property.query.get_or_404(property_id)
 
-    if not utility_type or utility_type not in ('villany', 'viz'):
+    if not utility_type or utility_type not in ('villany', 'viz', 'gaz'):
         return jsonify({'error': 'Válassz közüzemi típust!'}), 400
 
     try:

@@ -47,7 +47,7 @@ const AdminPropertyDetail = () => {
   const [loading, setLoading] = useState(true);
   const [chatUnread, setChatUnread] = useState(0);
 
-  const activeTab = searchParams.get("tab") || "basic";
+  const activeTab = searchParams.get("tab") || "readings";
 
   const propertyId = Number(id);
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Zap, Droplets, Waves, TrendingUp, TrendingDown, Plus, Camera } from "lucide-react";
+import { Zap, Droplets, Waves, Flame, TrendingUp, TrendingDown, Plus, Camera } from "lucide-react";
 import {
   getPropertyReadings, adminSubmitReading,
   type PropertyReadingsData, type ReadingItem,
@@ -74,12 +74,14 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
   const utilityIcon = (type: string) => {
     if (type === 'villany') return <Zap className="h-4 w-4" style={{ color: "hsl(45, 93%, 47%)" }} />;
     if (type === 'viz') return <Droplets className="h-4 w-4" style={{ color: "hsl(199, 89%, 48%)" }} />;
+    if (type === 'gaz') return <Flame className="h-4 w-4" style={{ color: "hsl(20, 90%, 52%)" }} />;
     return <Waves className="h-4 w-4" style={{ color: "hsl(280, 60%, 55%)" }} />;
   };
 
   const utilityColor = (type: string) => {
     if (type === 'villany') return 'hsl(45, 93%, 47%)';
     if (type === 'viz') return 'hsl(199, 89%, 48%)';
+    if (type === 'gaz') return 'hsl(20, 90%, 52%)';
     return 'hsl(280, 60%, 55%)';
   };
 
@@ -97,15 +99,22 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
 
   const { readings, trends, sparklines } = data;
 
-  const trendCards = [
+  const cardDefs = [
     { type: "villany", label: t('common.villany'), icon: Zap, color: "hsl(45, 93%, 47%)", trend: trends.villany, spark: sparklines.villany },
     { type: "viz", label: t('common.viz'), icon: Droplets, color: "hsl(199, 89%, 48%)", trend: trends.viz, spark: sparklines.viz },
+    { type: "gaz", label: t('common.gaz'), icon: Flame, color: "hsl(20, 90%, 52%)", trend: trends.gaz, spark: sparklines.gaz },
   ];
+
+  const trendCards = cardDefs.filter((card) => {
+    const hasReadings = readings.some((r) => r.utility_type === card.type);
+    const hasSpark = Array.isArray(card.spark) && card.spark.length > 0;
+    return hasReadings || hasSpark || Boolean(card.trend);
+  });
 
   return (
     <div className="space-y-5">
       {/* Trend cards with sparklines */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {trendCards.map((card) => {
           const sparkData = (card.spark || []).map((v, i) => ({ v, i }));
           const changePct = card.trend?.change_pct ?? 0;
@@ -195,7 +204,13 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
-                    {r.utility_type === 'villany' ? t('common.villany') : r.utility_type === 'viz' ? t('common.viz') : t('common.csatorna')}
+                    {r.utility_type === 'villany'
+                      ? t('common.villany')
+                      : r.utility_type === 'viz'
+                        ? t('common.viz')
+                        : r.utility_type === 'gaz'
+                          ? t('common.gaz')
+                          : t('common.csatorna')}
                   </Badge>
                   {r.photo_filename && <Camera className="h-3 w-3 text-muted-foreground" />}
                 </div>
@@ -234,6 +249,7 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
                 <SelectContent>
                   <SelectItem value="villany">{t('common.villany')}</SelectItem>
                   <SelectItem value="viz">{t('common.viz')}</SelectItem>
+                  <SelectItem value="gaz">{t('common.gaz')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

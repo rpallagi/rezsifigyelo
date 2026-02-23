@@ -448,10 +448,12 @@ export interface PropertyReadingsData {
   trends: {
     villany: { current: number; previous: number; change_pct: number } | null;
     viz: { current: number; previous: number; change_pct: number } | null;
+    gaz: { current: number; previous: number; change_pct: number } | null;
   };
   sparklines: {
     villany: number[];
     viz: number[];
+    gaz: number[];
   };
 }
 
