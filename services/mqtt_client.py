@@ -6,6 +6,7 @@ Uses paho-mqtt to subscribe to topics configured in SmartMeterDevice rows.
 import threading
 import json
 import logging
+import os
 
 logger = logging.getLogger('mqtt_client')
 
@@ -25,6 +26,11 @@ class MQTTSmartMeterClient:
 
     def start(self):
         """Start MQTT client in a background daemon thread."""
+        # Skip in Flask reloader child — only run in the main process
+        if os.environ.get('WERKZEUG_RUN_MAIN') != 'true' and os.environ.get('FLASK_ENV') == 'development':
+            logger.info("MQTT: skipping in reloader parent process")
+            return
+
         try:
             import paho.mqtt.client as mqtt
         except ImportError:
@@ -36,8 +42,10 @@ class MQTTSmartMeterClient:
         username = self.app.config.get('MQTT_USERNAME')
         password = self.app.config.get('MQTT_PASSWORD')
 
+        # Unique client_id per process to avoid "session taken over" conflicts
+        pid = os.getpid()
         self.client = mqtt.Client(
-            client_id='rezsi-figyelo-smart-meter',
+            client_id=f'rezsi-figyelo-{pid}',
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
         )
         if username:
@@ -57,11 +65,15 @@ class MQTTSmartMeterClient:
 
     def _run(self, broker, port):
         """Connect with automatic reconnect."""
+        import time
         try:
+            self.client.reconnect_delay_set(min_delay=1, max_delay=60)
             self.client.connect(broker, port, keepalive=60)
             self.client.loop_forever(retry_first_connection=True)
         except Exception as e:
             logger.error(f"MQTT connection error: {e}")
+            # Wait before any manual retry to prevent tight loops
+            time.sleep(5)
 
     def _on_connect(self, client, userdata, flags, reason_code, properties=None):
         """Subscribe to all configured MQTT topics from SmartMeterDevice rows."""
