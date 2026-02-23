@@ -120,12 +120,7 @@ const AdminSettings = () => {
     setHaSaving(true);
     setHaSaveSuccess(false);
     try {
-      await saveHomeAssistantSettings({
-        ha_base_url: haBaseUrl.trim(),
-        ha_token: haToken.trim(),
-        tailscale_api_token: tailscaleApiToken.trim(),
-        tailscale_tailnet: tailscaleTailnet.trim(),
-      });
+      await persistHaSettings();
       setHaSaveSuccess(true);
       setTimeout(() => setHaSaveSuccess(false), 3000);
     } catch (e: any) {
@@ -135,10 +130,22 @@ const AdminSettings = () => {
     }
   };
 
+  const persistHaSettings = async () => {
+    const payload = {
+      ha_base_url: haBaseUrl.trim(),
+      ha_token: haToken.trim(),
+      tailscale_api_token: tailscaleApiToken.trim(),
+      tailscale_tailnet: tailscaleTailnet.trim(),
+    };
+    await saveHomeAssistantSettings(payload);
+    return payload;
+  };
+
   const handleHaTest = async () => {
     setHaTesting(true);
     setHaTestResult(null);
     try {
+      await persistHaSettings();
       const res = await testHomeAssistantConnection();
       setHaTestResult({
         ok: true,
@@ -157,6 +164,7 @@ const AdminSettings = () => {
     setTailscaleLoading(true);
     setTailscaleResult(null);
     try {
+      await persistHaSettings();
       const res = await getTailscaleDevices();
       setTailscaleDevices(res.devices || []);
       setTailscaleResult({
@@ -336,6 +344,18 @@ const AdminSettings = () => {
           </div>
 
           <p className="text-xs text-muted-foreground">{t('settings.haHint')}</p>
+          <div className="rounded-lg border bg-accent/20 px-3 py-2 text-xs text-muted-foreground space-y-1">
+            <p>{t('settings.haTokenHowto')}</p>
+            <p>
+              <a className="underline" href="https://www.home-assistant.io/docs/authentication/" target="_blank" rel="noreferrer">
+                Home Assistant token útmutató
+              </a>
+              {" · "}
+              <a className="underline" href="https://login.tailscale.com/admin/settings/keys" target="_blank" rel="noreferrer">
+                Tailscale API token generálás
+              </a>
+            </p>
+          </div>
 
           {haTestResult && (
             <div className={`flex items-center gap-2 text-sm ${haTestResult.ok ? 'text-green-600' : 'text-destructive'}`}>

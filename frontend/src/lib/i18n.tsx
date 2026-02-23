@@ -695,6 +695,7 @@ const hu: Record<string, string> = {
   'settings.haTailscaleTailnet': 'Tailscale tailnet',
   'settings.haTailscaleTailnetPlaceholder': 'pl. rpallagi.github',
   'settings.haHint': 'Mentés után a Mérők fülön automatikusan lekérhető a Home Assistant entity lista.',
+  'settings.haTokenHowto': 'Home Assistant token: Profile (bal alsó sarok) → Long-Lived Access Tokens → Create token. Tailscale token: Admin Console → Settings → Keys.',
   'settings.haTest': 'HA kapcsolat teszt',
   'settings.haTestOk': 'Kapcsolat rendben. Szenzorok: {sensors}, összes entitás: {entities}.',
   'settings.haTestError': 'Nem sikerült kapcsolódni a Home Assistant API-hoz.',
@@ -906,6 +907,12 @@ const hu: Record<string, string> = {
   'meters.haImportSuccess': 'Import kész. Létrehozva: {created}, sikeres ellenőrzés: {verified}, hibás: {failed}.',
   'meters.haImportError': 'Nem sikerült az import.',
   'meters.haImportSelectAtLeastOne': 'Válassz legalább egy entitást.',
+  'meters.haSetupInlineTitle': 'Előbb add meg a Home Assistant kapcsolatot',
+  'meters.haSetupInlineDesc': 'Ezután tudjuk listázni az entitásokat és importálni a mérőket.',
+  'meters.haSetupSaved': 'Home Assistant beállítás mentve.',
+  'meters.haSetupSaveError': 'Nem sikerült menteni a Home Assistant beállítást.',
+  'meters.haSetupTestOk': 'Kapcsolat rendben. Szenzorok: {sensors}, összes entitás: {entities}.',
+  'meters.haSetupTestError': 'Home Assistant kapcsolat teszt sikertelen.',
 };
 
 
@@ -1602,6 +1609,7 @@ const en: Record<string, string> = {
   'settings.haTailscaleTailnet': 'Tailscale tailnet',
   'settings.haTailscaleTailnetPlaceholder': 'e.g. rpallagi.github',
   'settings.haHint': 'After saving, Home Assistant entities can be loaded automatically on the Meters tab.',
+  'settings.haTokenHowto': 'Home Assistant token: Profile (bottom-left) → Long-Lived Access Tokens → Create token. Tailscale token: Admin Console → Settings → Keys.',
   'settings.haTest': 'Test HA connection',
   'settings.haTestOk': 'Connection OK. Sensors: {sensors}, total entities: {entities}.',
   'settings.haTestError': 'Could not connect to the Home Assistant API.',
@@ -1813,6 +1821,12 @@ const en: Record<string, string> = {
   'meters.haImportSuccess': 'Import done. Created: {created}, verified: {verified}, failed: {failed}.',
   'meters.haImportError': 'Import failed.',
   'meters.haImportSelectAtLeastOne': 'Select at least one entity.',
+  'meters.haSetupInlineTitle': 'Add Home Assistant connection first',
+  'meters.haSetupInlineDesc': 'After this we can list entities and import meters.',
+  'meters.haSetupSaved': 'Home Assistant settings saved.',
+  'meters.haSetupSaveError': 'Could not save Home Assistant settings.',
+  'meters.haSetupTestOk': 'Connection OK. Sensors: {sensors}, total entities: {entities}.',
+  'meters.haSetupTestError': 'Home Assistant connection test failed.',
 };
 
 // ============================================================

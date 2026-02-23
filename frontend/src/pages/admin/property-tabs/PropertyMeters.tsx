@@ -7,7 +7,8 @@ import {
 import {
   getPropertyMeters, addMeter, editMeter, deleteMeter,
   getPropertySmartMeters, addSmartMeter, editSmartMeter, deleteSmartMeter,
-  getSmartMeterLogs, getSmartMeterStatus, ocrMeterPhoto, adminSubmitReading, getHomeAssistantEntities, importHomeAssistantMeters,
+  getSmartMeterLogs, getSmartMeterStatus, ocrMeterPhoto, adminSubmitReading,
+  getHomeAssistantEntities, importHomeAssistantMeters, getHomeAssistantSettings, saveHomeAssistantSettings, testHomeAssistantConnection,
   type MeterInfoItem, type SmartMeterDeviceItem, type SmartMeterLogItem, type HomeAssistantEntityItem,
 } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -152,6 +153,12 @@ const PropertyMeters = ({ propertyId }: Props) => {
   const [haImportEntities, setHaImportEntities] = useState<HomeAssistantEntityItem[]>([]);
   const [haImportSelected, setHaImportSelected] = useState<Record<string, boolean>>({});
   const [haImportResult, setHaImportResult] = useState<{ created: number; verified: number; failed: number } | null>(null);
+  const [haSetupOpen, setHaSetupOpen] = useState(false);
+  const [haSetupUrl, setHaSetupUrl] = useState("");
+  const [haSetupToken, setHaSetupToken] = useState("");
+  const [haSetupSaving, setHaSetupSaving] = useState(false);
+  const [haSetupTesting, setHaSetupTesting] = useState(false);
+  const [haSetupStatus, setHaSetupStatus] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // Edit physical meter
   const [editPhysicalOpen, setEditPhysicalOpen] = useState(false);
@@ -273,9 +280,63 @@ const PropertyMeters = ({ propertyId }: Props) => {
         setHaEntityError(t("meters.haNoEntitiesFound"));
       }
     } catch (e: any) {
-      setHaEntityError(e.message || t("meters.haLoadEntitiesError"));
+      const msg = e.message || t("meters.haLoadEntitiesError");
+      setHaEntityError(msg);
+      if (/hiányzik|required|missing/i.test(msg)) {
+        setHaSetupOpen(true);
+        await loadHaSetupFromSettings();
+      }
     } finally {
       setHaEntityLoading(false);
+    }
+  };
+
+  const loadHaSetupFromSettings = async () => {
+    try {
+      const s = await getHomeAssistantSettings();
+      setHaSetupUrl((s.ha_base_url || "").trim());
+      setHaSetupToken((s.ha_token || "").trim());
+    } catch {
+      // keep current values
+    }
+  };
+
+  const saveHaSetupFromDialog = async () => {
+    setHaSetupSaving(true);
+    setHaSetupStatus(null);
+    try {
+      await saveHomeAssistantSettings({
+        ha_base_url: haSetupUrl.trim(),
+        ha_token: haSetupToken.trim(),
+      });
+      setHaSetupStatus({ ok: true, msg: t("meters.haSetupSaved") });
+    } catch (e: any) {
+      setHaSetupStatus({ ok: false, msg: e.message || t("meters.haSetupSaveError") });
+    } finally {
+      setHaSetupSaving(false);
+    }
+  };
+
+  const testHaSetupFromDialog = async () => {
+    setHaSetupTesting(true);
+    setHaSetupStatus(null);
+    try {
+      await saveHomeAssistantSettings({
+        ha_base_url: haSetupUrl.trim(),
+        ha_token: haSetupToken.trim(),
+      });
+      const res = await testHomeAssistantConnection();
+      setHaSetupStatus({
+        ok: true,
+        msg: t("meters.haSetupTestOk")
+          .replace("{sensors}", String(res.sensor_count))
+          .replace("{entities}", String(res.total_entities)),
+      });
+      setHaSetupOpen(false);
+    } catch (e: any) {
+      setHaSetupStatus({ ok: false, msg: e.message || t("meters.haSetupTestError") });
+    } finally {
+      setHaSetupTesting(false);
     }
   };
 
@@ -295,7 +356,12 @@ const PropertyMeters = ({ propertyId }: Props) => {
         toast.warning(t("meters.haNoEntitiesFound"));
       }
     } catch (e: any) {
-      toast.error(e.message || t("meters.haLoadEntitiesError"));
+      const msg = e.message || t("meters.haLoadEntitiesError");
+      toast.error(msg);
+      if (/hiányzik|required|missing/i.test(msg)) {
+        setHaSetupOpen(true);
+        await loadHaSetupFromSettings();
+      }
       setHaImportEntities([]);
       setHaImportSelected({});
     } finally {
@@ -304,6 +370,7 @@ const PropertyMeters = ({ propertyId }: Props) => {
   };
 
   const openHaImportDialog = async () => {
+    await loadHaSetupFromSettings();
     setHaImportOpen(true);
     await loadHaImportEntities();
   };
@@ -600,14 +667,9 @@ const PropertyMeters = ({ propertyId }: Props) => {
             ({physicalMeters.length} {t("meters.physical").toLowerCase()}, {smartDevices.length} {t("meters.smart").toLowerCase()})
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={openHaImportDialog}>
-            <Globe className="h-4 w-4 mr-2" /> {t("meters.haImportButton")}
-          </Button>
-          <Button onClick={openWizard} className="gradient-primary-bg border-0">
-            <Plus className="h-4 w-4 mr-2" /> {t("meters.addNew")}
-          </Button>
-        </div>
+        <Button onClick={openWizard} className="gradient-primary-bg border-0">
+          <Plus className="h-4 w-4 mr-2" /> {t("meters.addNew")}
+        </Button>
       </div>
 
       {/* Empty state */}
@@ -831,6 +893,44 @@ multiplier = 1.0`}
           </DialogHeader>
 
           <div className="space-y-3">
+            {haSetupOpen && (
+              <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-3">
+                <p className="text-sm font-medium">{t("meters.haSetupInlineTitle")}</p>
+                <p className="text-xs text-muted-foreground">{t("meters.haSetupInlineDesc")}</p>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">{t("settings.haBaseUrl")}</label>
+                  <Input
+                    value={haSetupUrl}
+                    onChange={(e) => setHaSetupUrl(e.target.value)}
+                    placeholder={t("settings.haBaseUrlPlaceholder")}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">{t("settings.haToken")}</label>
+                  <Input
+                    type="password"
+                    value={haSetupToken}
+                    onChange={(e) => setHaSetupToken(e.target.value)}
+                    placeholder={t("settings.haTokenPlaceholder")}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">{t("settings.haTokenHowto")}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={saveHaSetupFromDialog} disabled={haSetupSaving}>
+                    {haSetupSaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                    {t("common.save")}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={testHaSetupFromDialog} disabled={haSetupTesting || !haSetupUrl.trim() || !haSetupToken.trim()}>
+                    {haSetupTesting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                    {t("settings.haTest")}
+                  </Button>
+                </div>
+                {haSetupStatus && (
+                  <p className={`text-xs ${haSetupStatus.ok ? "text-green-600" : "text-destructive"}`}>{haSetupStatus.msg}</p>
+                )}
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 {t("meters.haImportFound").replace("{count}", String(haImportEntities.length))}
@@ -994,6 +1094,19 @@ multiplier = 1.0`}
                     </div>
                   </div>
                   <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">{t("meters.haRecommendedBadge")}</Badge>
+                </button>
+
+                <button
+                  onClick={async () => { setWizardOpen(false); await openHaImportDialog(); }}
+                  className="w-full flex items-center justify-between gap-3 p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-accent/20 transition-all text-left"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Globe className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm">{t("meters.haImportButton")}</p>
+                      <p className="text-[11px] text-muted-foreground">{t("meters.haImportDesc")}</p>
+                    </div>
+                  </div>
                 </button>
 
                 <div className="flex justify-end">
