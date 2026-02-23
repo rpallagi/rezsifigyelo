@@ -70,7 +70,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
 
   // Help dialogs
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
-  const [helpTopic, setHelpTopic] = useState<"mqtt" | "webhook" | "homewizard" | "">("");
+  const [helpTopic, setHelpTopic] = useState<"mqtt" | "webhook" | "homewizard" | "preset" | "">("");
 
   const load = () => {
     setLoading(true);
@@ -465,9 +465,19 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
             {/* Device Preset (only for new) */}
             {!editingId && (
               <div>
-                <label className="text-sm text-muted-foreground block mb-1">
-                  {t("smartMeter.devicePreset")}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm text-muted-foreground block">
+                    {t("smartMeter.devicePreset")}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => { setHelpTopic("preset"); setHelpDialogOpen(true); }}
+                    className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    <HelpCircle className="h-3.5 w-3.5" />
+                    Melyik eszköz?
+                  </button>
+                </div>
                 <Select defaultValue="custom" onValueChange={applyPreset}>
                   <SelectTrigger>
                     <SelectValue />
@@ -869,7 +879,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display">
-              {helpTopic === "mqtt" ? "MQTT Topic — Hol találom?" : helpTopic === "homewizard" ? "HomeWizard P1 — Integrálás" : "Webhook Setup — Útmutató"}
+              {helpTopic === "mqtt" ? "MQTT Topic — Hol találom?" : helpTopic === "homewizard" ? "HomeWizard P1 — Integrálás" : helpTopic === "preset" ? "Melyik eszköz?" : "Webhook Setup — Útmutató"}
             </DialogTitle>
           </DialogHeader>
 
@@ -1021,6 +1031,60 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                   <p className="text-sm text-amber-900 dark:text-amber-100">
                     💡 <strong>Tipp:</strong> Ha a HomeWizard és a szerverünk <strong>ugyanazon a hálózaton</strong> van, az <strong>HTTP Webhook</strong> megoldás működik. Ha eltérő hálózaton vannak, érdemes <strong>MQTT</strong> integráció vizsgálni.
                   </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {helpTopic === "preset" && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                  🔧 Válaszd ki az eszköz típusát az automatikus konfiguráláshoz.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-bold mb-2 text-green-700 dark:text-green-300">✅ Shelly 3EM Pro</p>
+                  <p className="text-sm mb-2">3-fázisú elektromos mérő. HTTP Webhook vagy MQTT módot támogat.</p>
+                  <p className="text-xs text-muted-foreground">Ideális: Nagyobb épületek, ipari felhasználás, részletes fázis-adatok</p>
+                </div>
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-bold mb-2 text-purple-700 dark:text-purple-300">⚡ HomeWizard P1</p>
+                  <p className="text-sm mb-2">Direkten olvassa az energia fogyasztást a P1 csatlakozási pontból. HTTP API alapú.</p>
+                  <p className="text-xs text-muted-foreground">Ideális: Kis/közepes lakások, könnyű integráció, nagy pontosság</p>
+                </div>
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-bold mb-2 text-orange-700 dark:text-orange-300">🔌 ESP32 DIY</p>
+                  <p className="text-sm mb-2">Saját készítésű IoT eszköz Arduino-val. HTTP Webhook módhoz.</p>
+                  <p className="text-xs text-muted-foreground">Ideális: Fejlesztők, egyedi szenzoros megoldások, rugalmas konfigurálás</p>
+                </div>
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-bold mb-2 text-red-700 dark:text-red-300">🏠 Home Assistant</p>
+                  <p className="text-sm mb-2">Egy otthonautomatizálási platform. HTTP Webhook integráció.</p>
+                  <p className="text-xs text-muted-foreground">Ideális: Home Assistant felhasználók, REST command küldés</p>
+                </div>
+
+                <div className="border-t pt-3">
+                  <p className="text-sm font-bold mb-2 text-slate-700 dark:text-slate-300">⚙️ Custom / Egyéb</p>
+                  <p className="text-sm mb-2">Saját eszköz vagy nem felsorolt típus. Manuális konfigurálás szükséges.</p>
+                  <p className="text-xs text-muted-foreground">Ideális: Speciális eszközök, bármilyenfel működik az API</p>
+                </div>
+
+                <div className="border-t pt-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <p className="text-sm text-blue-900 dark:text-blue-100 mb-2">
+                    <strong>💡 Kiválasztás után:</strong>
+                  </p>
+                  <ol className="text-sm text-blue-900 dark:text-blue-100 space-y-1 ml-4 list-decimal">
+                    <li>Az alkalmazás automatikusan kitölt néhány mezőt</li>
+                    <li>Add meg az eszköz nevét (pl. "Konyha fogyasztás")</li>
+                    <li>Kattints a <strong>"Setup útmutató"</strong> gombra az eszköz-specifikus utasításokhoz</li>
+                    <li>Konfigurálj az eszközön (pl. MQTT szerver, Webhook URL)</li>
+                  </ol>
                 </div>
               </div>
             </div>
