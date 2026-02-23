@@ -51,10 +51,10 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
    */
   const resizeImage = async (file: File): Promise<Blob | null> => {
     return new Promise((resolve) => {
-      // Check file size first
-      if (file.size > 5 * 1024 * 1024) {
-        // 5MB limit
-        alert(t('propDetail.avatarTooLarge') || 'Avatar túl nagy (max 5MB)');
+      // Check file size first (very generous limit - will be compressed anyway)
+      if (file.size > 100 * 1024 * 1024) {
+        // 100MB limit (almost never reached in practice)
+        alert('A fájl túl nagy (max 100MB). A képet 800x800px-es és max 500KB-os lesz tömörítve.');
         resolve(null);
         return;
       }
@@ -210,7 +210,7 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
             >
               {uploadingAvatar ? "..." : (property.avatar_filename ? t('propDetail.changeAvatar') : t('propDetail.avatarUpload'))}
             </Button>
-            <p className="text-xs text-muted-foreground mt-1">JPG, PNG · max 5MB</p>
+            <p className="text-xs text-muted-foreground mt-1">JPG, PNG · Automatikusan kicsinyítve (max 500KB upload)</p>
           </div>
           <input
             ref={fileRef}
