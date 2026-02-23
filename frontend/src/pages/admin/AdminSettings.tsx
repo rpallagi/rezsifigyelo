@@ -229,6 +229,13 @@ const AdminSettings = () => {
     navigate("/admin/login");
   };
 
+  const formatLastSeen = (value?: string) => {
+    if (!value) return "";
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return value;
+    return dt.toLocaleString();
+  };
+
   return (
     <div className="space-y-6">
       <div className="animate-in">
@@ -468,6 +475,11 @@ const AdminSettings = () => {
                     <p className="text-xs text-muted-foreground mt-1">
                       {d.ip || '-'} {d.ha_url ? `· ${d.ha_url}` : ''}
                     </p>
+                    {d.last_seen && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {t('settings.haLastSeen')}: {formatLastSeen(d.last_seen)}
+                      </p>
+                    )}
                   </button>
                 ))}
               </div>

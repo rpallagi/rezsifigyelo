@@ -156,6 +156,10 @@ const PropertyMeters = ({ propertyId }: Props) => {
   const [haSetupOpen, setHaSetupOpen] = useState(false);
   const [haSetupUrl, setHaSetupUrl] = useState("");
   const [haSetupToken, setHaSetupToken] = useState("");
+  const [haSetupName, setHaSetupName] = useState("");
+  const [haSetupLocation, setHaSetupLocation] = useState("");
+  const [haSetupLocalUser, setHaSetupLocalUser] = useState("");
+  const [haSetupLocalPassword, setHaSetupLocalPassword] = useState("");
   const [haSetupSaving, setHaSetupSaving] = useState(false);
   const [haSetupTesting, setHaSetupTesting] = useState(false);
   const [haSetupStatus, setHaSetupStatus] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -271,7 +275,7 @@ const PropertyMeters = ({ propertyId }: Props) => {
     setHaEntityLoading(true);
     setHaEntityError("");
     try {
-      const res = await getHomeAssistantEntities();
+      const res = await getHomeAssistantEntities(propertyId);
       const entities = (res.entities || [])
         .filter((e) => e.entity_id.startsWith("sensor."))
         .filter((e) => e.utility_type === wiz.utilityType || !e.utility_type);
@@ -293,11 +297,17 @@ const PropertyMeters = ({ propertyId }: Props) => {
 
   const loadHaSetupFromSettings = async () => {
     try {
-      const s = await getHomeAssistantSettings();
+      const s = await getHomeAssistantSettings(propertyId);
       setHaSetupUrl((s.ha_base_url || "").trim());
       setHaSetupToken((s.ha_token || "").trim());
+      setHaSetupName((s.ha_name || "").trim());
+      setHaSetupLocation((s.ha_location || "").trim());
+      setHaSetupLocalUser((s.ha_local_username || "").trim());
+      setHaSetupLocalPassword((s.ha_local_password || "").trim());
+      return s;
     } catch {
       // keep current values
+      return null;
     }
   };
 
@@ -306,9 +316,13 @@ const PropertyMeters = ({ propertyId }: Props) => {
     setHaSetupStatus(null);
     try {
       await saveHomeAssistantSettings({
+        ha_name: haSetupName.trim(),
+        ha_location: haSetupLocation.trim(),
+        ha_local_username: haSetupLocalUser.trim(),
+        ha_local_password: haSetupLocalPassword.trim(),
         ha_base_url: haSetupUrl.trim(),
         ha_token: haSetupToken.trim(),
-      });
+      }, propertyId);
       setHaSetupStatus({ ok: true, msg: t("meters.haSetupSaved") });
     } catch (e: any) {
       setHaSetupStatus({ ok: false, msg: e.message || t("meters.haSetupSaveError") });
@@ -322,10 +336,14 @@ const PropertyMeters = ({ propertyId }: Props) => {
     setHaSetupStatus(null);
     try {
       await saveHomeAssistantSettings({
+        ha_name: haSetupName.trim(),
+        ha_location: haSetupLocation.trim(),
+        ha_local_username: haSetupLocalUser.trim(),
+        ha_local_password: haSetupLocalPassword.trim(),
         ha_base_url: haSetupUrl.trim(),
         ha_token: haSetupToken.trim(),
-      });
-      const res = await testHomeAssistantConnection();
+      }, propertyId);
+      const res = await testHomeAssistantConnection(propertyId);
       setHaSetupStatus({
         ok: true,
         msg: t("meters.haSetupTestOk")
@@ -344,7 +362,7 @@ const PropertyMeters = ({ propertyId }: Props) => {
     setHaImportLoading(true);
     setHaImportResult(null);
     try {
-      const res = await getHomeAssistantEntities();
+      const res = await getHomeAssistantEntities(propertyId);
       const entities = (res.entities || []).filter((e) => e.entity_id.startsWith("sensor."));
       setHaImportEntities(entities);
       const nextSelected: Record<string, boolean> = {};
@@ -369,8 +387,35 @@ const PropertyMeters = ({ propertyId }: Props) => {
     }
   };
 
+  const selectAllHaImportEntities = () => {
+    const next: Record<string, boolean> = {};
+    for (const entity of haImportEntities) {
+      next[entity.entity_id] = true;
+    }
+    setHaImportSelected(next);
+  };
+
+  const selectNumericHaImportEntities = () => {
+    const next: Record<string, boolean> = {};
+    for (const entity of haImportEntities) {
+      if (entity.numeric) next[entity.entity_id] = true;
+    }
+    setHaImportSelected(next);
+  };
+
+  const clearHaImportSelection = () => {
+    setHaImportSelected({});
+  };
+
+  const selectedHaImportCount = haImportEntities.reduce(
+    (sum, entity) => sum + (haImportSelected[entity.entity_id] ? 1 : 0),
+    0,
+  );
+
   const openHaImportDialog = async () => {
-    await loadHaSetupFromSettings();
+    const setup = await loadHaSetupFromSettings();
+    const hasConnection = Boolean((setup?.ha_base_url || "").trim() && (setup?.ha_token || "").trim());
+    setHaSetupOpen(!hasConnection);
     setHaImportOpen(true);
     await loadHaImportEntities();
   };
@@ -897,6 +942,23 @@ multiplier = 1.0`}
               <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-3">
                 <p className="text-sm font-medium">{t("meters.haSetupInlineTitle")}</p>
                 <p className="text-xs text-muted-foreground">{t("meters.haSetupInlineDesc")}</p>
+                <p className="text-[11px] text-muted-foreground">{t("meters.haSetupScopeHint")}</p>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">{t("meters.haProfileName")}</label>
+                  <Input
+                    value={haSetupName}
+                    onChange={(e) => setHaSetupName(e.target.value)}
+                    placeholder={t("meters.haProfileNamePlaceholder")}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">{t("meters.haProfileLocation")}</label>
+                  <Input
+                    value={haSetupLocation}
+                    onChange={(e) => setHaSetupLocation(e.target.value)}
+                    placeholder={t("meters.haProfileLocationPlaceholder")}
+                  />
+                </div>
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">{t("settings.haBaseUrl")}</label>
                   <Input
@@ -915,6 +977,26 @@ multiplier = 1.0`}
                     placeholder={t("settings.haTokenPlaceholder")}
                   />
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">{t("meters.haProfileLocalUser")}</label>
+                    <Input
+                      value={haSetupLocalUser}
+                      onChange={(e) => setHaSetupLocalUser(e.target.value)}
+                      placeholder={t("meters.haProfileLocalUserPlaceholder")}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">{t("meters.haProfileLocalPassword")}</label>
+                    <Input
+                      type="text"
+                      autoComplete="off"
+                      value={haSetupLocalPassword}
+                      onChange={(e) => setHaSetupLocalPassword(e.target.value)}
+                      placeholder={t("meters.haProfileLocalPasswordPlaceholder")}
+                    />
+                  </div>
+                </div>
                 <p className="text-[11px] text-muted-foreground">{t("settings.haTokenHowto")}</p>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={saveHaSetupFromDialog} disabled={haSetupSaving}>
@@ -932,7 +1014,7 @@ multiplier = 1.0`}
               </div>
             )}
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-muted-foreground">
                 {t("meters.haImportFound").replace("{count}", String(haImportEntities.length))}
               </p>
@@ -941,6 +1023,27 @@ multiplier = 1.0`}
                 {t("meters.haLoadEntities")}
               </Button>
             </div>
+
+            {haImportEntities.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs text-muted-foreground">
+                  {t("meters.haImportSelected")
+                    .replace("{selected}", String(selectedHaImportCount))
+                    .replace("{count}", String(haImportEntities.length))}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button type="button" variant="outline" size="sm" onClick={selectAllHaImportEntities}>
+                    {t("meters.haSelectAll")}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={selectNumericHaImportEntities}>
+                    {t("meters.haSelectNumeric")}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={clearHaImportSelection}>
+                    {t("meters.haDeselectAll")}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {haImportEntities.length > 0 && (
               <div className="rounded-xl border p-2 max-h-80 overflow-y-auto space-y-1">

@@ -902,10 +902,16 @@ export const testEmail = () =>
 // ============ Home Assistant / Tailscale Settings ============
 
 export interface HomeAssistantSettings {
+  ha_name: string;
+  ha_location: string;
+  ha_local_username: string;
+  ha_local_password: string;
   ha_base_url: string;
   ha_token: string;
   tailscale_api_token: string;
   tailscale_tailnet: string;
+  scope?: 'global' | 'property';
+  property_id?: number | null;
 }
 
 export interface HomeAssistantEntityItem {
@@ -922,27 +928,32 @@ export interface TailscaleDeviceItem {
   name: string;
   hostname: string;
   online: boolean;
+  status_reason?: string;
+  last_seen?: string;
   ip: string;
   ha_url: string;
   likely_home_assistant: boolean;
 }
 
-export const getHomeAssistantSettings = () =>
-  request<HomeAssistantSettings>('/admin/settings/home-assistant');
+const homeAssistantScopeQuery = (propertyId?: number) =>
+  propertyId ? `?property_id=${propertyId}` : '';
 
-export const saveHomeAssistantSettings = (data: Partial<HomeAssistantSettings>) =>
-  request<{ success: boolean }>('/admin/settings/home-assistant', {
+export const getHomeAssistantSettings = (propertyId?: number) =>
+  request<HomeAssistantSettings>(`/admin/settings/home-assistant${homeAssistantScopeQuery(propertyId)}`);
+
+export const saveHomeAssistantSettings = (data: Partial<HomeAssistantSettings>, propertyId?: number) =>
+  request<{ success: boolean }>(`/admin/settings/home-assistant${homeAssistantScopeQuery(propertyId)}`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
-export const testHomeAssistantConnection = () =>
-  request<{ success: boolean; sensor_count: number; total_entities: number }>('/admin/settings/home-assistant/test', {
+export const testHomeAssistantConnection = (propertyId?: number) =>
+  request<{ success: boolean; sensor_count: number; total_entities: number }>(`/admin/settings/home-assistant/test${homeAssistantScopeQuery(propertyId)}`, {
     method: 'POST',
   });
 
-export const getHomeAssistantEntities = () =>
-  request<{ entities: HomeAssistantEntityItem[]; count: number }>('/admin/settings/home-assistant/entities');
+export const getHomeAssistantEntities = (propertyId?: number) =>
+  request<{ entities: HomeAssistantEntityItem[]; count: number }>(`/admin/settings/home-assistant/entities${homeAssistantScopeQuery(propertyId)}`);
 
 export const getTailscaleDevices = () =>
   request<{ devices: TailscaleDeviceItem[]; count: number }>('/admin/settings/home-assistant/tailscale/devices');

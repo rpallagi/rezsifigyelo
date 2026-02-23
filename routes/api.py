@@ -8,7 +8,7 @@ import os
 import subprocess
 import bcrypt
 import base64
-from datetime import date, datetime
+from datetime import date, datetime, timezone, timedelta
 from flask import (
     Blueprint, request, jsonify, session, current_app, send_from_directory
 )
@@ -208,12 +208,46 @@ def _http_json(method, url, headers=None, payload=None, timeout=12):
         return 0, None, str(e)
 
 
-def _get_ha_settings():
+def _parse_property_id(value):
+    if value in (None, ''):
+        return None
+    try:
+        prop_id = int(value)
+    except (TypeError, ValueError):
+        return None
+    return prop_id if prop_id > 0 else None
+
+
+def _ha_setting_key(base_key, property_id=None):
+    if property_id is None:
+        return base_key
+    return f'{base_key}_p{property_id}'
+
+
+def _get_ha_setting_value(base_key, property_id=None, fallback_global=False):
+    value = AppSetting.get(_ha_setting_key(base_key, property_id), '').strip()
+    if not value and fallback_global and property_id is not None:
+        value = AppSetting.get(base_key, '').strip()
+    return value
+
+
+def _set_ha_setting_value(base_key, value, property_id=None):
+    AppSetting.set(_ha_setting_key(base_key, property_id), str(value or '').strip())
+
+
+def _get_ha_settings(property_id=None, fallback_global=False):
     return {
-        'ha_base_url': AppSetting.get('ha_base_url', '').strip().rstrip('/'),
-        'ha_token': AppSetting.get('ha_token', '').strip(),
+        'ha_name': _get_ha_setting_value('ha_name', property_id, fallback_global),
+        'ha_location': _get_ha_setting_value('ha_location', property_id, fallback_global),
+        'ha_local_username': _get_ha_setting_value('ha_local_username', property_id, fallback_global),
+        'ha_local_password': _get_ha_setting_value('ha_local_password', property_id, fallback_global),
+        'ha_base_url': _get_ha_setting_value('ha_base_url', property_id, fallback_global).rstrip('/'),
+        'ha_token': _get_ha_setting_value('ha_token', property_id, fallback_global),
+        # Tailscale remains global app-level configuration
         'tailscale_api_token': AppSetting.get('tailscale_api_token', '').strip(),
         'tailscale_tailnet': AppSetting.get('tailscale_tailnet', '').strip(),
+        'scope': 'property' if property_id is not None else 'global',
+        'property_id': property_id,
     }
 
 
@@ -254,8 +288,8 @@ def _normalize_ha_token(value):
     return token, None
 
 
-def _validated_ha_connection_settings():
-    settings = _get_ha_settings()
+def _validated_ha_connection_settings(property_id=None, fallback_global=False):
+    settings = _get_ha_settings(property_id=property_id, fallback_global=fallback_global)
     raw_url = settings['ha_base_url']
     raw_token = settings['ha_token']
 
@@ -2730,28 +2764,59 @@ def admin_test_email():
 @api_bp.route('/admin/settings/home-assistant', methods=['GET'])
 @login_required
 def admin_get_home_assistant_settings():
-    """Get Home Assistant and Tailscale integration settings."""
+    """Get Home Assistant and Tailscale integration settings (global or property scope)."""
+    prop_id_raw = request.args.get('property_id')
+    property_id = _parse_property_id(prop_id_raw)
+    if prop_id_raw not in (None, '') and property_id is None:
+        return jsonify({'error': 'Érvénytelen property_id.'}), 400
+
+    if property_id is not None:
+        Property.query.get_or_404(property_id)
+        return jsonify(_get_ha_settings(property_id=property_id, fallback_global=True))
+
     return jsonify(_get_ha_settings())
 
 
 @api_bp.route('/admin/settings/home-assistant', methods=['POST'])
 @login_required
 def admin_save_home_assistant_settings():
-    """Save Home Assistant and Tailscale integration settings."""
+    """Save Home Assistant and Tailscale integration settings (global or property scope)."""
     data = request.get_json() or {}
+    prop_id_raw = request.args.get('property_id')
+    property_id = _parse_property_id(prop_id_raw)
+    if prop_id_raw not in (None, '') and property_id is None:
+        return jsonify({'error': 'Érvénytelen property_id.'}), 400
+
+    if property_id is not None:
+        Property.query.get_or_404(property_id)
+
+    setting_scope_id = property_id
+
+    if 'ha_name' in data:
+        _set_ha_setting_value('ha_name', data.get('ha_name'), setting_scope_id)
+
+    if 'ha_location' in data:
+        _set_ha_setting_value('ha_location', data.get('ha_location'), setting_scope_id)
+
+    if 'ha_local_username' in data:
+        _set_ha_setting_value('ha_local_username', data.get('ha_local_username'), setting_scope_id)
+
+    if 'ha_local_password' in data:
+        _set_ha_setting_value('ha_local_password', data.get('ha_local_password'), setting_scope_id)
 
     if 'ha_base_url' in data:
         ha_base_url, url_err = _normalize_ha_base_url(data.get('ha_base_url'))
         if url_err:
             return jsonify({'error': url_err}), 400
-        AppSetting.set('ha_base_url', ha_base_url)
+        _set_ha_setting_value('ha_base_url', ha_base_url, setting_scope_id)
 
     if 'ha_token' in data:
         ha_token, token_err = _normalize_ha_token(data.get('ha_token'))
         if token_err:
             return jsonify({'error': token_err}), 400
-        AppSetting.set('ha_token', ha_token)
+        _set_ha_setting_value('ha_token', ha_token, setting_scope_id)
 
+    # Tailscale config remains global.
     if 'tailscale_api_token' in data:
         AppSetting.set('tailscale_api_token', str(data.get('tailscale_api_token') or '').strip())
     if 'tailscale_tailnet' in data:
@@ -2764,7 +2829,18 @@ def admin_save_home_assistant_settings():
 @login_required
 def admin_test_home_assistant_connection():
     """Test Home Assistant API connectivity using saved settings."""
-    base_url, token, settings_err, status_code = _validated_ha_connection_settings()
+    prop_id_raw = request.args.get('property_id')
+    property_id = _parse_property_id(prop_id_raw)
+    if prop_id_raw not in (None, '') and property_id is None:
+        return jsonify({'error': 'Érvénytelen property_id.'}), 400
+
+    if property_id is not None:
+        Property.query.get_or_404(property_id)
+
+    base_url, token, settings_err, status_code = _validated_ha_connection_settings(
+        property_id=property_id,
+        fallback_global=True,
+    )
     if settings_err:
         return jsonify({'error': settings_err}), status_code
 
@@ -2780,7 +2856,18 @@ def admin_test_home_assistant_connection():
 @login_required
 def admin_get_home_assistant_entities():
     """List relevant Home Assistant sensor entities for meter onboarding."""
-    base_url, token, settings_err, status_code = _validated_ha_connection_settings()
+    prop_id_raw = request.args.get('property_id')
+    property_id = _parse_property_id(prop_id_raw)
+    if prop_id_raw not in (None, '') and property_id is None:
+        return jsonify({'error': 'Érvénytelen property_id.'}), 400
+
+    if property_id is not None:
+        Property.query.get_or_404(property_id)
+
+    base_url, token, settings_err, status_code = _validated_ha_connection_settings(
+        property_id=property_id,
+        fallback_global=True,
+    )
     if settings_err:
         return jsonify({'error': settings_err}), status_code
 
@@ -2820,6 +2907,20 @@ def admin_get_tailscale_devices():
     if code != 200 or not isinstance(payload, dict):
         return jsonify({'error': err or f'Tailscale API hiba ({code})'}), 502
 
+    now_utc = datetime.now(timezone.utc)
+
+    def _parse_ts(value):
+        raw = str(value or '').strip()
+        if not raw:
+            return None
+        try:
+            dt = datetime.fromisoformat(raw.replace('Z', '+00:00'))
+        except ValueError:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+
     devices = payload.get('devices') or []
     result = []
     for d in devices:
@@ -2838,11 +2939,25 @@ def admin_get_tailscale_devices():
         likely_ha = any(tag in text for tag in ('homeassistant', 'home-assistant', 'hass', ' ha '))
         ha_url = f'http://{ip}:8123' if ip else ''
 
+        last_seen_raw = d.get('lastSeen') or d.get('last_seen') or ''
+        last_seen_dt = _parse_ts(last_seen_raw)
+        online = bool(d.get('online', False))
+        status_reason = 'online_flag' if online else 'offline_flag'
+
+        if not online and last_seen_dt is not None:
+            if now_utc - last_seen_dt <= timedelta(minutes=5):
+                online = True
+                status_reason = 'recent_activity'
+            else:
+                status_reason = 'inactive'
+
         result.append({
             'id': str(d.get('id') or name or ip),
             'name': name,
             'hostname': hostname,
-            'online': bool(d.get('online', False)),
+            'online': online,
+            'status_reason': status_reason,
+            'last_seen': last_seen_dt.isoformat() if last_seen_dt else '',
             'ip': ip,
             'ha_url': ha_url,
             'likely_home_assistant': likely_ha,
@@ -3408,7 +3523,7 @@ def import_home_assistant_smart_meters(prop_id):
     # Ensure property exists
     Property.query.get_or_404(prop_id)
 
-    base_url, token, settings_err, status_code = _validated_ha_connection_settings()
+    base_url, token, settings_err, status_code = _validated_ha_connection_settings(property_id=prop_id, fallback_global=True)
     if settings_err:
         return jsonify({'error': settings_err}), status_code
 
