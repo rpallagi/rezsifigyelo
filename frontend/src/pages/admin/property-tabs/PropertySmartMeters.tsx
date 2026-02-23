@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Radio, Plus, Pencil, Trash2, Activity, Wifi, AlertTriangle, Globe, BookOpen } from "lucide-react";
+import { Radio, Plus, Pencil, Trash2, Activity, Wifi, AlertTriangle, Globe, BookOpen, Copy, CheckCircle2, Clock } from "lucide-react";
 import {
   getPropertySmartMeters, addSmartMeter, editSmartMeter, deleteSmartMeter,
   getSmartMeterLogs,
@@ -301,21 +301,25 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                     </div>
                   )}
 
-                  {/* Last seen + last value */}
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  {/* Status + Last seen + last value */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                     {device.last_seen_at ? (
                       <>
-                        <span>
+                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                          <CheckCircle2 className="h-3 w-3" />
                           {t("smartMeter.lastSeen")}: {formatDate(device.last_seen_at)}
                         </span>
                         {device.last_raw_value !== null && (
-                          <span>
+                          <span className="text-muted-foreground">
                             {t("smartMeter.lastValue")}: {device.last_raw_value}
                           </span>
                         )}
                       </>
                     ) : (
-                      <span className="italic">{t("smartMeter.noDataReceived")}</span>
+                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 italic">
+                        <Clock className="h-3 w-3" />
+                        {t("smartMeter.noDataReceived")}
+                      </span>
                     )}
                   </div>
 
@@ -536,20 +540,81 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
               </div>
             )}
 
-            {/* HTTP Token (only when source=http) */}
+            {/* HTTP Webhook Setup (only when source=http) */}
             {form.source === "http" && (
-              <div>
-                <label className="text-sm text-muted-foreground block mb-1">
-                  {t("smartMeter.httpToken")}
-                </label>
-                <Input
-                  value={form.ttn_app_id}
-                  onChange={(e) => set("ttn_app_id", e.target.value)}
-                  placeholder="my-secret-token"
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  {t("smartMeter.httpTokenHint")}
-                </p>
+              <div className="space-y-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">Webhook Configuration</p>
+
+                    {/* Webhook URL */}
+                    <div className="mb-2.5">
+                      <label className="text-xs text-blue-800 dark:text-blue-200 block mb-1">Webhook URL (copy to device):</label>
+                      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-1.5">
+                        <code className="text-[11px] flex-1 break-all">{window.location.origin}/api/webhooks/generic</code>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 flex-shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/generic`);
+                            toast.success("Copied!");
+                          }}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Auth Token */}
+                    <div className="mb-2.5">
+                      <label className="text-xs text-blue-800 dark:text-blue-200 block mb-1">Auth Token (Bearer header):</label>
+                      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-1.5">
+                        <code className="text-[11px] flex-1 break-all font-mono">
+                          {form.ttn_app_id || "Generate token below →"}
+                        </code>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 flex-shrink-0"
+                          onClick={() => {
+                            if (form.ttn_app_id) {
+                              navigator.clipboard.writeText(form.ttn_app_id);
+                              toast.success("Token copied!");
+                            }
+                          }}
+                          disabled={!form.ttn_app_id}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Device ID */}
+                    <div className="mb-3">
+                      <label className="text-xs text-blue-800 dark:text-blue-200 block mb-1">Device ID (use in JSON body):</label>
+                      <code className="text-[11px] bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-1.5 block break-all">
+                        {form.device_id || "enter-device-id"}
+                      </code>
+                    </div>
+
+                    {/* Example JSON */}
+                    <div className="bg-white dark:bg-slate-900 rounded border border-blue-300 dark:border-blue-700 p-2 text-[10px] overflow-x-auto">
+                      <p className="text-blue-800 dark:text-blue-200 font-medium mb-1">JSON Body Example:</p>
+                      <code className="block whitespace-pre text-slate-700 dark:text-slate-300">
+{`{
+  "device_id": "${form.device_id || "shelly-3em-artfactory"}",
+  "value": 12345.67
+}`}
+                      </code>
+                    </div>
+
+                    <p className="text-[10px] text-blue-700 dark:text-blue-300 mt-2">
+                      💡 Paste the Webhook URL into your device&apos;s HTTP Action settings.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
