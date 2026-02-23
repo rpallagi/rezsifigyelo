@@ -12,6 +12,7 @@ import {
 import { adminSession, getTaxReminders, getCommonFeeReminders } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
+import AiChat from "@/components/AiChat";
 
 const AdminLayout = () => {
   const { t } = useI18n();
@@ -137,6 +138,14 @@ const AdminLayout = () => {
             <Outlet />
           </div>
         </main>
+
+        {/* Floating AI Chat for admins */}
+        <AiChat
+          topic="admin-help"
+          title={t('ai.adminTitle')}
+          placeholder={t('ai.adminPlaceholder')}
+          mode="floating"
+        />
       </div>
     </SidebarProvider>
   );

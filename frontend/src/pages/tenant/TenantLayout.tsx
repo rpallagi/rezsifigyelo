@@ -3,6 +3,7 @@ import { LayoutDashboard, PlusCircle, History, User, MessageCircle } from "lucid
 import { useEffect, useState } from "react";
 import { tenantSession } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import AiChat from "@/components/AiChat";
 
 const TenantLayout = () => {
   const location = useLocation();
@@ -38,6 +39,14 @@ const TenantLayout = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       <Outlet />
+
+      {/* Floating AI Chat for tenants */}
+      <AiChat
+        topic="tenant-help"
+        title={t('ai.tenantTitle')}
+        placeholder={t('ai.tenantPlaceholder')}
+        mode="floating"
+      />
 
       <nav className="bottom-nav">
         <div className="flex items-center justify-around py-2 px-2 max-w-lg mx-auto">

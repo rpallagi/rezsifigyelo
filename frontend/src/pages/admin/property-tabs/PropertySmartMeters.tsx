@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Radio, Plus, Pencil, Trash2, Activity, Wifi, AlertTriangle } from "lucide-react";
+import { Radio, Plus, Pencil, Trash2, Activity, Wifi, AlertTriangle, Globe, BookOpen } from "lucide-react";
 import {
   getPropertySmartMeters, addSmartMeter, editSmartMeter, deleteSmartMeter,
   getSmartMeterLogs,
@@ -23,17 +23,26 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
+import AiChat from "@/components/AiChat";
 
 interface Props {
   propertyId: number;
 }
 
+const DEVICE_PRESETS = {
+  custom: { name: '', device_id: '', source: 'http' as const, value_field: 'value', multiplier: '1.0', offset: '0.0' },
+  shelly: { name: 'Shelly 3EM Pro', device_id: 'shelly-3em-', source: 'http' as const, value_field: 'total', multiplier: '0.001', offset: '0.0' },
+  homewizard: { name: 'HomeWizard P1', device_id: 'homewizard-p1-', source: 'http' as const, value_field: 'total_power_import_kwh', multiplier: '1.0', offset: '0.0' },
+  esp32: { name: 'ESP32 DIY', device_id: 'esp32-', source: 'http' as const, value_field: 'value', multiplier: '1.0', offset: '0.0' },
+  ha: { name: 'Home Assistant', device_id: 'ha-', source: 'http' as const, value_field: 'state', multiplier: '1.0', offset: '0.0' },
+};
+
 const emptyForm = {
   name: "",
   device_id: "",
-  source: "ttn" as "ttn" | "mqtt",
-  utility_type: "villany" as "villany" | "viz",
-  value_field: "meter_value",
+  source: "http" as "ttn" | "mqtt" | "http",
+  utility_type: "villany" as "villany" | "viz" | "gaz",
+  value_field: "value",
   multiplier: "1.0",
   offset: "0.0",
   min_interval_minutes: "60",
@@ -71,6 +80,21 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
   const set = (key: string, val: string | boolean) =>
     setForm((f) => ({ ...f, [key]: val }));
 
+  const applyPreset = (presetKey: string) => {
+    const preset = DEVICE_PRESETS[presetKey as keyof typeof DEVICE_PRESETS];
+    if (preset) {
+      setForm(f => ({
+        ...f,
+        name: preset.name,
+        device_id: f.device_id || preset.device_id,
+        source: preset.source as any,
+        value_field: preset.value_field,
+        multiplier: preset.multiplier,
+        offset: preset.offset,
+      }));
+    }
+  };
+
   const openNew = () => {
     setEditingId(null);
     setForm(emptyForm);
@@ -82,8 +106,8 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
     setForm({
       name: device.name || "",
       device_id: device.device_id,
-      source: device.source as "ttn" | "mqtt",
-      utility_type: device.utility_type as "villany" | "viz",
+      source: device.source as "ttn" | "mqtt" | "http",
+      utility_type: device.utility_type as "villany" | "viz" | "gaz",
       value_field: device.value_field || "meter_value",
       multiplier: String(device.multiplier),
       offset: String(device.offset),
@@ -107,12 +131,12 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
         device_id: form.device_id.trim(),
         source: form.source,
         utility_type: form.utility_type,
-        value_field: form.value_field.trim() || "meter_value",
+        value_field: form.value_field.trim() || "value",
         multiplier: parseFloat(form.multiplier) || 1.0,
         offset: parseFloat(form.offset) || 0.0,
         min_interval_minutes: parseInt(form.min_interval_minutes, 10) || 60,
         mqtt_topic: form.source === "mqtt" ? (form.mqtt_topic.trim() || null) : null,
-        ttn_app_id: form.source === "ttn" ? (form.ttn_app_id.trim() || null) : null,
+        ttn_app_id: (form.source === "ttn" || form.source === "http") ? (form.ttn_app_id.trim() || null) : null,
         is_active: form.is_active,
       };
       if (editingId) {
@@ -167,16 +191,14 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
   };
 
   const sourceBadgeClass = (source: string) => {
-    if (source === "ttn") {
-      return "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800";
-    }
+    if (source === "ttn") return "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800";
+    if (source === "http") return "bg-green-50 text-green-600 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800";
     return "bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950 dark:text-purple-400 dark:border-purple-800";
   };
 
   const utilityBadgeClass = (utilityType: string) => {
-    if (utilityType === "villany") {
-      return "bg-yellow-50 text-yellow-600 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400 dark:border-yellow-800";
-    }
+    if (utilityType === "villany") return "bg-yellow-50 text-yellow-600 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400 dark:border-yellow-800";
+    if (utilityType === "gaz") return "bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800";
     return "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800";
   };
 
@@ -230,6 +252,8 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                 <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center flex-shrink-0 mt-0.5">
                   {device.source === "ttn" ? (
                     <Wifi className="h-5 w-5 text-accent-foreground" />
+                  ) : device.source === "http" ? (
+                    <Globe className="h-5 w-5 text-accent-foreground" />
                   ) : (
                     <Activity className="h-5 w-5 text-accent-foreground" />
                   )}
@@ -254,7 +278,9 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                     >
                       {device.utility_type === "villany"
                         ? t("smartMeter.electricity")
-                        : t("smartMeter.water")}
+                        : device.utility_type === "gaz"
+                          ? t("smartMeter.gas")
+                          : t("smartMeter.water")}
                     </Badge>
                     {!device.is_active && (
                       <Badge
@@ -341,9 +367,66 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
         </div>
       )}
 
+      {/* Webhook Info + Setup Guide */}
+      <div className="glass-card p-5 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <BookOpen className="h-4 w-4 text-muted-foreground" />
+          <p className="font-display font-semibold text-sm">{t("smartMeter.howtoTitle")}</p>
+        </div>
+
+        {/* Webhook URL */}
+        <div className="rounded-xl bg-accent/30 p-3">
+          <p className="text-xs font-medium mb-1">{t("smartMeter.webhookUrl")}</p>
+          <code className="text-xs bg-muted px-2 py-1 rounded block font-mono break-all">
+            POST {window.location.origin}/api/webhooks/generic
+          </code>
+          <p className="text-[11px] text-muted-foreground mt-1.5">{t("smartMeter.webhookUrlDesc")}</p>
+        </div>
+
+        {/* Payload format */}
+        <div className="rounded-xl bg-accent/30 p-3">
+          <p className="text-xs font-medium mb-1">{t("smartMeter.webhookPayload")}</p>
+          <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
+{`{
+  "device_id": "your-device-id",
+  "value": 12345.67,
+  "timestamp": "2025-01-15T10:30:00Z"
+}`}
+          </pre>
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            Header: Authorization: Bearer &lt;your-token&gt;
+          </p>
+        </div>
+
+        {/* Home Assistant example */}
+        <div className="rounded-xl bg-accent/30 p-3">
+          <p className="text-xs font-medium mb-1">Home Assistant REST command</p>
+          <pre className="text-[11px] bg-muted px-2 py-1.5 rounded font-mono overflow-x-auto">
+{`rest_command:
+  send_meter:
+    url: "${window.location.origin}/api/webhooks/generic"
+    method: POST
+    headers:
+      Authorization: "Bearer YOUR_TOKEN"
+      Content-Type: "application/json"
+    payload: >
+      {"device_id":"ha-gas-meter",
+       "value":"{{ states('sensor.gas_meter') }}"}`}
+          </pre>
+        </div>
+
+        {/* AI Chat inline */}
+        <AiChat
+          topic="smart-meter"
+          title={t("ai.smartMeterTitle")}
+          placeholder={t("ai.smartMeterPlaceholder")}
+          mode="inline"
+        />
+      </div>
+
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display">
               {editingId ? t("smartMeter.editDevice") : t("smartMeter.addDevice")}
@@ -356,6 +439,27 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Device Preset (only for new) */}
+            {!editingId && (
+              <div>
+                <label className="text-sm text-muted-foreground block mb-1">
+                  {t("smartMeter.devicePreset")}
+                </label>
+                <Select defaultValue="custom" onValueChange={applyPreset}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="custom">{t("smartMeter.presetCustom")}</SelectItem>
+                    <SelectItem value="shelly">{t("smartMeter.presetShelly")}</SelectItem>
+                    <SelectItem value="homewizard">{t("smartMeter.presetHomeWizard")}</SelectItem>
+                    <SelectItem value="esp32">{t("smartMeter.presetESP32")}</SelectItem>
+                    <SelectItem value="ha">{t("smartMeter.presetHA")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Name */}
             <div>
               <label className="text-sm text-muted-foreground block mb-1">
@@ -377,7 +481,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                 <Input
                   value={form.device_id}
                   onChange={(e) => set("device_id", e.target.value)}
-                  placeholder="eui-a84041..."
+                  placeholder="esp32-gas-01"
                   required
                 />
               </div>
@@ -390,6 +494,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="http">HTTP Webhook</SelectItem>
                     <SelectItem value="ttn">TTN (LoRaWAN)</SelectItem>
                     <SelectItem value="mqtt">MQTT</SelectItem>
                   </SelectContent>
@@ -412,6 +517,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                 <SelectContent>
                   <SelectItem value="villany">{t("smartMeter.electricity")}</SelectItem>
                   <SelectItem value="viz">{t("smartMeter.water")}</SelectItem>
+                  <SelectItem value="gaz">{t("smartMeter.gas")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -427,6 +533,23 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                   onChange={(e) => set("ttn_app_id", e.target.value)}
                   placeholder="my-ttn-app"
                 />
+              </div>
+            )}
+
+            {/* HTTP Token (only when source=http) */}
+            {form.source === "http" && (
+              <div>
+                <label className="text-sm text-muted-foreground block mb-1">
+                  {t("smartMeter.httpToken")}
+                </label>
+                <Input
+                  value={form.ttn_app_id}
+                  onChange={(e) => set("ttn_app_id", e.target.value)}
+                  placeholder="my-secret-token"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {t("smartMeter.httpTokenHint")}
+                </p>
               </div>
             )}
 
@@ -453,7 +576,7 @@ const PropertySmartMeters = ({ propertyId }: Props) => {
                 <Input
                   value={form.value_field}
                   onChange={(e) => set("value_field", e.target.value)}
-                  placeholder="meter_value"
+                  placeholder="value"
                 />
               </div>
               <div>

@@ -700,6 +700,41 @@ const hu: Record<string, string> = {
   'smartMeter.added': 'Okos mérő eszköz hozzáadva!',
   'smartMeter.updated': 'Okos mérő eszköz frissítve!',
   'smartMeter.deleted': 'Okos mérő eszköz törölve!',
+
+  // --- AI Chat ---
+  'ai.title': 'AI Asszisztens',
+  'ai.placeholder': 'Kérdezz bármit...',
+  'ai.empty': 'Kérdezz az integrációkról, beállításokról, vagy bármilyen problémáról!',
+  'ai.error': 'Nem sikerült válaszolni. Próbáld újra!',
+  'ai.poweredBy': 'Claude AI',
+  'ai.send': 'Küldés',
+  'ai.close': 'Bezárás',
+  'ai.typing': 'Válaszol...',
+  'ai.smartMeterTitle': 'Okos mérő segéd',
+  'ai.smartMeterPlaceholder': 'Kérdezz az eszköz integrációról...',
+  'ai.tenantTitle': 'Bérlő segéd',
+  'ai.tenantPlaceholder': 'Kérdezz a mérőállásokról, költségekről...',
+  'ai.adminTitle': 'Admin segéd',
+  'ai.adminPlaceholder': 'Kérdezz az ingatlankezelésről...',
+
+  // --- Smart Meter Extended ---
+  'smartMeter.gas': 'Gáz',
+  'smartMeter.httpToken': 'API token (Bearer)',
+  'smartMeter.httpTokenHint': 'Autentikációs token a HTTP webhook-hoz. Hagyd üresen, ha a globális tokent használod.',
+  'smartMeter.devicePreset': 'Eszköz sablon',
+  'smartMeter.presetCustom': 'Egyéni',
+  'smartMeter.presetShelly': 'Shelly',
+  'smartMeter.presetHomeWizard': 'HomeWizard P1',
+  'smartMeter.presetESP32': 'ESP32 / DIY',
+  'smartMeter.presetHA': 'Home Assistant',
+  'smartMeter.howtoTitle': 'Telepítési útmutató',
+  'smartMeter.howtoHTTP': 'HTTP Webhook beállítás',
+  'smartMeter.howtoTTN': 'TTN / LoRaWAN beállítás',
+  'smartMeter.howtoMQTT': 'MQTT beállítás',
+  'smartMeter.webhookUrl': 'Webhook URL',
+  'smartMeter.webhookUrlDesc': 'Küldd ide az adatokat JSON formátumban',
+  'smartMeter.webhookPayload': 'Payload formátum',
+  'smartMeter.askAi': 'Kérdezd meg az AI-t!',
 };
 
 
@@ -1401,6 +1436,41 @@ const en: Record<string, string> = {
   'smartMeter.added': 'Smart meter device added!',
   'smartMeter.updated': 'Smart meter device updated!',
   'smartMeter.deleted': 'Smart meter device deleted!',
+
+  // --- AI Chat ---
+  'ai.title': 'AI Assistant',
+  'ai.placeholder': 'Ask anything...',
+  'ai.empty': 'Ask about integrations, settings, or any issues!',
+  'ai.error': 'Could not get a response. Please try again!',
+  'ai.poweredBy': 'Claude AI',
+  'ai.send': 'Send',
+  'ai.close': 'Close',
+  'ai.typing': 'Typing...',
+  'ai.smartMeterTitle': 'Smart Meter Assistant',
+  'ai.smartMeterPlaceholder': 'Ask about device integration...',
+  'ai.tenantTitle': 'Tenant Assistant',
+  'ai.tenantPlaceholder': 'Ask about readings, costs...',
+  'ai.adminTitle': 'Admin Assistant',
+  'ai.adminPlaceholder': 'Ask about property management...',
+
+  // --- Smart Meter Extended ---
+  'smartMeter.gas': 'Gas',
+  'smartMeter.httpToken': 'API token (Bearer)',
+  'smartMeter.httpTokenHint': 'Authentication token for the HTTP webhook. Leave empty to use global token.',
+  'smartMeter.devicePreset': 'Device preset',
+  'smartMeter.presetCustom': 'Custom',
+  'smartMeter.presetShelly': 'Shelly',
+  'smartMeter.presetHomeWizard': 'HomeWizard P1',
+  'smartMeter.presetESP32': 'ESP32 / DIY',
+  'smartMeter.presetHA': 'Home Assistant',
+  'smartMeter.howtoTitle': 'Setup Guide',
+  'smartMeter.howtoHTTP': 'HTTP Webhook Setup',
+  'smartMeter.howtoTTN': 'TTN / LoRaWAN Setup',
+  'smartMeter.howtoMQTT': 'MQTT Setup',
+  'smartMeter.webhookUrl': 'Webhook URL',
+  'smartMeter.webhookUrlDesc': 'Send data here in JSON format',
+  'smartMeter.webhookPayload': 'Payload format',
+  'smartMeter.askAi': 'Ask the AI!',
 };
 
 // ============================================================

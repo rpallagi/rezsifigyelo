@@ -1140,7 +1140,17 @@ def admin_property_avatar(prop_id):
     avatar_filename = f"avatar_{prop_id}_{uuid.uuid4().hex[:8]}.{ext}"
     filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], avatar_filename)
     file.save(filepath)
-    resize_photo(filepath, max_size=512)
+
+    # Validate image before proceeding
+    try:
+        with Image.open(filepath) as img:
+            img.verify()
+        # Re-open after verify (verify() invalidates the file handle)
+        resize_photo(filepath, max_size=512)
+    except Exception as e:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        return jsonify({'error': f'Hibás képfájl: {str(e)}'}), 400
 
     # Delete old avatar file if exists
     if prop.avatar_filename:
@@ -1732,6 +1742,91 @@ def admin_tenant_delete(tenant_id):
 # ============================================================
 # AI / Claude API Endpoints
 # ============================================================
+
+@api_bp.route('/ai/chat', methods=['POST'])
+def ai_chat():
+    """Topic-controlled AI chat using Claude Haiku."""
+    tenant_id = session.get('tenant_user_id')
+    admin_auth = current_user.is_authenticated if hasattr(current_user, 'is_authenticated') else False
+    if not tenant_id and not admin_auth:
+        return jsonify({'error': 'Nem vagy bejelentkezve!'}), 401
+
+    data = request.get_json()
+    message = (data.get('message') or '').strip()
+    topic = (data.get('topic') or 'general').strip()
+    history = data.get('history') or []
+
+    if not message:
+        return jsonify({'error': 'Üzenet szükséges!'}), 400
+
+    TOPIC_PROMPTS = {
+        'smart-meter': """Te egy okos mérő integrációs szakértő vagy a Rezsi Figyelő alkalmazásban.
+Segítesz az alábbi eszközök beállításában:
+- ESP32 alapú mérők (HTTP POST webhook)
+- Home Assistant integráció (REST command automation)
+- Shelly 3EM Pro / Shelly mérők (HTTP action vagy MQTT)
+- HomeWizard P1 Meter (lokális API polling vagy HA integráció)
+- TTN/LoRaWAN eszközök (TTN webhook)
+- MQTT alapú eszközök
+
+A Rezsi Figyelő generikus webhook URL: POST /api/webhooks/generic
+Body: {"device_id": "...", "value": 12345.67}
+Auth: Bearer token a headerben.
+
+Home Assistant integráció lépései:
+1. HA automation trigger: sensor state change (pl. sensor.gas_meter)
+2. HA REST command service call a Rezsi webhook URL-re
+3. Template: {{ states('sensor.gas_meter') | float }}
+4. Automation YAML példa is adj ha kérik.
+
+Shelly integráció: HTTP action → URL beállítás az eszköz webUI-ján.
+HomeWizard: Lokális API (http://<ip>/api/v1/data) polling script vagy HA integráción keresztül.
+
+Legyél tömör, gyakorlatias, lépésről lépésre segíts. Magyarul válaszolj (de technikai kifejezéseket hagyd angolul).""",
+        'tenant-help': """Te a Rezsi Figyelő alkalmazás segédja vagy bérlők számára.
+Segítesz: mérőállás rögzítés, fogyasztás/költség értelmezés, közös költség, profil, chat a bérbeadóval.
+Legyél kedves, egyszerű nyelven válaszolj magyarul.""",
+        'admin-help': """Te a Rezsi Figyelő alkalmazás segédja vagy adminisztrátorok (bérbeadók) számára.
+Segítesz: ingatlankezelés, bérlők, tarifák, okos mérők, közös költség, ingatlanadó, dokumentumok, ROI.
+Legyél profi, tömör, magyarul válaszolj.""",
+        'general': """Te a Rezsi Figyelő alkalmazás AI segédja vagy.
+Röviden, magyarul válaszolj.""",
+    }
+
+    system_prompt = TOPIC_PROMPTS.get(topic, TOPIC_PROMPTS['general'])
+
+    try:
+        from services.claude_service import get_claude_client
+        client = get_claude_client()
+
+        msgs = []
+        for h in history[-10:]:
+            msgs.append({'role': h.get('role', 'user'), 'content': h.get('content', '')})
+        msgs.append({'role': 'user', 'content': message})
+
+        response = client.messages.create(
+            model='claude-3-5-haiku-latest',
+            max_tokens=1024,
+            system=system_prompt,
+            messages=msgs,
+        )
+
+        reply = response.content[0].text if response.content else 'Nem sikerült válaszolni.'
+
+        return jsonify({
+            'success': True,
+            'reply': reply,
+            'model': 'claude-3-5-haiku',
+            'usage': {
+                'input_tokens': response.usage.input_tokens,
+                'output_tokens': response.usage.output_tokens,
+            }
+        })
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'AI hiba: {str(e)}'}), 500
+
 
 @api_bp.route('/admin/ai/extract-tax-pdf', methods=['POST'])
 @login_required
@@ -2601,6 +2696,79 @@ def admin_roi_enhanced():
         })
 
     return jsonify({'properties': result})
+
+
+# ============================================================
+# Generic HTTP Webhook (universal — ESP32, HA, Shelly, etc.)
+# ============================================================
+
+@api_bp.route('/webhooks/generic', methods=['POST'])
+def generic_webhook():
+    """Receive smart meter data via simple HTTP POST.
+
+    Universal webhook for any device: ESP32, Home Assistant, Shelly, HomeWizard, Node-RED, etc.
+
+    Expected JSON body:
+    {
+        "device_id": "my-device-123",
+        "value": 12345.67,
+        "timestamp": "2024-01-15T10:30:00Z"  // optional
+    }
+
+    Auth: Bearer token (device-specific via ttn_app_id field, or global TTN_WEBHOOK_TOKEN).
+    """
+    auth_header = request.headers.get('Authorization', '')
+    token = auth_header.replace('Bearer ', '') if auth_header.startswith('Bearer ') else ''
+    global_token = current_app.config.get('TTN_WEBHOOK_TOKEN', '')
+
+    data = request.get_json(silent=True) or {}
+    device_id = data.get('device_id')
+
+    if not device_id:
+        return jsonify({'error': 'device_id required'}), 400
+
+    device = SmartMeterDevice.query.filter_by(device_id=device_id).first()
+    if not device:
+        return jsonify({'error': f'Unknown device: {device_id}'}), 404
+
+    # Token validation: device-specific OR global
+    device_token = device.ttn_app_id
+    valid = False
+    if token and device_token and token == device_token:
+        valid = True
+    elif token and global_token and token == global_token:
+        valid = True
+    elif not global_token and not device_token:
+        valid = True  # No auth configured — dev mode
+    if not valid:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    value = data.get('value')
+    if value is None:
+        return jsonify({'error': 'value required'}), 400
+
+    timestamp = None
+    ts_str = data.get('timestamp')
+    if ts_str:
+        try:
+            from dateutil.parser import parse as parse_date
+            timestamp = parse_date(ts_str)
+        except Exception:
+            pass
+
+    from services.smart_meter import process_smart_meter_reading
+    result = process_smart_meter_reading(
+        device_id=device_id,
+        raw_value=value,
+        source='http',
+        raw_payload=json.dumps(data),
+        timestamp=timestamp,
+    )
+
+    status_code = 200 if result['status'] == 'ok' else (
+        409 if result['status'] == 'rejected' else 500
+    )
+    return jsonify(result), status_code
 
 
 # ============================================================

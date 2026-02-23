@@ -681,6 +681,19 @@ export const ocrMeterReading = (photo: File) => {
   return requestMultipart<{ success: boolean; value: number | null; confidence: string }>('/ai/ocr-reading', fd);
 };
 
+// ============ AI Chat ============
+
+export const aiChat = async (message: string, topic: string, history: { role: string; content: string }[] = []) => {
+  const res = await fetch(`${BASE}/ai/chat`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, topic, history }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error || 'AI hiba');
+  return res.json() as Promise<{ success: boolean; reply: string; model: string; usage: { input_tokens: number; output_tokens: number } }>;
+};
+
 // ============ Property Tax ============
 
 export const getPropertyTaxes = (propId: number) =>
