@@ -13,21 +13,24 @@ logger = logging.getLogger(__name__)
 def is_email_enabled() -> bool:
     """Check if email notifications are configured and enabled.
     Uses DB setting (AppSetting) with fallback to env var."""
+    # Check SMTP credentials first (required)
+    if not current_app.config.get('SMTP_USER') or not current_app.config.get('SMTP_PASSWORD'):
+        return False
+
+    # Check if enabled via DB or env var
     try:
         from models import AppSetting
         db_enabled = AppSetting.get('email_enabled', '')
-        if db_enabled:
-            enabled = db_enabled == 'true'
-        else:
-            enabled = current_app.config.get('EMAIL_NOTIFICATIONS_ENABLED', False)
+        if db_enabled == 'true':
+            return True
+        elif db_enabled == 'false':
+            return False
+        # Fall back to env var if DB not set
     except Exception:
-        enabled = current_app.config.get('EMAIL_NOTIFICATIONS_ENABLED', False)
+        pass
 
-    return (
-        enabled
-        and bool(current_app.config.get('SMTP_USER'))
-        and bool(current_app.config.get('SMTP_PASSWORD'))
-    )
+    # Default to env var setting
+    return current_app.config.get('EMAIL_NOTIFICATIONS_ENABLED', False)
 
 
 def _build_html(sender_name: str, message: str, chat_url: str) -> str:
