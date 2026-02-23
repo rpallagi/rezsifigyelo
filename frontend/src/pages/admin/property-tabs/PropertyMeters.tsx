@@ -155,7 +155,6 @@ const PropertyMeters = ({ propertyId }: Props) => {
   const [haImportSelected, setHaImportSelected] = useState<Record<string, boolean>>({});
   const [haImportResult, setHaImportResult] = useState<{ created: number; verified: number; failed: number } | null>(null);
   const [haImportSearch, setHaImportSearch] = useState("");
-  const [haImportUtilityFilter, setHaImportUtilityFilter] = useState<"all" | UtilityType>("all");
   const [haNetName, setHaNetName] = useState("P1 nettó villany");
   const [haNetImportEntity, setHaNetImportEntity] = useState("");
   const [haNetExportEntity, setHaNetExportEntity] = useState("");
@@ -407,8 +406,6 @@ const PropertyMeters = ({ propertyId }: Props) => {
   };
 
   const filteredHaImportEntities = haImportEntities.filter((entity) => {
-    const utilityOk = haImportUtilityFilter === "all" || entity.utility_type === haImportUtilityFilter;
-    if (!utilityOk) return false;
     const q = haImportSearch.trim().toLowerCase();
     if (!q) return true;
     const haystack = `${entity.entity_id} ${entity.friendly_name || ""} ${entity.unit || ""} ${entity.state || ""}`.toLowerCase();
@@ -431,14 +428,6 @@ const PropertyMeters = ({ propertyId }: Props) => {
     const next = { ...haImportSelected };
     for (const entity of filteredHaImportEntities) {
       next[entity.entity_id] = true;
-    }
-    setHaImportSelected(next);
-  };
-
-  const selectNumericHaImportEntities = () => {
-    const next = { ...haImportSelected };
-    for (const entity of filteredHaImportEntities) {
-      if (entity.numeric) next[entity.entity_id] = true;
     }
     setHaImportSelected(next);
   };
@@ -471,7 +460,6 @@ const PropertyMeters = ({ propertyId }: Props) => {
     const hasConnection = Boolean((setup?.ha_base_url || "").trim() && (setup?.ha_token || "").trim());
     setHaSetupOpen(!hasConnection);
     setHaImportSearch("");
-    setHaImportUtilityFilter("all");
     setHaNetName("P1 nettó villany");
     setHaNetImportEntity("");
     setHaNetExportEntity("");
@@ -1221,85 +1209,13 @@ multiplier = 1.0`}
               </Button>
             </div>
 
-            <div className="rounded-xl border p-3 space-y-2 bg-accent/20">
-              <p className="text-xs font-medium">{t("meters.haNetTitle")}</p>
-              <p className="text-[11px] text-muted-foreground">{t("meters.haNetDesc")}</p>
-              <p className="text-[11px] text-muted-foreground">{t("meters.haNetGuide")}</p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[11px] text-muted-foreground block mb-1">{t("meters.haNetImportLabel")}</label>
-                  <Select value={haNetImportEntity || undefined} onValueChange={setHaNetImportEntity}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("meters.haNetImportPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {haNetCandidates.map((entity) => (
-                        <SelectItem key={`net-import-${entity.entity_id}`} value={entity.entity_id}>
-                          {entity.entity_id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground block mb-1">{t("meters.haNetExportLabel")}</label>
-                  <Select value={haNetExportEntity || undefined} onValueChange={setHaNetExportEntity}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("meters.haNetExportPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {haNetCandidates.map((entity) => (
-                        <SelectItem key={`net-export-${entity.entity_id}`} value={entity.entity_id}>
-                          {entity.entity_id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Input
-                value={haNetName}
-                onChange={(e) => setHaNetName(e.target.value)}
-                placeholder={t("meters.haNetNamePlaceholder")}
-              />
-
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={autoPairHaNetEntities} disabled={!haNetCandidates.length}>
-                  {t("meters.haNetAutoPair")}
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={runHaNetImport} disabled={haNetImportSaving || !haNetCandidates.length}>
-                  {haNetImportSaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
-                  {t("meters.haNetImportRun")}
-                </Button>
-              </div>
-
-              {!haNetCandidates.length && (
-                <p className="text-[11px] text-muted-foreground">{t("meters.haNetNoCandidates")}</p>
-              )}
-            </div>
-
             {haImportEntities.length > 0 && (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_170px] gap-2">
-                  <Input
-                    value={haImportSearch}
-                    onChange={(e) => setHaImportSearch(e.target.value)}
-                    placeholder={t("meters.haImportSearchPlaceholder")}
-                  />
-                  <Select value={haImportUtilityFilter} onValueChange={(value) => setHaImportUtilityFilter(value as "all" | UtilityType)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{t("common.all")}</SelectItem>
-                      <SelectItem value="gaz">{t("common.gaz")}</SelectItem>
-                      <SelectItem value="viz">{t("common.viz")}</SelectItem>
-                      <SelectItem value="villany">{t("common.villany")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Input
+                  value={haImportSearch}
+                  onChange={(e) => setHaImportSearch(e.target.value)}
+                  placeholder={t("meters.haImportSearchPlaceholder")}
+                />
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-xs text-muted-foreground">
@@ -1312,9 +1228,6 @@ multiplier = 1.0`}
                     <Button type="button" variant="outline" size="sm" onClick={selectAllHaImportEntities}>
                       {t("meters.haSelectAll")}
                     </Button>
-                    <Button type="button" variant="outline" size="sm" onClick={selectNumericHaImportEntities}>
-                      {t("meters.haSelectNumeric")}
-                    </Button>
                     <Button type="button" variant="outline" size="sm" onClick={clearHaImportSelection}>
                       {t("meters.haDeselectAll")}
                     </Button>
@@ -1323,28 +1236,94 @@ multiplier = 1.0`}
               </>
             )}
 
-            <div className="rounded-xl border p-3 space-y-2 bg-accent/20">
-              <p className="text-xs font-medium">{t("meters.haBackfillTitle")}</p>
-              <p className="text-[11px] text-muted-foreground">{t("meters.haBackfillDesc")}</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  type="number"
-                  min={1}
-                  max={120}
-                  value={haBackfillMonths}
-                  onChange={(e) => setHaBackfillMonths(e.target.value)}
-                  className="w-28 h-8"
-                />
-                <Button type="button" variant="outline" size="sm" onClick={() => runHaMonthlyBackfill(false)} disabled={haBackfillRunning}>
-                  {haBackfillRunning ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
-                  {t("meters.haBackfillRun")}
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => runHaMonthlyBackfill(true)} disabled={haBackfillRunning}>
-                  {haBackfillRunning ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
-                  {t("meters.haBackfillRunAll")}
-                </Button>
-              </div>
-            </div>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="ha-advanced" className="rounded-xl border px-3">
+                <AccordionTrigger className="py-2 text-sm">{t("meters.haAdvancedTitle")}</AccordionTrigger>
+                <AccordionContent className="space-y-3 pb-3">
+                  <div className="rounded-xl border p-3 space-y-2 bg-accent/20">
+                    <p className="text-xs font-medium">{t("meters.haNetTitle")}</p>
+                    <p className="text-[11px] text-muted-foreground">{t("meters.haNetDesc")}</p>
+                    <p className="text-[11px] text-muted-foreground">{t("meters.haNetGuide")}</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] text-muted-foreground block mb-1">{t("meters.haNetImportLabel")}</label>
+                        <Select value={haNetImportEntity || undefined} onValueChange={setHaNetImportEntity}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("meters.haNetImportPlaceholder")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {haNetCandidates.map((entity) => (
+                              <SelectItem key={`net-import-${entity.entity_id}`} value={entity.entity_id}>
+                                {entity.entity_id}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-muted-foreground block mb-1">{t("meters.haNetExportLabel")}</label>
+                        <Select value={haNetExportEntity || undefined} onValueChange={setHaNetExportEntity}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("meters.haNetExportPlaceholder")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {haNetCandidates.map((entity) => (
+                              <SelectItem key={`net-export-${entity.entity_id}`} value={entity.entity_id}>
+                                {entity.entity_id}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <Input
+                      value={haNetName}
+                      onChange={(e) => setHaNetName(e.target.value)}
+                      placeholder={t("meters.haNetNamePlaceholder")}
+                    />
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={autoPairHaNetEntities} disabled={!haNetCandidates.length}>
+                        {t("meters.haNetAutoPair")}
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={runHaNetImport} disabled={haNetImportSaving || !haNetCandidates.length}>
+                        {haNetImportSaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                        {t("meters.haNetImportRun")}
+                      </Button>
+                    </div>
+
+                    {!haNetCandidates.length && (
+                      <p className="text-[11px] text-muted-foreground">{t("meters.haNetNoCandidates")}</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border p-3 space-y-2 bg-accent/20">
+                    <p className="text-xs font-medium">{t("meters.haBackfillTitle")}</p>
+                    <p className="text-[11px] text-muted-foreground">{t("meters.haBackfillDesc")}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={120}
+                        value={haBackfillMonths}
+                        onChange={(e) => setHaBackfillMonths(e.target.value)}
+                        className="w-28 h-8"
+                      />
+                      <Button type="button" variant="outline" size="sm" onClick={() => runHaMonthlyBackfill(false)} disabled={haBackfillRunning}>
+                        {haBackfillRunning ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                        {t("meters.haBackfillRun")}
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => runHaMonthlyBackfill(true)} disabled={haBackfillRunning}>
+                        {haBackfillRunning ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                        {t("meters.haBackfillRunAll")}
+                      </Button>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
 
             {haImportEntities.length > 0 && (
               <div className="rounded-xl border p-2 max-h-80 overflow-y-auto space-y-1">
