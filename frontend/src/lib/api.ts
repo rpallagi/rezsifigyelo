@@ -973,6 +973,23 @@ export const importHomeAssistantMeters = (
     body: JSON.stringify({ entities }),
   });
 
+export const backfillHomeAssistantMonthly = (
+  propId: number,
+  data?: { months_back?: number; until_data_start?: boolean; device_ids?: number[] }
+) =>
+  request<{
+    success: boolean;
+    months_back: number;
+    created: number;
+    skipped: number;
+    devices: Array<{ device_id: string; entity_id: string; utility_type: string; created: number; skipped: number }>;
+    skipped_devices: Array<{ device_id: string; reason: string }>;
+    errors: Array<{ device_id: string; entity_id: string; reading_date: string; error: string }>;
+  }>(`/admin/properties/${propId}/smart-meters/backfill-home-assistant`, {
+    method: 'POST',
+    body: JSON.stringify(data || {}),
+  });
+
 // ============ WiFi Networks ============
 
 export const getPropertyWifi = (propId: number) =>

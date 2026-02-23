@@ -8,7 +8,7 @@ import {
   getPropertyMeters, addMeter, editMeter, deleteMeter,
   getPropertySmartMeters, addSmartMeter, editSmartMeter, deleteSmartMeter,
   getSmartMeterLogs, getSmartMeterStatus, ocrMeterPhoto, adminSubmitReading,
-  getHomeAssistantEntities, importHomeAssistantMeters, getHomeAssistantSettings, saveHomeAssistantSettings, testHomeAssistantConnection,
+  getHomeAssistantEntities, importHomeAssistantMeters, backfillHomeAssistantMonthly, getHomeAssistantSettings, saveHomeAssistantSettings, testHomeAssistantConnection,
   type MeterInfoItem, type SmartMeterDeviceItem, type SmartMeterLogItem, type HomeAssistantEntityItem,
 } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -154,6 +154,8 @@ const PropertyMeters = ({ propertyId }: Props) => {
   const [haImportEntities, setHaImportEntities] = useState<HomeAssistantEntityItem[]>([]);
   const [haImportSelected, setHaImportSelected] = useState<Record<string, boolean>>({});
   const [haImportResult, setHaImportResult] = useState<{ created: number; verified: number; failed: number } | null>(null);
+  const [haBackfillMonths, setHaBackfillMonths] = useState("12");
+  const [haBackfillRunning, setHaBackfillRunning] = useState(false);
   const [haSetupOpen, setHaSetupOpen] = useState(false);
   const [haSetupUrl, setHaSetupUrl] = useState("");
   const [haSetupToken, setHaSetupToken] = useState("");
@@ -447,6 +449,30 @@ const PropertyMeters = ({ propertyId }: Props) => {
       toast.error(e.message || t("meters.haImportError"));
     } finally {
       setHaImportSaving(false);
+    }
+  };
+
+  const runHaMonthlyBackfill = async (untilDataStart = false) => {
+    const months = Math.max(1, Math.min(120, Number(haBackfillMonths) || 12));
+    setHaBackfillRunning(true);
+    try {
+      const res = await backfillHomeAssistantMonthly(propertyId, {
+        months_back: months,
+        until_data_start: untilDataStart,
+      });
+      await load();
+      toast.success(
+        t("meters.haBackfillSuccess")
+          .replace("{created}", String(res.created || 0))
+          .replace("{skipped}", String(res.skipped || 0)),
+      );
+      if ((res.errors || []).length) {
+        toast.warning(t("meters.haBackfillPartial").replace("{count}", String(res.errors.length)));
+      }
+    } catch (e: any) {
+      toast.error(e.message || t("meters.haBackfillError"));
+    } finally {
+      setHaBackfillRunning(false);
     }
   };
 
@@ -1062,6 +1088,29 @@ multiplier = 1.0`}
                 </div>
               </div>
             )}
+
+            <div className="rounded-xl border p-3 space-y-2 bg-accent/20">
+              <p className="text-xs font-medium">{t("meters.haBackfillTitle")}</p>
+              <p className="text-[11px] text-muted-foreground">{t("meters.haBackfillDesc")}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={haBackfillMonths}
+                  onChange={(e) => setHaBackfillMonths(e.target.value)}
+                  className="w-28 h-8"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={() => runHaMonthlyBackfill(false)} disabled={haBackfillRunning}>
+                  {haBackfillRunning ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                  {t("meters.haBackfillRun")}
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => runHaMonthlyBackfill(true)} disabled={haBackfillRunning}>
+                  {haBackfillRunning ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                  {t("meters.haBackfillRunAll")}
+                </Button>
+              </div>
+            </div>
 
             {haImportEntities.length > 0 && (
               <div className="rounded-xl border p-2 max-h-80 overflow-y-auto space-y-1">

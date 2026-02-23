@@ -23,7 +23,7 @@ from models import (
 import json
 import uuid
 from urllib import request as urlrequest, error as urlerror
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote, urlencode
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
 
@@ -332,6 +332,128 @@ def _ha_api_error_response(code, err, fallback_message):
 
 def _ha_auth_header(token):
     return {'Authorization': f'Bearer {token}'} if token else {}
+
+
+def _set_app_setting_nocommit(key, value):
+    row = AppSetting.query.get(key)
+    val = str(value or '').strip()
+    if row:
+        row.value = val
+    else:
+        db.session.add(AppSetting(key=key, value=val))
+
+
+def _ha_entity_setting_key(device_db_id):
+    return f'ha_entity_device_{int(device_db_id)}'
+
+
+def _set_ha_entity_for_device_nocommit(device_db_id, entity_id):
+    _set_app_setting_nocommit(_ha_entity_setting_key(device_db_id), entity_id)
+
+
+def _guess_ha_entity_from_device_id(device_id):
+    raw = str(device_id or '').strip().lower()
+    for utility in ('villany', 'viz', 'gaz'):
+        marker = f'-{utility}-'
+        idx = raw.find(marker)
+        if idx >= 0 and idx + len(marker) < len(raw):
+            suffix = raw[idx + len(marker):].strip('-')
+            if suffix:
+                return f'sensor.{suffix}'
+    return ''
+
+
+def _get_ha_entity_for_device(device):
+    mapped = AppSetting.get(_ha_entity_setting_key(device.id), '').strip().lower()
+    if mapped:
+        return mapped if mapped.startswith('sensor.') else f'sensor.{mapped}'
+    fallback = _guess_ha_entity_from_device_id(device.device_id)
+    return fallback
+
+
+def _month_start_utc(year, month):
+    return datetime(year, month, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+
+def _month_starts_back_from_now(months_back):
+    now = datetime.now(timezone.utc)
+    starts = []
+    for i in range(months_back):
+        year = now.year
+        month = now.month - i
+        while month <= 0:
+            month += 12
+            year -= 1
+        starts.append(_month_start_utc(year, month))
+    starts.reverse()
+    return starts
+
+
+def _get_tariff_for_reading_date(tariff_group_id, utility_type, reading_date):
+    if not tariff_group_id or not reading_date:
+        return None
+    return Tariff.query.filter_by(
+        tariff_group_id=tariff_group_id,
+        utility_type=utility_type,
+    ).filter(Tariff.valid_from <= reading_date).order_by(Tariff.valid_from.desc()).first()
+
+
+def _recompute_property_utility_readings(property_id, utility_type):
+    readings = MeterReading.query.filter_by(
+        property_id=property_id,
+        utility_type=utility_type,
+    ).order_by(MeterReading.reading_date.asc(), MeterReading.id.asc()).all()
+
+    prop = Property.query.get(property_id)
+    prev_value = None
+
+    for row in readings:
+        row.prev_value = prev_value
+
+        consumption = None
+        if prev_value is not None and row.value is not None and row.value >= prev_value:
+            consumption = round(float(row.value) - float(prev_value), 3)
+        row.consumption = consumption
+
+        tariff = _get_tariff_for_reading_date(
+            prop.tariff_group_id if prop else None,
+            utility_type,
+            row.reading_date,
+        )
+        row.tariff_id = tariff.id if tariff else None
+        row.cost_huf = round(consumption * tariff.rate_huf, 2) if (tariff and consumption is not None) else None
+
+        prev_value = row.value
+
+
+def _ha_history_state_for_month_start(base_url, token, entity_id, month_start_utc):
+    end_time = month_start_utc + timedelta(minutes=1)
+
+    query = urlencode({
+        'filter_entity_id': entity_id,
+        'end_time': end_time.isoformat().replace('+00:00', 'Z'),
+        'minimal_response': '1',
+        'no_attributes': '1',
+    })
+    start_encoded = quote(month_start_utc.isoformat().replace('+00:00', 'Z'), safe=':-TZ')
+    url = f"{base_url}/api/history/period/{start_encoded}?{query}"
+
+    code, payload, err = _http_json('GET', url, headers=_ha_auth_header(token))
+    if code != 200:
+        return None, err or f'HA history error ({code})'
+
+    states = payload[0] if isinstance(payload, list) and payload else []
+    if not isinstance(states, list):
+        return None, 'Invalid HA history payload'
+
+    for item in states:
+        if not isinstance(item, dict):
+            continue
+        numeric = _to_float(item.get('state'))
+        if numeric is not None:
+            return float(numeric), None
+
+    return None, None
 
 
 def _extract_ha_entities(states):
@@ -3591,6 +3713,8 @@ def import_home_assistant_smart_meters(prop_id):
         db.session.add(device)
         db.session.flush()
 
+        _set_ha_entity_for_device_nocommit(device.id, entity_id)
+
         created.append({
             'id': device.id,
             'device_id': device.device_id,
@@ -3641,6 +3765,138 @@ def import_home_assistant_smart_meters(prop_id):
         'created': created,
         'verify': verify,
     }), 201
+
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/smart-meters/backfill-home-assistant', methods=['POST'])
+@login_required
+def backfill_home_assistant_monthly(prop_id):
+    """Backfill monthly first-day readings from Home Assistant history for imported devices."""
+    prop = Property.query.get_or_404(prop_id)
+    data = request.get_json() or {}
+
+    months_back = int(data.get('months_back') or 12)
+    months_back = max(1, min(months_back, 120))
+    until_data_start = bool(data.get('until_data_start', False))
+    if until_data_start:
+        months_back = 60
+
+    requested_ids = data.get('device_ids') or []
+    requested_ids_set = set()
+    if isinstance(requested_ids, list):
+        for item in requested_ids:
+            try:
+                requested_ids_set.add(int(item))
+            except (TypeError, ValueError):
+                continue
+
+    base_url, token, settings_err, status_code = _validated_ha_connection_settings(
+        property_id=prop_id,
+        fallback_global=True,
+    )
+    if settings_err:
+        return jsonify({'error': settings_err}), status_code
+
+    query = SmartMeterDevice.query.filter_by(property_id=prop_id)
+    devices = query.order_by(SmartMeterDevice.id.asc()).all()
+    if requested_ids_set:
+        devices = [d for d in devices if d.id in requested_ids_set]
+
+    targets = []
+    skipped_devices = []
+    for d in devices:
+        entity_id = _get_ha_entity_for_device(d)
+        if not entity_id:
+            skipped_devices.append({'device_id': d.device_id, 'reason': 'no_entity_mapping'})
+            continue
+        targets.append((d, entity_id))
+
+    if not targets:
+        return jsonify({
+            'success': False,
+            'error': 'Nincs importált Home Assistant mérő entity mappinggel.',
+            'skipped_devices': skipped_devices,
+        }), 400
+
+    month_starts = _month_starts_back_from_now(months_back)
+
+    created_total = 0
+    skipped_total = 0
+    errors = []
+    per_device = []
+    touched_utils = set()
+
+    for device, entity_id in targets:
+        device_created = 0
+        device_skipped = 0
+
+        for month_start in month_starts:
+            reading_date = month_start.date()
+
+            existing = MeterReading.query.filter_by(
+                property_id=prop_id,
+                utility_type=device.utility_type,
+                reading_date=reading_date,
+            ).order_by(MeterReading.id.asc()).first()
+            if existing:
+                device_skipped += 1
+                skipped_total += 1
+                continue
+
+            value, err = _ha_history_state_for_month_start(base_url, token, entity_id, month_start)
+            if err:
+                errors.append({
+                    'device_id': device.device_id,
+                    'entity_id': entity_id,
+                    'reading_date': reading_date.isoformat(),
+                    'error': err,
+                })
+                continue
+
+            if value is None:
+                device_skipped += 1
+                skipped_total += 1
+                continue
+
+            row = MeterReading(
+                property_id=prop_id,
+                utility_type=device.utility_type,
+                value=value,
+                prev_value=None,
+                consumption=None,
+                tariff_id=None,
+                cost_huf=None,
+                reading_date=reading_date,
+                notes=f'HA havi history import ({entity_id})',
+                source='smart_ha_history',
+            )
+            db.session.add(row)
+            device_created += 1
+            created_total += 1
+            touched_utils.add(device.utility_type)
+
+        per_device.append({
+            'device_id': device.device_id,
+            'entity_id': entity_id,
+            'utility_type': device.utility_type,
+            'created': device_created,
+            'skipped': device_skipped,
+        })
+
+    for utility_type in touched_utils:
+        _recompute_property_utility_readings(prop_id, utility_type)
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'months_back': months_back,
+        'created': created_total,
+        'skipped': skipped_total,
+        'devices': per_device,
+        'skipped_devices': skipped_devices,
+        'errors': errors,
+    })
 
 
 @api_bp.route('/admin/smart-meters/<int:device_db_id>', methods=['PUT'])
