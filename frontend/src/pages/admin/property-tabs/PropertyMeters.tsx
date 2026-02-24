@@ -8,8 +8,8 @@ import {
   getPropertyMeters, addMeter, editMeter, deleteMeter,
   getPropertySmartMeters, addSmartMeter, editSmartMeter, deleteSmartMeter,
   getSmartMeterLogs, getSmartMeterStatus, ocrMeterPhoto, adminSubmitReading,
-  getHomeAssistantEntities, importHomeAssistantMeters, importHomeAssistantNetMeter, backfillHomeAssistantMonthly, getHomeAssistantSettings, saveHomeAssistantSettings, testHomeAssistantConnection, getTailscaleDevices,
-  type MeterInfoItem, type SmartMeterDeviceItem, type SmartMeterLogItem, type HomeAssistantEntityItem, type TailscaleDeviceItem,
+  getHomeAssistantEntities, importHomeAssistantMeters, importHomeAssistantNetMeter, backfillHomeAssistantMonthly, getHomeAssistantSettings, saveHomeAssistantSettings, testHomeAssistantConnection, getTailscaleDevices, getAdminProperties, copyHomeAssistantProfile,
+  type MeterInfoItem, type SmartMeterDeviceItem, type SmartMeterLogItem, type HomeAssistantEntityItem, type TailscaleDeviceItem, type AdminProperty,
 } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
@@ -176,6 +176,10 @@ const PropertyMeters = ({ propertyId }: Props) => {
   const [haSetupTailscaleLoading, setHaSetupTailscaleLoading] = useState(false);
   const [haSetupTailscaleDevices, setHaSetupTailscaleDevices] = useState<TailscaleDeviceItem[]>([]);
   const [haSetupTailscaleResult, setHaSetupTailscaleResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [haCopyTargets, setHaCopyTargets] = useState<AdminProperty[]>([]);
+  const [haCopyTargetId, setHaCopyTargetId] = useState("");
+  const [haCopyLoading, setHaCopyLoading] = useState(false);
+  const [haCopySaving, setHaCopySaving] = useState(false);
 
   // Edit physical meter
   const [editPhysicalOpen, setEditPhysicalOpen] = useState(false);
@@ -414,11 +418,7 @@ const PropertyMeters = ({ propertyId }: Props) => {
       const res = await getHomeAssistantEntities(propertyId);
       const entities = (res.entities || []).filter((e) => e.entity_id.startsWith("sensor."));
       setHaImportEntities(entities);
-      const nextSelected: Record<string, boolean> = {};
-      for (const entity of entities) {
-        if (entity.numeric) nextSelected[entity.entity_id] = true;
-      }
-      setHaImportSelected(nextSelected);
+      setHaImportSelected({});
 
       const netCandidates = entities.filter((e) =>
         e.numeric &&
@@ -465,36 +465,49 @@ const PropertyMeters = ({ propertyId }: Props) => {
     if (autoExport) setHaNetExportEntity(autoExport.entity_id);
   };
 
-  const selectAllHaImportEntities = () => {
-    const next = { ...haImportSelected };
-    for (const entity of filteredHaImportEntities) {
-      next[entity.entity_id] = true;
-    }
-    setHaImportSelected(next);
-  };
-
-  const clearHaImportSelection = () => {
-    if (!filteredHaImportEntities.length) {
-      setHaImportSelected({});
-      return;
-    }
-    const removeIds = new Set(filteredHaImportEntities.map((entity) => entity.entity_id));
-    const next: Record<string, boolean> = {};
-    for (const [entityId, checked] of Object.entries(haImportSelected)) {
-      if (checked && !removeIds.has(entityId)) next[entityId] = true;
-    }
-    setHaImportSelected(next);
-  };
 
   const selectedHaImportCount = haImportEntities.reduce(
     (sum, entity) => sum + (haImportSelected[entity.entity_id] ? 1 : 0),
     0,
   );
 
-  const selectedFilteredHaImportCount = filteredHaImportEntities.reduce(
-    (sum, entity) => sum + (haImportSelected[entity.entity_id] ? 1 : 0),
-    0,
-  );
+  const loadHaCopyTargets = async () => {
+    setHaCopyLoading(true);
+    try {
+      const res = await getAdminProperties();
+      const targets = (res.properties || []).filter((p) => p.id !== propertyId && p.property_type !== "epulet");
+      setHaCopyTargets(targets);
+      if (targets.length) {
+        setHaCopyTargetId((prev) => (prev && targets.some((p) => String(p.id) === prev) ? prev : String(targets[0].id)));
+      } else {
+        setHaCopyTargetId("");
+      }
+    } catch {
+      setHaCopyTargets([]);
+      setHaCopyTargetId("");
+    } finally {
+      setHaCopyLoading(false);
+    }
+  };
+
+  const runHaProfileCopy = async () => {
+    const targetId = Number(haCopyTargetId || 0);
+    if (!targetId) {
+      toast.warning(t("meters.haCopyProfileNoTargets"));
+      return;
+    }
+
+    setHaCopySaving(true);
+    try {
+      await copyHomeAssistantProfile(propertyId, targetId);
+      const target = haCopyTargets.find((p) => p.id === targetId);
+      toast.success(t("meters.haCopyProfileSuccess").replace("{name}", target?.name || String(targetId)));
+    } catch (e: any) {
+      toast.error(e.message || t("meters.haCopyProfileError"));
+    } finally {
+      setHaCopySaving(false);
+    }
+  };
 
   const openHaImportDialog = async () => {
     const setup = await loadHaSetupFromSettings();
@@ -508,7 +521,7 @@ const PropertyMeters = ({ propertyId }: Props) => {
     setHaNetImportEntity("");
     setHaNetExportEntity("");
     setHaImportOpen(true);
-    await loadHaImportEntities();
+    await Promise.all([loadHaImportEntities(), loadHaCopyTargets()]);
   };
 
   const runHaImport = async () => {
@@ -1160,7 +1173,7 @@ multiplier = 1.0`}
 
       {/* Home Assistant bulk import dialog */}
       <Dialog open={haImportOpen} onOpenChange={setHaImportOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="font-display">{t("meters.haImportTitle")}</DialogTitle>
             <DialogDescription>{t("meters.haImportDesc")}</DialogDescription>
@@ -1264,7 +1277,7 @@ multiplier = 1.0`}
                               {d.online ? t("settings.haOnline") : t("settings.haOffline")}
                             </span>
                           </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{d.ip || "-"}{d.ha_url ? ` · ${d.ha_url}` : ""}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 break-all">{d.ip || "-"}{d.ha_url ? ` · ${d.ha_url}` : ""}</p>
                           {d.last_seen && (
                             <p className="text-[10px] text-muted-foreground mt-0.5">{t("settings.haLastSeen")}: {formatLastSeen(d.last_seen)}</p>
                           )}
@@ -1312,6 +1325,37 @@ multiplier = 1.0`}
               </div>
             )}
 
+            <div className="rounded-xl border p-3 space-y-2 bg-accent/20">
+              <p className="text-xs font-medium">{t("meters.haCopyProfileTitle")}</p>
+              <p className="text-[11px] text-muted-foreground">{t("meters.haCopyProfileDesc")}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                <Select value={haCopyTargetId || undefined} onValueChange={setHaCopyTargetId}>
+                  <SelectTrigger disabled={haCopyLoading || !haCopyTargets.length}>
+                    <SelectValue placeholder={t("meters.haCopyProfileTarget")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {haCopyTargets.map((p) => (
+                      <SelectItem key={`ha-copy-${p.id}`} value={String(p.id)}>
+                        {p.name}{p.address ? ` · ${p.address}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={runHaProfileCopy}
+                  disabled={haCopySaving || haCopyLoading || !haCopyTargetId}
+                >
+                  {haCopySaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                  {t("meters.haCopyProfileRun")}
+                </Button>
+              </div>
+              {!haCopyLoading && !haCopyTargets.length && (
+                <p className="text-[11px] text-muted-foreground">{t("meters.haCopyProfileNoTargets")}</p>
+              )}
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-muted-foreground">
                 {t("meters.haImportFound").replace("{count}", String(haImportEntities.length))}
@@ -1330,22 +1374,9 @@ multiplier = 1.0`}
                   placeholder={t("meters.haImportSearchPlaceholder")}
                 />
 
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-xs text-muted-foreground">
-                    {t("meters.haImportSelected")
-                      .replace("{selected}", String(selectedFilteredHaImportCount))
-                      .replace("{count}", String(filteredHaImportEntities.length))}
-                    <span className="ml-2">{t("meters.haImportSelectedTotal").replace("{count}", String(selectedHaImportCount))}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Button type="button" variant="outline" size="sm" onClick={selectAllHaImportEntities}>
-                      {t("meters.haSelectAll")}
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" onClick={clearHaImportSelection}>
-                      {t("meters.haDeselectAll")}
-                    </Button>
-                  </div>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t("meters.haImportSelectedTotal").replace("{count}", String(selectedHaImportCount))}
+                </p>
               </>
             )}
 
@@ -1439,9 +1470,9 @@ multiplier = 1.0`}
             </Accordion>
 
             {haImportEntities.length > 0 && (
-              <div className="rounded-xl border p-2 max-h-80 overflow-y-auto space-y-1">
+              <div className="rounded-xl border p-2 max-h-80 overflow-y-auto overflow-x-hidden space-y-1">
                 {filteredHaImportEntities.map((entity) => (
-                  <label key={entity.entity_id} className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-accent/40">
+                  <label key={entity.entity_id} className="flex min-w-0 items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-accent/40">
                     <input
                       type="checkbox"
                       className="mt-0.5"
@@ -1449,8 +1480,8 @@ multiplier = 1.0`}
                       onChange={(e) => setHaImportSelected((prev) => ({ ...prev, [entity.entity_id]: e.target.checked }))}
                     />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{entity.friendly_name || entity.entity_id}</p>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-sm font-medium break-words">{entity.friendly_name || entity.entity_id}</p>
+                      <p className="text-xs text-muted-foreground break-all">
                         {entity.entity_id} · {utilityLabel(entity.utility_type)} · {entity.state}{entity.unit ? ` ${entity.unit}` : ""}
                       </p>
                     </div>

@@ -3229,6 +3229,45 @@ def admin_save_home_assistant_settings():
     return jsonify({'success': True})
 
 
+@api_bp.route('/admin/settings/home-assistant/copy-profile', methods=['POST'])
+@login_required
+def admin_copy_home_assistant_profile():
+    """Copy a property-level Home Assistant profile to another property."""
+    data = request.get_json() or {}
+    source_property_id = _parse_property_id(data.get('source_property_id'))
+    target_property_id = _parse_property_id(data.get('target_property_id'))
+
+    if source_property_id is None or target_property_id is None:
+        return jsonify({'error': 'source_property_id és target_property_id kötelező.'}), 400
+    if source_property_id == target_property_id:
+        return jsonify({'error': 'A forrás és cél ingatlan nem lehet azonos.'}), 400
+
+    Property.query.get_or_404(source_property_id)
+    Property.query.get_or_404(target_property_id)
+
+    source_settings = _get_ha_settings(property_id=source_property_id, fallback_global=True)
+    keys = (
+        'ha_name',
+        'ha_location',
+        'ha_local_username',
+        'ha_local_password',
+        'ha_base_url',
+        'ha_token',
+        'tailscale_api_token',
+        'tailscale_tailnet',
+    )
+
+    for key in keys:
+        _set_ha_setting_value(key, source_settings.get(key, ''), target_property_id)
+
+    return jsonify({
+        'success': True,
+        'source_property_id': source_property_id,
+        'target_property_id': target_property_id,
+        'copied_keys': len(keys),
+    })
+
+
 @api_bp.route('/admin/settings/home-assistant/test', methods=['POST'])
 @login_required
 def admin_test_home_assistant_connection():
@@ -3934,37 +3973,6 @@ def import_home_assistant_smart_meters(prop_id):
 
     # Ensure property exists
     Property.query.get_or_404(prop_id)
-
-    existing_pair = _find_existing_ha_device_for_net_pair(prop_id, import_entity_id, export_entity_id)
-    if existing_pair:
-        mapping = _get_ha_entity_mapping_for_device(existing_pair)
-        return jsonify({
-            'success': True,
-            'existing': True,
-            'created': {
-                'id': existing_pair.id,
-                'device_id': existing_pair.device_id,
-                'name': existing_pair.name,
-                'utility_type': existing_pair.utility_type,
-                'mode': 'p1_net',
-                'import_entity_id': mapping.get('import_entity_id', import_entity_id),
-                'export_entity_id': mapping.get('export_entity_id', export_entity_id),
-            },
-            'verify': {
-                'ok': True,
-                'reason': 'already_imported',
-                'reading_id': None,
-                'net_state': None,
-            },
-        }), 200
-
-    import_conflict = _find_existing_ha_device_for_entity(prop_id, import_entity_id)
-    if import_conflict:
-        return jsonify({'error': f'Az import entitás már hozzá van rendelve: {import_conflict.device_id}'}), 409
-
-    export_conflict = _find_existing_ha_device_for_entity(prop_id, export_entity_id)
-    if export_conflict:
-        return jsonify({'error': f'Az export entitás már hozzá van rendelve: {export_conflict.device_id}'}), 409
 
     base_url, token, settings_err, status_code = _validated_ha_connection_settings(property_id=prop_id, fallback_global=True)
     if settings_err:

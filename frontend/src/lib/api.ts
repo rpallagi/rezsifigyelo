@@ -971,6 +971,15 @@ export const getHomeAssistantEntities = (propertyId?: number) =>
 export const getTailscaleDevices = (propertyId?: number) =>
   request<{ devices: TailscaleDeviceItem[]; count: number }>(`/admin/settings/home-assistant/tailscale/devices${homeAssistantScopeQuery(propertyId)}`);
 
+export const copyHomeAssistantProfile = (sourcePropertyId: number, targetPropertyId: number) =>
+  request<{ success: boolean; source_property_id: number; target_property_id: number; copied_keys: number }>(
+    '/admin/settings/home-assistant/copy-profile',
+    {
+      method: 'POST',
+      body: JSON.stringify({ source_property_id: sourcePropertyId, target_property_id: targetPropertyId }),
+    },
+  );
+
 export const importHomeAssistantMeters = (
   propId: number,
   entities: Array<{ entity_id: string; utility_type?: 'villany' | 'viz' | 'gaz'; name?: string }>
