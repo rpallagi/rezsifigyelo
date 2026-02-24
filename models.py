@@ -93,7 +93,6 @@ class Tariff(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     tariff_group_id = db.Column(db.Integer, db.ForeignKey('tariff_groups.id'), nullable=False)
-    building_property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=True)  # lakás -> épület
     utility_type = db.Column(db.String(20), nullable=False)  # 'villany', 'viz', 'csatorna'
     rate_huf = db.Column(db.Float, nullable=False)  # Ft / egység
     unit = db.Column(db.String(10), nullable=False)  # 'kWh', 'm3'
@@ -117,6 +116,7 @@ class Property(db.Model):
     property_type = db.Column(db.String(20), nullable=False, default='lakas')  # lakas/uzlet/egyeb
     pin_hash = db.Column(db.String(255), nullable=True)  # legacy PIN auth (optional)
     tariff_group_id = db.Column(db.Integer, db.ForeignKey('tariff_groups.id'), nullable=False)
+    building_property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=True)  # lakás -> épület
 
     # Kapcsolattartó
     contact_name = db.Column(db.String(100), nullable=True)
