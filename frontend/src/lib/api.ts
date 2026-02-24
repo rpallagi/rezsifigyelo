@@ -966,8 +966,8 @@ export const testHomeAssistantConnection = (propertyId?: number) =>
 export const getHomeAssistantEntities = (propertyId?: number) =>
   request<{ entities: HomeAssistantEntityItem[]; count: number }>(`/admin/settings/home-assistant/entities${homeAssistantScopeQuery(propertyId)}`);
 
-export const getTailscaleDevices = () =>
-  request<{ devices: TailscaleDeviceItem[]; count: number }>('/admin/settings/home-assistant/tailscale/devices');
+export const getTailscaleDevices = (propertyId?: number) =>
+  request<{ devices: TailscaleDeviceItem[]; count: number }>(`/admin/settings/home-assistant/tailscale/devices${homeAssistantScopeQuery(propertyId)}`);
 
 export const importHomeAssistantMeters = (
   propId: number,

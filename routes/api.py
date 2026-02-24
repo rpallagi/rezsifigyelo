@@ -243,9 +243,8 @@ def _get_ha_settings(property_id=None, fallback_global=False):
         'ha_local_password': _get_ha_setting_value('ha_local_password', property_id, fallback_global),
         'ha_base_url': _get_ha_setting_value('ha_base_url', property_id, fallback_global).rstrip('/'),
         'ha_token': _get_ha_setting_value('ha_token', property_id, fallback_global),
-        # Tailscale remains global app-level configuration
-        'tailscale_api_token': AppSetting.get('tailscale_api_token', '').strip(),
-        'tailscale_tailnet': AppSetting.get('tailscale_tailnet', '').strip(),
+        'tailscale_api_token': _get_ha_setting_value('tailscale_api_token', property_id, fallback_global),
+        'tailscale_tailnet': _get_ha_setting_value('tailscale_tailnet', property_id, fallback_global),
         'scope': 'property' if property_id is not None else 'global',
         'property_id': property_id,
     }
@@ -541,6 +540,121 @@ def _ha_history_state_for_month_start(base_url, token, entity_id, month_start_ut
             return float(numeric), None
 
     return None, None
+
+
+def _ha_statistics_rows(base_url, token, entity_id, start_utc, end_utc):
+    """Read statistics rows from HA REST API.
+
+    Handles both endpoint variants seen across HA versions:
+    - /api/history/statistics_during_period
+    - /api/statistics_during_period
+    """
+    start_iso = start_utc.isoformat().replace('+00:00', 'Z')
+    end_iso = end_utc.isoformat().replace('+00:00', 'Z')
+    params = urlencode({
+        'start_time': start_iso,
+        'end_time': end_iso,
+        'statistic_ids': entity_id,
+        'period': 'hour',
+    })
+
+    urls = [
+        f'{base_url}/api/history/statistics_during_period?{params}',
+        f'{base_url}/api/statistics_during_period?{params}',
+    ]
+
+    last_error = None
+    for url in urls:
+        code, payload, err = _http_json('GET', url, headers=_ha_auth_header(token))
+        if code == 404:
+            last_error = err or 'Statistics endpoint not available'
+            continue
+        if code != 200:
+            return None, err or f'HA statistics error ({code})'
+
+        rows = []
+        if isinstance(payload, dict):
+            rows = payload.get(entity_id) or payload.get(entity_id.lower()) or []
+        elif isinstance(payload, list):
+            rows = payload
+
+        if not isinstance(rows, list):
+            return None, 'Invalid HA statistics payload'
+
+        return rows, None
+
+    if last_error:
+        return None, last_error
+    return None, 'Statistics endpoint not available'
+
+
+def _ha_statistics_state_for_month_start(base_url, token, entity_id, month_start_utc):
+    """Resolve month-start value from HA long-term statistics."""
+    rows, err = _ha_statistics_rows(
+        base_url,
+        token,
+        entity_id,
+        month_start_utc,
+        month_start_utc + timedelta(days=2),
+    )
+    if err:
+        return None, err
+
+    if not rows:
+        return None, None
+
+    def _row_time(item):
+        if not isinstance(item, dict):
+            return None
+        raw = item.get('start') or item.get('start_time') or item.get('created')
+        if not raw:
+            return None
+        try:
+            dt = datetime.fromisoformat(str(raw).replace('Z', '+00:00'))
+        except ValueError:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+
+    points = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        dt = _row_time(row)
+        if dt is None:
+            continue
+        val = None
+        for key in ('state', 'sum', 'mean', 'max', 'min'):
+            val = _to_float(row.get(key))
+            if val is not None:
+                break
+        if val is None:
+            continue
+        points.append((dt, float(val)))
+
+    if not points:
+        return None, None
+
+    points.sort(key=lambda x: x[0])
+    return points[0][1], None
+
+
+def _ha_month_start_value(base_url, token, entity_id, month_start_utc):
+    """Try statistics first, then fallback to history when needed."""
+    value, stat_err = _ha_statistics_state_for_month_start(base_url, token, entity_id, month_start_utc)
+    if value is not None:
+        return value, None, 'statistics'
+
+    hist_value, hist_err = _ha_history_state_for_month_start(base_url, token, entity_id, month_start_utc)
+    if hist_value is not None:
+        return hist_value, None, 'history'
+
+    if stat_err and hist_err:
+        return None, f'{stat_err}; {hist_err}', 'none'
+    if stat_err:
+        return None, stat_err, 'none'
+    return None, hist_err, 'none'
 
 
 def _extract_ha_entities(states):
@@ -3047,11 +3161,10 @@ def admin_save_home_assistant_settings():
             return jsonify({'error': token_err}), 400
         _set_ha_setting_value('ha_token', ha_token, setting_scope_id)
 
-    # Tailscale config remains global.
     if 'tailscale_api_token' in data:
-        AppSetting.set('tailscale_api_token', str(data.get('tailscale_api_token') or '').strip())
+        _set_ha_setting_value('tailscale_api_token', data.get('tailscale_api_token'), setting_scope_id)
     if 'tailscale_tailnet' in data:
-        AppSetting.set('tailscale_tailnet', str(data.get('tailscale_tailnet') or '').strip())
+        _set_ha_setting_value('tailscale_tailnet', data.get('tailscale_tailnet'), setting_scope_id)
 
     return jsonify({'success': True})
 
@@ -3121,7 +3234,15 @@ def admin_get_home_assistant_entities():
 @login_required
 def admin_get_tailscale_devices():
     """Discover online devices via Tailscale API and suggest HA URLs."""
-    settings = _get_ha_settings()
+    prop_id_raw = request.args.get('property_id')
+    property_id = _parse_property_id(prop_id_raw)
+    if prop_id_raw not in (None, '') and property_id is None:
+        return jsonify({'error': 'Érvénytelen property_id.'}), 400
+
+    if property_id is not None:
+        Property.query.get_or_404(property_id)
+
+    settings = _get_ha_settings(property_id=property_id, fallback_global=True)
     api_token = settings['tailscale_api_token']
     tailnet = settings['tailscale_tailnet']
 
@@ -4026,7 +4147,7 @@ def import_home_assistant_net_smart_meter(prop_id):
 @api_bp.route('/admin/properties/<int:prop_id>/smart-meters/backfill-home-assistant', methods=['POST'])
 @login_required
 def backfill_home_assistant_monthly(prop_id):
-    """Backfill monthly first-day readings from Home Assistant history for imported devices."""
+    """Backfill monthly first-day readings from Home Assistant statistics (with history fallback) for imported devices."""
     prop = Property.query.get_or_404(prop_id)
     data = request.get_json() or {}
 
@@ -4115,7 +4236,7 @@ def backfill_home_assistant_monthly(prop_id):
                 import_entity = mapping.get('import_entity_id')
                 export_entity = mapping.get('export_entity_id')
 
-                import_value, import_err = _ha_history_state_for_month_start(base_url, token, import_entity, month_start)
+                import_value, import_err, import_source = _ha_month_start_value(base_url, token, import_entity, month_start)
                 if import_err:
                     errors.append({
                         'device_id': device.device_id,
@@ -4125,7 +4246,7 @@ def backfill_home_assistant_monthly(prop_id):
                     })
                     continue
 
-                export_value, export_err = _ha_history_state_for_month_start(base_url, token, export_entity, month_start)
+                export_value, export_err, export_source = _ha_month_start_value(base_url, token, export_entity, month_start)
                 if export_err:
                     errors.append({
                         'device_id': device.device_id,
@@ -4143,7 +4264,7 @@ def backfill_home_assistant_monthly(prop_id):
                 value = float(import_value) - float(export_value)
             else:
                 entity_id = mapping.get('entity_id')
-                value, err = _ha_history_state_for_month_start(base_url, token, entity_id, month_start)
+                value, err, value_source = _ha_month_start_value(base_url, token, entity_id, month_start)
                 if err:
                     errors.append({
                         'device_id': device.device_id,
@@ -4158,6 +4279,12 @@ def backfill_home_assistant_monthly(prop_id):
                     skipped_total += 1
                     continue
 
+            if mapping_kind == 'p1_net':
+                if import_value is not None and export_value is not None and import_source == 'statistics' and export_source == 'statistics':
+                    value_source = 'statistics'
+                else:
+                    value_source = 'history'
+
             row = MeterReading(
                 property_id=prop_id,
                 utility_type=device.utility_type,
@@ -4167,8 +4294,8 @@ def backfill_home_assistant_monthly(prop_id):
                 tariff_id=None,
                 cost_huf=None,
                 reading_date=reading_date,
-                notes=f'HA havi history import ({label_entity})',
-                source='smart_ha_history',
+                notes=f'HA havi {value_source} import ({label_entity})',
+                source='smart_ha_statistics' if value_source == 'statistics' else 'smart_ha_history',
             )
             db.session.add(row)
             device_created += 1

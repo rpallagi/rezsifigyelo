@@ -713,6 +713,7 @@ const hu: Record<string, string> = {
   'settings.haOnline': 'online',
   'settings.haOffline': 'offline',
   'settings.haDiscoveredHint': 'Kattints egy elemre, és az URL mező automatikusan kitöltődik.',
+  'settings.haMovedToProperty': 'A Home Assistant + Tailscale kapcsolatot mostantól az adott ingatlan Mérők fülén állítod be, így külön profil menthető lakásonként/épületenként.',
   'settings.haLastSeen': 'Utoljára elérve',
 
   // --- Auto-login ---
@@ -954,7 +955,7 @@ const hu: Record<string, string> = {
   'meters.haSelectNumeric': 'Csak numerikus',
   'meters.haDeselectAll': 'Kijelölés törlése',
   'meters.haBackfillTitle': 'Havi előzmények visszatöltése (Home Assistant)',
-  'meters.haBackfillDesc': 'Az importált entitásokból beolvassa a hónap első napi állásokat.',
+  'meters.haBackfillDesc': 'Az importált entitásokból Statistics alapon beolvassa a hónap első napi állásokat (history fallbackkel).',
   'meters.haBackfillRun': 'Visszatöltés (hó)',
   'meters.haBackfillRunAll': 'Visszatöltés (ameddig van adat)',
   'meters.haBackfillSuccess': 'Visszatöltés kész. Új sorok: {created}, kihagyva: {skipped}.',
@@ -1680,6 +1681,7 @@ const en: Record<string, string> = {
   'settings.haOnline': 'online',
   'settings.haOffline': 'offline',
   'settings.haDiscoveredHint': 'Click an item to auto-fill the URL field.',
+  'settings.haMovedToProperty': 'Home Assistant + Tailscale connection is now configured in each property\'s Meters tab, so profiles can be saved per apartment/building.',
   'settings.haLastSeen': 'Last seen',
 
   // --- Auto-login ---
@@ -1921,7 +1923,7 @@ const en: Record<string, string> = {
   'meters.haSelectNumeric': 'Only numeric',
   'meters.haDeselectAll': 'Clear selection',
   'meters.haBackfillTitle': 'Monthly history backfill (Home Assistant)',
-  'meters.haBackfillDesc': 'Loads first-day monthly values from imported entities.',
+  'meters.haBackfillDesc': 'Loads first-day monthly values from imported entities using Statistics first (with history fallback).',
   'meters.haBackfillRun': 'Backfill (months)',
   'meters.haBackfillRunAll': 'Backfill (until data starts)',
   'meters.haBackfillSuccess': 'Backfill completed. New rows: {created}, skipped: {skipped}.',

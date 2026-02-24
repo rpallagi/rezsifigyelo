@@ -2,14 +2,14 @@ import { useEffect, useState, useRef } from "react";
 import {
   Gauge, Plus, Pencil, Trash2, Activity, Wifi, AlertTriangle, Globe,
   BookOpen, Zap, Droplets, Flame, ClipboardList, Radio, Camera, Upload,
-  Check, ChevronRight, ArrowLeft, Loader2, X, Copy,
+  Check, ChevronRight, ArrowLeft, Loader2, X, Copy, Network,
 } from "lucide-react";
 import {
   getPropertyMeters, addMeter, editMeter, deleteMeter,
   getPropertySmartMeters, addSmartMeter, editSmartMeter, deleteSmartMeter,
   getSmartMeterLogs, getSmartMeterStatus, ocrMeterPhoto, adminSubmitReading,
-  getHomeAssistantEntities, importHomeAssistantMeters, importHomeAssistantNetMeter, backfillHomeAssistantMonthly, getHomeAssistantSettings, saveHomeAssistantSettings, testHomeAssistantConnection,
-  type MeterInfoItem, type SmartMeterDeviceItem, type SmartMeterLogItem, type HomeAssistantEntityItem,
+  getHomeAssistantEntities, importHomeAssistantMeters, importHomeAssistantNetMeter, backfillHomeAssistantMonthly, getHomeAssistantSettings, saveHomeAssistantSettings, testHomeAssistantConnection, getTailscaleDevices,
+  type MeterInfoItem, type SmartMeterDeviceItem, type SmartMeterLogItem, type HomeAssistantEntityItem, type TailscaleDeviceItem,
 } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
@@ -171,6 +171,11 @@ const PropertyMeters = ({ propertyId }: Props) => {
   const [haSetupSaving, setHaSetupSaving] = useState(false);
   const [haSetupTesting, setHaSetupTesting] = useState(false);
   const [haSetupStatus, setHaSetupStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [haSetupTailscaleToken, setHaSetupTailscaleToken] = useState("");
+  const [haSetupTailscaleTailnet, setHaSetupTailscaleTailnet] = useState("");
+  const [haSetupTailscaleLoading, setHaSetupTailscaleLoading] = useState(false);
+  const [haSetupTailscaleDevices, setHaSetupTailscaleDevices] = useState<TailscaleDeviceItem[]>([]);
+  const [haSetupTailscaleResult, setHaSetupTailscaleResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // Edit physical meter
   const [editPhysicalOpen, setEditPhysicalOpen] = useState(false);
@@ -312,6 +317,8 @@ const PropertyMeters = ({ propertyId }: Props) => {
       setHaSetupLocation((s.ha_location || "").trim());
       setHaSetupLocalUser((s.ha_local_username || "").trim());
       setHaSetupLocalPassword((s.ha_local_password || "").trim());
+      setHaSetupTailscaleToken((s.tailscale_api_token || "").trim());
+      setHaSetupTailscaleTailnet((s.tailscale_tailnet || "").trim());
       return s;
     } catch {
       // keep current values
@@ -330,6 +337,8 @@ const PropertyMeters = ({ propertyId }: Props) => {
         ha_local_password: haSetupLocalPassword.trim(),
         ha_base_url: haSetupUrl.trim(),
         ha_token: haSetupToken.trim(),
+        tailscale_api_token: haSetupTailscaleToken.trim(),
+        tailscale_tailnet: haSetupTailscaleTailnet.trim(),
       }, propertyId);
       setHaSetupStatus({ ok: true, msg: t("meters.haSetupSaved") });
     } catch (e: any) {
@@ -350,6 +359,8 @@ const PropertyMeters = ({ propertyId }: Props) => {
         ha_local_password: haSetupLocalPassword.trim(),
         ha_base_url: haSetupUrl.trim(),
         ha_token: haSetupToken.trim(),
+        tailscale_api_token: haSetupTailscaleToken.trim(),
+        tailscale_tailnet: haSetupTailscaleTailnet.trim(),
       }, propertyId);
       const res = await testHomeAssistantConnection(propertyId);
       setHaSetupStatus({
@@ -364,6 +375,36 @@ const PropertyMeters = ({ propertyId }: Props) => {
     } finally {
       setHaSetupTesting(false);
     }
+  };
+
+  const discoverTailscaleFromDialog = async () => {
+    setHaSetupTailscaleLoading(true);
+    setHaSetupTailscaleResult(null);
+    try {
+      await saveHomeAssistantSettings({
+        tailscale_api_token: haSetupTailscaleToken.trim(),
+        tailscale_tailnet: haSetupTailscaleTailnet.trim(),
+      }, propertyId);
+
+      const res = await getTailscaleDevices(propertyId);
+      setHaSetupTailscaleDevices(res.devices || []);
+      setHaSetupTailscaleResult({
+        ok: true,
+        msg: t("settings.haTailscaleFound").replace("{count}", String(res.count || 0)),
+      });
+    } catch (e: any) {
+      setHaSetupTailscaleDevices([]);
+      setHaSetupTailscaleResult({ ok: false, msg: e.message || t("settings.haTailscaleError") });
+    } finally {
+      setHaSetupTailscaleLoading(false);
+    }
+  };
+
+  const formatLastSeen = (value?: string) => {
+    if (!value) return "";
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return value;
+    return dt.toLocaleString();
   };
 
   const loadHaImportEntities = async () => {
@@ -459,6 +500,9 @@ const PropertyMeters = ({ propertyId }: Props) => {
     const setup = await loadHaSetupFromSettings();
     const hasConnection = Boolean((setup?.ha_base_url || "").trim() && (setup?.ha_token || "").trim());
     setHaSetupOpen(!hasConnection);
+    setHaSetupStatus(null);
+    setHaSetupTailscaleResult(null);
+    setHaSetupTailscaleDevices([]);
     setHaImportSearch("");
     setHaNetName("P1 nettó villany");
     setHaNetImportEntity("");
@@ -1162,6 +1206,75 @@ multiplier = 1.0`}
                     placeholder={t("settings.haTokenPlaceholder")}
                   />
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">{t("settings.haTailscaleToken")}</label>
+                    <Input
+                      type="text"
+                      autoComplete="off"
+                      value={haSetupTailscaleToken}
+                      onChange={(e) => setHaSetupTailscaleToken(e.target.value)}
+                      placeholder={t("settings.haTailscaleTokenPlaceholder")}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">{t("settings.haTailscaleTailnet")}</label>
+                    <Input
+                      value={haSetupTailscaleTailnet}
+                      onChange={(e) => setHaSetupTailscaleTailnet(e.target.value)}
+                      placeholder={t("settings.haTailscaleTailnetPlaceholder")}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={discoverTailscaleFromDialog}
+                    disabled={haSetupTailscaleLoading || !haSetupTailscaleToken.trim() || !haSetupTailscaleTailnet.trim()}
+                  >
+                    {haSetupTailscaleLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Network className="h-3.5 w-3.5 mr-1.5" />}
+                    {t("settings.haDiscover")}
+                  </Button>
+                </div>
+
+                {haSetupTailscaleResult && (
+                  <p className={`text-xs ${haSetupTailscaleResult.ok ? "text-green-600" : "text-destructive"}`}>{haSetupTailscaleResult.msg}</p>
+                )}
+
+                {haSetupTailscaleDevices.length > 0 && (
+                  <div className="rounded-lg border bg-background/50 p-2 space-y-2">
+                    <p className="text-xs font-medium">{t("settings.haDiscoveredList")}</p>
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                      {haSetupTailscaleDevices.map((d) => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => {
+                            if (d.ha_url) setHaSetupUrl(d.ha_url);
+                          }}
+                          className="w-full text-left rounded-md border px-2 py-1.5 hover:bg-accent/40"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-medium truncate">{d.name || d.hostname || d.id}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${d.online ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                              {d.online ? t("settings.haOnline") : t("settings.haOffline")}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{d.ip || "-"}{d.ha_url ? ` · ${d.ha_url}` : ""}</p>
+                          {d.last_seen && (
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{t("settings.haLastSeen")}: {formatLastSeen(d.last_seen)}</p>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{t("settings.haDiscoveredHint")}</p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">{t("meters.haProfileLocalUser")}</label>

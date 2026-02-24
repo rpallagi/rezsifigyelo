@@ -338,9 +338,9 @@ const AdminSettings = () => {
         </div>
       </div>
 
-      {/* Home Assistant / Tailscale settings card */}
+      {/* Home Assistant setup moved to property scope */}
       <div className="glass-card p-5 max-w-2xl animate-in-delay-1">
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
             <Server className="h-5 w-5 text-accent-foreground" />
           </div>
@@ -349,144 +349,12 @@ const AdminSettings = () => {
             <p className="text-xs text-muted-foreground">{t('settings.haDesc')}</p>
           </div>
         </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm text-muted-foreground block mb-1">{t('settings.haBaseUrl')}</label>
-            <Input
-              value={haBaseUrl}
-              onChange={(e) => setHaBaseUrl(e.target.value)}
-              placeholder={t('settings.haBaseUrlPlaceholder')}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-muted-foreground block mb-1">{t('settings.haToken')}</label>
-            <Input
-              type="text"
-              autoComplete="off"
-              value={haToken}
-              onChange={(e) => setHaToken(e.target.value)}
-              placeholder={t('settings.haTokenPlaceholder')}
-            />
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm text-muted-foreground block mb-1">{t('settings.haTailscaleToken')}</label>
-              <Input
-                type="text"
-                autoComplete="off"
-                value={tailscaleApiToken}
-                onChange={(e) => setTailscaleApiToken(e.target.value)}
-                placeholder={t('settings.haTailscaleTokenPlaceholder')}
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground block mb-1">{t('settings.haTailscaleTailnet')}</label>
-              <Input
-                value={tailscaleTailnet}
-                onChange={(e) => setTailscaleTailnet(e.target.value)}
-                placeholder={t('settings.haTailscaleTailnetPlaceholder')}
-              />
-            </div>
-          </div>
-
-          <p className="text-xs text-muted-foreground">{t('settings.haHint')}</p>
-          <div className="rounded-lg border bg-accent/20 px-3 py-2 text-xs text-muted-foreground space-y-1">
-            <p>{t('settings.haTokenHowto')}</p>
-            <p>
-              <a className="underline" href="https://www.home-assistant.io/docs/authentication/" target="_blank" rel="noreferrer">
-                Home Assistant token útmutató
-              </a>
-              {" · "}
-              <a className="underline" href="https://login.tailscale.com/admin/settings/keys" target="_blank" rel="noreferrer">
-                Tailscale API token generálás
-              </a>
-            </p>
-          </div>
-
-          {haTestResult && (
-            <div className={`flex items-center gap-2 text-sm ${haTestResult.ok ? 'text-green-600' : 'text-destructive'}`}>
-              {haTestResult.ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-              <span>{haTestResult.msg}</span>
-            </div>
-          )}
-
-          {tailscaleResult && (
-            <div className={`flex items-center gap-2 text-sm ${tailscaleResult.ok ? 'text-green-600' : 'text-destructive'}`}>
-              {tailscaleResult.ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-              <span>{tailscaleResult.msg}</span>
-            </div>
-          )}
-
-          {haSaveSuccess && (
-            <div className="flex items-center gap-2 text-green-600 text-sm">
-              <CheckCircle2 className="h-4 w-4" />
-              <span>{t('common.success')}</span>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={handleHaSave}
-              disabled={haSaving}
-              className="gradient-primary-bg border-0"
-            >
-              {haSaving ? t('common.saving') : t('common.save')}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleHaTest}
-              disabled={haTesting || !haBaseUrl.trim() || !haToken.trim()}
-            >
-              {haTesting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Server className="h-4 w-4 mr-2" />}
-              {t('settings.haTest')}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleTailscaleDiscover}
-              disabled={tailscaleLoading || !tailscaleApiToken.trim() || !tailscaleTailnet.trim()}
-            >
-              {tailscaleLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Network className="h-4 w-4 mr-2" />}
-              {t('settings.haDiscover')}
-            </Button>
-          </div>
-
-          {tailscaleDevices.length > 0 && (
-            <div className="rounded-xl border p-3 space-y-2">
-              <p className="text-sm font-medium">{t('settings.haDiscoveredList')}</p>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {tailscaleDevices.map((d) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => {
-                      if (d.ha_url) setHaBaseUrl(d.ha_url);
-                    }}
-                    className="w-full text-left rounded-lg border px-3 py-2 hover:bg-accent/40 transition-colors"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium truncate">{d.name || d.hostname || d.id}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${d.online ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
-                        {d.online ? t('settings.haOnline') : t('settings.haOffline')}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {d.ip || '-'} {d.ha_url ? `· ${d.ha_url}` : ''}
-                    </p>
-                    {d.last_seen && (
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        {t('settings.haLastSeen')}: {formatLastSeen(d.last_seen)}
-                      </p>
-                    )}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">{t('settings.haDiscoveredHint')}</p>
-            </div>
-          )}
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {t('meters.haSetupScopeHint')}
+        </p>
+        <p className="text-xs text-muted-foreground mt-2">
+          {t('settings.haMovedToProperty')}
+        </p>
       </div>
 
       {/* Password change card */}
