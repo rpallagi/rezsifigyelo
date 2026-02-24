@@ -514,19 +514,35 @@ def _recompute_property_utility_readings(property_id, utility_type):
         prev_value = row.value
 
 
-def _ha_history_state_for_month_start(base_url, token, entity_id, month_start_utc):
-    end_time = month_start_utc + timedelta(minutes=1)
+def _next_month_start_utc(dt):
+    year = dt.year + (1 if dt.month == 12 else 0)
+    month = 1 if dt.month == 12 else dt.month + 1
+    return datetime(year, month, 1, tzinfo=timezone.utc)
 
+
+def _parse_ha_datetime(raw):
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(raw).replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _ha_history_points(base_url, token, entity_id, start_utc, end_utc):
     query = urlencode({
         'filter_entity_id': entity_id,
-        'end_time': end_time.isoformat().replace('+00:00', 'Z'),
+        'end_time': end_utc.isoformat().replace('+00:00', 'Z'),
         'minimal_response': '1',
         'no_attributes': '1',
     })
-    start_encoded = quote(month_start_utc.isoformat().replace('+00:00', 'Z'), safe=':-TZ')
+    start_encoded = quote(start_utc.isoformat().replace('+00:00', 'Z'), safe=':-TZ')
     url = f"{base_url}/api/history/period/{start_encoded}?{query}"
 
-    code, payload, err = _http_json('GET', url, headers=_ha_auth_header(token))
+    code, payload, err = _http_json('GET', url, headers=_ha_auth_header(token), timeout=25)
     if code != 200:
         return None, err or f'HA history error ({code})'
 
@@ -534,23 +550,56 @@ def _ha_history_state_for_month_start(base_url, token, entity_id, month_start_ut
     if not isinstance(states, list):
         return None, 'Invalid HA history payload'
 
+    points = []
     for item in states:
         if not isinstance(item, dict):
             continue
         numeric = _to_float(item.get('state'))
-        if numeric is not None:
-            return float(numeric), None
+        if numeric is None:
+            continue
+        dt = _parse_ha_datetime(item.get('last_updated') or item.get('last_changed'))
+        points.append((dt, float(numeric)))
+
+    points.sort(key=lambda x: x[0] or datetime.min.replace(tzinfo=timezone.utc))
+    return points, None
+
+
+def _ha_history_state_for_month_start(base_url, token, entity_id, month_start_utc):
+    next_month_start = _next_month_start_utc(month_start_utc)
+
+    # Primary window: first numeric point inside the month.
+    in_month_points, in_month_err = _ha_history_points(
+        base_url,
+        token,
+        entity_id,
+        month_start_utc,
+        min(next_month_start + timedelta(days=2), month_start_utc + timedelta(days=40)),
+    )
+    if in_month_err:
+        return None, in_month_err
+
+    for dt, value in in_month_points:
+        if dt is None or dt >= month_start_utc:
+            return value, None
+
+    # Carry-over fallback: use the latest known value before month start.
+    carry_points, carry_err = _ha_history_points(
+        base_url,
+        token,
+        entity_id,
+        month_start_utc - timedelta(days=31),
+        month_start_utc + timedelta(minutes=1),
+    )
+    if carry_err:
+        return None, carry_err
+
+    if carry_points:
+        return carry_points[-1][1], None
 
     return None, None
 
 
-def _ha_statistics_rows(base_url, token, entity_id, start_utc, end_utc):
-    """Read statistics rows from HA REST API.
-
-    Handles both endpoint variants seen across HA versions:
-    - /api/history/statistics_during_period
-    - /api/statistics_during_period
-    """
+def _ha_statistics_rows_rest(base_url, token, entity_id, start_utc, end_utc):
     start_iso = start_utc.isoformat().replace('+00:00', 'Z')
     end_iso = end_utc.isoformat().replace('+00:00', 'Z')
     params = urlencode({
@@ -563,6 +612,7 @@ def _ha_statistics_rows(base_url, token, entity_id, start_utc, end_utc):
     urls = [
         f'{base_url}/api/history/statistics_during_period?{params}',
         f'{base_url}/api/statistics_during_period?{params}',
+        f'{base_url}/api/recorder/statistics_during_period?{params}',
     ]
 
     last_error = None
@@ -590,13 +640,119 @@ def _ha_statistics_rows(base_url, token, entity_id, start_utc, end_utc):
     return None, 'Statistics endpoint not available'
 
 
+def _ha_statistics_rows_service(base_url, token, entity_id, start_utc, end_utc):
+    payload = {
+        'start_time': start_utc.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+        'end_time': end_utc.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+        'statistic_ids': [entity_id],
+        'period': 'hour',
+        'types': ['state', 'sum', 'mean', 'min', 'max'],
+    }
+
+    code, response, err = _http_json(
+        'POST',
+        f'{base_url}/api/services/recorder/get_statistics?return_response',
+        headers=_ha_auth_header(token),
+        payload=payload,
+        timeout=25,
+    )
+
+    if code == 404:
+        return None, 'Statistics service not available'
+    if code != 200:
+        return None, err or f'HA recorder statistics service error ({code})'
+
+    envelope = response
+    if isinstance(response, list) and response and isinstance(response[0], dict):
+        envelope = response[0]
+
+    if not isinstance(envelope, dict):
+        return None, 'Invalid HA statistics service payload'
+
+    service_response = envelope.get('service_response') or envelope.get('response') or {}
+    if not isinstance(service_response, dict):
+        return None, 'Invalid HA statistics service response'
+
+    statistics = service_response.get('statistics') or {}
+    if not isinstance(statistics, dict):
+        return None, 'Invalid HA statistics map'
+
+    rows = statistics.get(entity_id) or statistics.get(str(entity_id).lower()) or []
+    if not isinstance(rows, list):
+        return None, 'Invalid HA statistics rows'
+
+    return rows, None
+
+
+def _ha_statistics_entity_candidates(entity_id):
+    base = str(entity_id or '').strip()
+    if not base:
+        return []
+
+    candidates = []
+
+    def _add(candidate):
+        value = str(candidate or '').strip()
+        if value and value not in candidates:
+            candidates.append(value)
+
+    _add(base)
+
+    if base.startswith('sensor.'):
+        stem = base[len('sensor.'):]
+        variants = {
+            stem.replace('_meter_stored_total', '_total_consumption'),
+            stem.replace('_stored_total', '_total_consumption'),
+            stem.replace('_total', '_total_consumption'),
+        }
+        for variant in variants:
+            if variant and variant != stem:
+                _add(f'sensor.{variant}')
+
+    return candidates
+
+
+def _ha_statistics_rows(base_url, token, entity_id, start_utc, end_utc):
+    """Read statistics rows from HA, with compatibility fallbacks.
+
+    Priority:
+    1) Legacy REST statistics endpoints
+    2) recorder.get_statistics service (modern HA)
+    3) Alternate statistic-id candidates for *_stored_total entities
+    """
+    candidates = _ha_statistics_entity_candidates(entity_id)
+    saw_available_empty = False
+    last_error = None
+
+    for statistic_id in candidates:
+        for reader in (_ha_statistics_rows_rest, _ha_statistics_rows_service):
+            rows, err = reader(base_url, token, statistic_id, start_utc, end_utc)
+            if err:
+                err_lower = str(err).lower()
+                if 'not available' in err_lower:
+                    continue
+                last_error = err
+                continue
+
+            if rows:
+                return rows, None
+
+            saw_available_empty = True
+
+    if last_error:
+        return None, last_error
+    if saw_available_empty:
+        return [], None
+    return None, 'Statistics endpoint not available'
+
+
 def _ha_statistics_state_for_month_start(base_url, token, entity_id, month_start_utc):
     """Resolve month-start value from HA long-term statistics."""
     rows, err = _ha_statistics_rows(
         base_url,
         token,
         entity_id,
-        month_start_utc,
+        month_start_utc - timedelta(days=2),
         month_start_utc + timedelta(days=2),
     )
     if err:
@@ -605,40 +761,35 @@ def _ha_statistics_state_for_month_start(base_url, token, entity_id, month_start
     if not rows:
         return None, None
 
-    def _row_time(item):
-        if not isinstance(item, dict):
-            return None
-        raw = item.get('start') or item.get('start_time') or item.get('created')
-        if not raw:
-            return None
-        try:
-            dt = datetime.fromisoformat(str(raw).replace('Z', '+00:00'))
-        except ValueError:
-            return None
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
-
     points = []
     for row in rows:
         if not isinstance(row, dict):
             continue
-        dt = _row_time(row)
+
+        dt = _parse_ha_datetime(row.get('start') or row.get('start_time') or row.get('created'))
         if dt is None:
             continue
+
         val = None
         for key in ('state', 'sum', 'mean', 'max', 'min'):
             val = _to_float(row.get(key))
             if val is not None:
                 break
+
         if val is None:
             continue
+
         points.append((dt, float(val)))
 
     if not points:
         return None, None
 
     points.sort(key=lambda x: x[0])
+
+    before_or_at = [p for p in points if p[0] <= month_start_utc]
+    if before_or_at:
+        return before_or_at[-1][1], None
+
     return points[0][1], None
 
 
