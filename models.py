@@ -93,6 +93,7 @@ class Tariff(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     tariff_group_id = db.Column(db.Integer, db.ForeignKey('tariff_groups.id'), nullable=False)
+    building_property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=True)  # lakás -> épület
     utility_type = db.Column(db.String(20), nullable=False)  # 'villany', 'viz', 'csatorna'
     rate_huf = db.Column(db.Float, nullable=False)  # Ft / egység
     unit = db.Column(db.String(10), nullable=False)  # 'kWh', 'm3'
@@ -137,6 +138,7 @@ class Property(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    building = db.relationship('Property', remote_side=[id], foreign_keys=[building_property_id], backref='units')
     readings = db.relationship('MeterReading', backref='property', lazy='dynamic',
                                order_by='MeterReading.reading_date.desc()')
     payments = db.relationship('Payment', backref='property', lazy='dynamic',

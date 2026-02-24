@@ -25,6 +25,7 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [tariffGroups, setTariffGroups] = useState<TariffGroupItem[]>([]);
+  const [buildingOptions, setBuildingOptions] = useState<AdminProperty[]>([]);
 
   const [form, setForm] = useState({
     name: property.name,
@@ -37,11 +38,17 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
     purchase_price: property.purchase_price != null ? String(property.purchase_price) : "",
     tariff_group_id: String(property.tariff_group_id),
     notes: property.notes || "",
+    building_property_id: property.building_property_id ? String(property.building_property_id) : "",
   });
 
   useEffect(() => {
-    getAdminProperties().then((data) => setTariffGroups(data.tariff_groups));
-  }, []);
+    getAdminProperties().then((data) => {
+      setTariffGroups(data.tariff_groups);
+      setBuildingOptions(
+        (data.properties || []).filter((p) => p.property_type === 'epulet' && p.id !== property.id),
+      );
+    });
+  }, [property.id]);
 
   const set = (key: string, val: string) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -145,6 +152,9 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
         purchase_price: form.purchase_price ? Number(form.purchase_price) : null,
         tariff_group_id: form.tariff_group_id ? Number(form.tariff_group_id) : null,
         notes: form.notes || null,
+        building_property_id: form.property_type === 'lakas' && form.building_property_id
+          ? Number(form.building_property_id)
+          : null,
       };
       await editProperty(property.id, payload);
       onSaved();
@@ -231,9 +241,17 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
           </div>
           <div>
             <label className="text-sm text-muted-foreground block mb-1">{t('props.type')}</label>
-            <Select value={form.property_type} onValueChange={(v) => set("property_type", v)}>
+            <Select
+              value={form.property_type}
+              onValueChange={(v) => setForm((f) => ({
+                ...f,
+                property_type: v,
+                building_property_id: v === 'lakas' ? f.building_property_id : '',
+              }))}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="epulet">{t('common.epulet')}</SelectItem>
                 <SelectItem value="lakas">{t('common.lakas')}</SelectItem>
                 <SelectItem value="uzlet">{t('common.uzlet')}</SelectItem>
                 <SelectItem value="egyeb">{t('common.egyeb')}</SelectItem>
@@ -241,6 +259,24 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
             </Select>
           </div>
         </div>
+
+        {form.property_type === 'lakas' && (
+          <div>
+            <label className="text-sm text-muted-foreground block mb-1">{t('props.building')}</label>
+            <Select
+              value={form.building_property_id || 'none'}
+              onValueChange={(v) => set('building_property_id', v === 'none' ? '' : v)}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t('props.noBuilding')}</SelectItem>
+                {buildingOptions.map((b) => (
+                  <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div>
           <label className="text-sm text-muted-foreground block mb-1">{t('props.address')}</label>

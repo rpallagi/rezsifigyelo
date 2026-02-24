@@ -64,6 +64,8 @@ def property_to_dict(p, include_readings=False):
         'tariff_group_id': p.tariff_group_id,
         'tariff_group_name': p.tariff_group.name if p.tariff_group else None,
         'avatar_filename': p.avatar_filename,
+        'building_property_id': p.building_property_id,
+        'building_name': p.building.name if getattr(p, 'building', None) else None,
     }
     if include_readings:
         lv = get_last_reading(p.id, 'villany')
@@ -1203,6 +1205,41 @@ def admin_dashboard():
 # Admin Properties CRUD
 # ============================================================
 
+def _normalize_property_type(value):
+    raw = str(value or '').strip().lower()
+    allowed = {'lakas', 'uzlet', 'egyeb', 'epulet'}
+    return raw if raw in allowed else 'lakas'
+
+
+def _parse_building_property_id(raw_value, *, current_property_id=None, property_type='lakas'):
+    # Only apartments can be attached to a building.
+    if property_type != 'lakas':
+        return None, None
+
+    if raw_value in (None, '', 0, '0'):
+        return None, None
+
+    try:
+        building_id = int(raw_value)
+    except (TypeError, ValueError):
+        return None, 'Érvénytelen épület azonosító.'
+
+    if building_id <= 0:
+        return None, 'Érvénytelen épület azonosító.'
+
+    if current_property_id and building_id == int(current_property_id):
+        return None, 'Az ingatlan nem lehet saját maga épülete.'
+
+    building = Property.query.get(building_id)
+    if not building:
+        return None, 'A kiválasztott épület nem található.'
+
+    if (building.property_type or '').strip().lower() != 'epulet':
+        return None, 'Csak Épület típusú ingatlan választható.'
+
+    return building_id, None
+
+
 @api_bp.route('/admin/properties', methods=['GET'])
 @login_required
 def admin_properties_list():
@@ -1217,12 +1254,20 @@ def admin_properties_list():
 @api_bp.route('/admin/properties', methods=['POST'])
 @login_required
 def admin_property_add():
-    data = request.get_json()
+    data = request.get_json() or {}
     name = data.get('name', '').strip()
     tariff_group_id = data.get('tariff_group_id')
 
     if not name or not tariff_group_id:
         return jsonify({'error': 'Név és tarifa csoport kötelező!'}), 400
+
+    property_type = _normalize_property_type(data.get('property_type', 'lakas'))
+    building_property_id, building_error = _parse_building_property_id(
+        data.get('building_property_id'),
+        property_type=property_type,
+    )
+    if building_error:
+        return jsonify({'error': building_error}), 400
 
     # PIN is optional now (legacy)
     pin = data.get('pin', '')
@@ -1230,9 +1275,10 @@ def admin_property_add():
 
     prop = Property(
         name=name,
-        property_type=data.get('property_type', 'lakas'),
+        property_type=property_type,
         pin_hash=pin_hash,
         tariff_group_id=int(tariff_group_id),
+        building_property_id=building_property_id,
         contact_name=data.get('contact_name') or None,
         contact_phone=data.get('contact_phone') or None,
         contact_email=data.get('contact_email') or None,
@@ -1251,11 +1297,21 @@ def admin_property_add():
 @login_required
 def admin_property_edit(prop_id):
     prop = Property.query.get_or_404(prop_id)
-    data = request.get_json()
+    data = request.get_json() or {}
+
+    property_type = _normalize_property_type(data.get('property_type', prop.property_type))
+    building_property_id, building_error = _parse_building_property_id(
+        data.get('building_property_id', prop.building_property_id),
+        current_property_id=prop.id,
+        property_type=property_type,
+    )
+    if building_error:
+        return jsonify({'error': building_error}), 400
 
     prop.name = data.get('name', prop.name).strip()
-    prop.property_type = data.get('property_type', prop.property_type)
+    prop.property_type = property_type
     prop.tariff_group_id = int(data.get('tariff_group_id', prop.tariff_group_id))
+    prop.building_property_id = building_property_id
     prop.contact_name = data.get('contact_name') or None
     prop.contact_phone = data.get('contact_phone') or None
     prop.contact_email = data.get('contact_email') or None
@@ -1283,6 +1339,10 @@ def admin_property_edit(prop_id):
 @login_required
 def admin_property_delete(prop_id):
     prop = Property.query.get_or_404(prop_id)
+    Property.query.filter_by(building_property_id=prop_id).update(
+        {'building_property_id': None},
+        synchronize_session=False,
+    )
     MeterReading.query.filter_by(property_id=prop_id).delete()
     Payment.query.filter_by(property_id=prop_id).delete()
     MaintenanceLog.query.filter_by(property_id=prop_id).delete()

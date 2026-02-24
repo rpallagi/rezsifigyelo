@@ -24,6 +24,8 @@ const AdminROI = () => {
   }, []);
 
   const typeBadge = (type: string) => {
+    if (type === "epulet")
+      return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800 text-xs">{t('common.epulet')}</Badge>;
     if (type === "lakas")
       return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800 text-xs">{t('common.lakas')}</Badge>;
     if (type === "uzlet")

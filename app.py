@@ -140,6 +140,10 @@ def _run_migrations():
             db.session.execute(text('ALTER TABLE properties ADD COLUMN avatar_filename VARCHAR(255)'))
             db.session.commit()
             print("[MIGRATE] Added avatar_filename to properties table")
+        if 'building_property_id' not in columns:
+            db.session.execute(text('ALTER TABLE properties ADD COLUMN building_property_id INTEGER'))
+            db.session.commit()
+            print("[MIGRATE] Added building_property_id to properties table")
 
     # v3.1: Add tenant lifecycle fields to tenant_users
     if 'tenant_users' in inspector.get_table_names():

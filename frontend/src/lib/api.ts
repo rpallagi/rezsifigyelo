@@ -334,6 +334,8 @@ export interface AdminProperty {
   monthly_rent: number | null;
   tariff_group_id: number;
   tariff_group_name?: string;
+  building_property_id?: number | null;
+  building_name?: string | null;
   last_villany?: ReadingSummary | null;
   last_viz?: ReadingSummary | null;
 }

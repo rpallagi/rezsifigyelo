@@ -35,6 +35,7 @@ const emptyForm = {
   purchase_price: "",
   tariff_group_id: "",
   notes: "",
+  building_property_id: "",
 };
 
 const AdminProperties = () => {
@@ -100,6 +101,9 @@ const AdminProperties = () => {
         purchase_price: form.purchase_price ? Number(form.purchase_price) : null,
         tariff_group_id: form.tariff_group_id ? Number(form.tariff_group_id) : null,
         notes: form.notes || null,
+        building_property_id: form.property_type === 'lakas' && form.building_property_id
+          ? Number(form.building_property_id)
+          : null,
       };
       if (editingId) {
         await editProperty(editingId, payload);
@@ -128,6 +132,8 @@ const AdminProperties = () => {
 
   const typeBadgeClickable = (type: string, active: boolean) => {
     const base = "text-xs cursor-pointer transition-all";
+    if (type === "epulet")
+      return <Badge variant="outline" className={`bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800 ${base} ${active ? 'ring-2 ring-emerald-400 ring-offset-1' : 'hover:ring-1 hover:ring-emerald-300'}`}>{t('common.epulet')}</Badge>;
     if (type === "lakas")
       return <Badge variant="outline" className={`bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800 ${base} ${active ? 'ring-2 ring-blue-400 ring-offset-1' : 'hover:ring-1 hover:ring-blue-300'}`}>{t('common.lakas')}</Badge>;
     if (type === "uzlet")
@@ -136,6 +142,8 @@ const AdminProperties = () => {
   };
 
   const typeBadge = (type: string) => {
+    if (type === "epulet")
+      return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800 text-xs">{t('common.epulet')}</Badge>;
     if (type === "lakas")
       return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800 text-xs">{t('common.lakas')}</Badge>;
     if (type === "uzlet")
@@ -150,13 +158,123 @@ const AdminProperties = () => {
     ? properties
     : properties.filter(p => p.property_type === filterType);
 
+  const allBuildings = properties.filter((p) => p.property_type === "epulet");
+  const filteredBuildings = filteredProperties.filter((p) => p.property_type === "epulet");
+  const filteredUnits = filteredProperties.filter((p) => p.property_type !== "epulet");
+
+  const groupedUnitsByBuilding = allBuildings
+    .map((building) => ({
+      building,
+      units: filteredUnits.filter((u) => u.building_property_id === building.id),
+    }))
+    .filter((g) => g.units.length > 0);
+
+  const unassignedUnits = filteredUnits.filter(
+    (u) => !u.building_property_id || !allBuildings.some((b) => b.id === u.building_property_id),
+  );
+
+  const buildingOptions = properties.filter(
+    (p) => p.property_type === "epulet" && (!editingId || p.id !== editingId),
+  );
+
   // Count by type
   const countByType = {
     all: properties.length,
+    epulet: properties.filter(p => p.property_type === "epulet").length,
     lakas: properties.filter(p => p.property_type === "lakas").length,
     uzlet: properties.filter(p => p.property_type === "uzlet").length,
     egyeb: properties.filter(p => p.property_type === "egyeb").length,
   };
+
+  const renderPropertyCard = (p: AdminProperty) => (
+    <div
+      key={p.id}
+      className="glass-card-hover p-5 flex flex-col gap-3 cursor-pointer group"
+      onClick={() => navigate(`/admin/properties/${p.id}`)}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {(p as any).avatar_filename ? (
+              <img
+                src={`/uploads/${(p as any).avatar_filename}`}
+                alt={p.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Building2 className="h-6 w-6 text-accent-foreground" />
+            )}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-display font-bold text-sm">{p.name}</h3>
+              {(unreadCounts[String(p.id)] || 0) > 0 && (
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                  <MessageCircle className="h-3 w-3" />
+                  {unreadCounts[String(p.id)]}
+                </span>
+              )}
+            </div>
+            {typeBadge(p.property_type)}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => { e.stopPropagation(); navigate(`/admin/properties/${p.id}?tab=basic`); }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => { e.stopPropagation(); setDeleteId(p.id); }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+        </div>
+      </div>
+
+      <div className="space-y-1.5 text-sm text-muted-foreground">
+        {p.building_name && p.property_type !== 'epulet' && (
+          <p className="flex items-center gap-2"><Building2 className="h-3.5 w-3.5" /> {p.building_name}</p>
+        )}
+        {p.address && (
+          <p className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5" /> {p.address}</p>
+        )}
+        {p.contact_name && (
+          <p className="flex items-center gap-2"><User className="h-3.5 w-3.5" /> {p.contact_name}</p>
+        )}
+        {p.contact_phone && (
+          <p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" /> {p.contact_phone}</p>
+        )}
+        {p.contact_email && (
+          <p className="flex items-center gap-2"><Mail className="h-3.5 w-3.5" /> {p.contact_email}</p>
+        )}
+      </div>
+
+      <div className="mt-auto pt-3 border-t border-border/50 flex items-center justify-between text-sm">
+        <div>
+          <p className="text-xs text-muted-foreground">{t('props.monthlyRent')}</p>
+          <p className="font-display font-bold format-hu">
+            {p.monthly_rent ? formatHuf(p.monthly_rent) : "—"}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground">{t('props.purchasePrice')}</p>
+          <p className="font-display font-bold format-hu">
+            {p.purchase_price ? formatHuf(p.purchase_price) : "—"}
+          </p>
+        </div>
+      </div>
+
+      {p.tariff_group_name && (
+        <p className="text-xs text-muted-foreground">
+          {t('props.tariffGroup')}: <span className="font-medium text-foreground">{p.tariff_group_name}</span>
+        </p>
+      )}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -193,6 +311,11 @@ const AdminProperties = () => {
             {t('props.filterAll')} ({countByType.all})
           </Badge>
         </button>
+        {countByType.epulet > 0 && (
+          <button onClick={() => setFilterType(filterType === "epulet" ? "all" : "epulet")}>
+            {typeBadgeClickable("epulet", filterType === "epulet")}
+          </button>
+        )}
         {countByType.lakas > 0 && (
           <button onClick={() => setFilterType(filterType === "lakas" ? "all" : "lakas")}>
             {typeBadgeClickable("lakas", filterType === "lakas")}
@@ -210,95 +333,52 @@ const AdminProperties = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-in-delay-2">
-        {filteredProperties.map((p) => (
-          <div
-            key={p.id}
-            className="glass-card-hover p-5 flex flex-col gap-3 cursor-pointer group"
-            onClick={() => navigate(`/admin/properties/${p.id}`)}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                {/* Avatar or icon */}
-                <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center flex-shrink-0 overflow-hidden">
-                  {(p as any).avatar_filename ? (
-                    <img
-                      src={`/uploads/${(p as any).avatar_filename}`}
-                      alt={p.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Building2 className="h-6 w-6 text-accent-foreground" />
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-display font-bold text-sm">{p.name}</h3>
-                    {(unreadCounts[String(p.id)] || 0) > 0 && (
-                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
-                        <MessageCircle className="h-3 w-3" />
-                        {unreadCounts[String(p.id)]}
-                      </span>
-                    )}
-                  </div>
-                  {typeBadge(p.property_type)}
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); navigate(`/admin/properties/${p.id}?tab=basic`); }}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); setDeleteId(p.id); }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+      {filterType === "epulet" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-in-delay-2">
+          {filteredBuildings.map(renderPropertyCard)}
+        </div>
+      ) : (
+        <div className="space-y-6 animate-in-delay-2">
+          {filterType === "all" && filteredBuildings.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="font-display text-lg font-semibold">{t('common.epulet')}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filteredBuildings.map(renderPropertyCard)}
               </div>
             </div>
+          )}
 
-            <div className="space-y-1.5 text-sm text-muted-foreground">
-              {p.address && (
-                <p className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5" /> {p.address}</p>
-              )}
-              {p.contact_name && (
-                <p className="flex items-center gap-2"><User className="h-3.5 w-3.5" /> {p.contact_name}</p>
-              )}
-              {p.contact_phone && (
-                <p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" /> {p.contact_phone}</p>
-              )}
-              {p.contact_email && (
-                <p className="flex items-center gap-2"><Mail className="h-3.5 w-3.5" /> {p.contact_email}</p>
-              )}
-            </div>
-
-            <div className="mt-auto pt-3 border-t border-border/50 flex items-center justify-between text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">{t('props.monthlyRent')}</p>
-                <p className="font-display font-bold format-hu">
-                  {p.monthly_rent ? formatHuf(p.monthly_rent) : "\u2014"}
-                </p>
+          {groupedUnitsByBuilding.map((group) => (
+            <div key={`building-${group.building.id}`} className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-display font-semibold">{group.building.name}</h3>
+                <Badge variant="outline" className="text-xs">{group.units.length} {t('common.db')}</Badge>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">{t('props.purchasePrice')}</p>
-                <p className="font-display font-bold format-hu">
-                  {p.purchase_price ? formatHuf(p.purchase_price) : "\u2014"}
-                </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {group.units.map(renderPropertyCard)}
               </div>
             </div>
+          ))}
 
-            {p.tariff_group_name && (
-              <p className="text-xs text-muted-foreground">
-                {t('props.tariffGroup')}: <span className="font-medium text-foreground">{p.tariff_group_name}</span>
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
+          {unassignedUnits.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-display font-semibold">{t('props.unassignedBuilding')}</h3>
+                <Badge variant="outline" className="text-xs">{unassignedUnits.length} {t('common.db')}</Badge>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {unassignedUnits.map(renderPropertyCard)}
+              </div>
+            </div>
+          )}
+
+          {filteredUnits.length === 0 && (
+            <div className="text-sm text-muted-foreground">{t('common.noData')}</div>
+          )}
+        </div>
+      )}
 
       {/* Add / Edit Dialog (only used for NEW property now; edit goes to detail page) */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -320,15 +400,41 @@ const AdminProperties = () => {
 
             <div>
               <label className="text-sm text-muted-foreground block mb-1">{t('props.type')}</label>
-              <Select value={form.property_type} onValueChange={(v) => set("property_type", v)}>
+              <Select
+                value={form.property_type}
+                onValueChange={(v) => setForm((f) => ({
+                  ...f,
+                  property_type: v,
+                  building_property_id: v === 'lakas' ? f.building_property_id : '',
+                }))}
+              >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="epulet">{t('common.epulet')}</SelectItem>
                   <SelectItem value="lakas">{t('common.lakas')}</SelectItem>
                   <SelectItem value="uzlet">{t('common.uzlet')}</SelectItem>
                   <SelectItem value="egyeb">{t('common.egyeb')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {form.property_type === 'lakas' && (
+              <div>
+                <label className="text-sm text-muted-foreground block mb-1">{t('props.building')}</label>
+                <Select
+                  value={form.building_property_id || 'none'}
+                  onValueChange={(v) => set('building_property_id', v === 'none' ? '' : v)}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t('props.noBuilding')}</SelectItem>
+                    {buildingOptions.map((b) => (
+                      <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div>
               <label className="text-sm text-muted-foreground block mb-1">{t('props.address')}</label>
