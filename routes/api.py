@@ -1852,7 +1852,7 @@ def admin_property_readings(prop_id):
 @api_bp.route('/admin/properties/<int:prop_id>/readings/utility/<string:utility_type>', methods=['DELETE'])
 @login_required
 def admin_delete_property_utility_readings(prop_id, utility_type):
-    """Delete all readings for one utility type under a property."""
+    """Delete all readings for one utility type under a property (including dependent smart meter logs)."""
     Property.query.get_or_404(prop_id)
 
     utility = str(utility_type or '').strip().lower()
@@ -1860,13 +1860,27 @@ def admin_delete_property_utility_readings(prop_id, utility_type):
     if utility not in allowed:
         return jsonify({'error': 'Érvénytelen utility_type'}), 400
 
+    reading_ids_q = db.session.query(MeterReading.id).filter_by(
+        property_id=prop_id,
+        utility_type=utility,
+    )
+
+    log_deleted = SmartMeterLog.query.filter(
+        SmartMeterLog.reading_id.in_(reading_ids_q)
+    ).delete(synchronize_session=False)
+
     deleted = MeterReading.query.filter_by(
         property_id=prop_id,
         utility_type=utility,
     ).delete(synchronize_session=False)
 
     db.session.commit()
-    return jsonify({'success': True, 'deleted': int(deleted), 'utility_type': utility})
+    return jsonify({
+        'success': True,
+        'deleted': int(deleted),
+        'logs_deleted': int(log_deleted),
+        'utility_type': utility,
+    })
 
 
 @api_bp.route('/admin/readings', methods=['POST'])
@@ -4223,7 +4237,7 @@ def backfill_home_assistant_monthly(prop_id):
     months_back = max(1, min(months_back, 120))
     until_data_start = bool(data.get('until_data_start', False))
     if until_data_start:
-        months_back = 60
+        months_back = 120
 
     requested_ids = data.get('device_ids') or []
     requested_ids_set = set()

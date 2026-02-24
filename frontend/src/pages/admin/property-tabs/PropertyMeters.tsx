@@ -550,6 +550,7 @@ const PropertyMeters = ({ propertyId }: Props) => {
         try {
           const backfillRes = await backfillHomeAssistantMonthly(propertyId, {
             months_back: months,
+            until_data_start: true,
             device_ids: createdItems.map((item) => item.id),
           });
           toast.info(
@@ -611,6 +612,7 @@ const PropertyMeters = ({ propertyId }: Props) => {
         try {
           const backfillRes = await backfillHomeAssistantMonthly(propertyId, {
             months_back: months,
+            until_data_start: true,
             device_ids: [createdId],
           });
           toast.info(
