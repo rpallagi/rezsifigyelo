@@ -1207,7 +1207,7 @@ def admin_dashboard():
 
 def _normalize_property_type(value):
     raw = str(value or '').strip().lower()
-    allowed = {'lakas', 'uzlet', 'egyeb', 'epulet'}
+    allowed = {'lakas', 'uzlet', 'egyeb', 'epulet', 'telek'}
     return raw if raw in allowed else 'lakas'
 
 

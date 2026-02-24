@@ -87,6 +87,12 @@ const AdminProperties = () => {
     setDialogOpen(true);
   };
 
+  const openNewStructure = () => {
+    setEditingId(null);
+    setForm({ ...emptyForm, property_type: "epulet" });
+    setDialogOpen(true);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -134,6 +140,8 @@ const AdminProperties = () => {
     const base = "text-xs cursor-pointer transition-all";
     if (type === "epulet")
       return <Badge variant="outline" className={`bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800 ${base} ${active ? 'ring-2 ring-emerald-400 ring-offset-1' : 'hover:ring-1 hover:ring-emerald-300'}`}>{t('common.epulet')}</Badge>;
+    if (type === "telek")
+      return <Badge variant="outline" className={`bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800 ${base} ${active ? 'ring-2 ring-green-400 ring-offset-1' : 'hover:ring-1 hover:ring-green-300'}`}>{t('common.telek')}</Badge>;
     if (type === "lakas")
       return <Badge variant="outline" className={`bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800 ${base} ${active ? 'ring-2 ring-blue-400 ring-offset-1' : 'hover:ring-1 hover:ring-blue-300'}`}>{t('common.lakas')}</Badge>;
     if (type === "uzlet")
@@ -144,6 +152,8 @@ const AdminProperties = () => {
   const typeBadge = (type: string) => {
     if (type === "epulet")
       return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800 text-xs">{t('common.epulet')}</Badge>;
+    if (type === "telek")
+      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800 text-xs">{t('common.telek')}</Badge>;
     if (type === "lakas")
       return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800 text-xs">{t('common.lakas')}</Badge>;
     if (type === "uzlet")
@@ -159,8 +169,8 @@ const AdminProperties = () => {
     : properties.filter(p => p.property_type === filterType);
 
   const allBuildings = properties.filter((p) => p.property_type === "epulet");
-  const filteredBuildings = filteredProperties.filter((p) => p.property_type === "epulet");
-  const filteredUnits = filteredProperties.filter((p) => p.property_type !== "epulet");
+  const filteredCollectors = filteredProperties.filter((p) => p.property_type === "epulet" || p.property_type === "telek");
+  const filteredUnits = filteredProperties.filter((p) => p.property_type !== "epulet" && p.property_type !== "telek");
 
   const groupedUnitsByBuilding = allBuildings
     .map((building) => ({
@@ -181,9 +191,10 @@ const AdminProperties = () => {
   const countByType = {
     all: properties.length,
     epulet: properties.filter(p => p.property_type === "epulet").length,
+    telek: properties.filter(p => p.property_type === "telek").length,
     lakas: properties.filter(p => p.property_type === "lakas").length,
     uzlet: properties.filter(p => p.property_type === "uzlet").length,
-    egyeb: properties.filter(p => p.property_type === "egyeb").length,
+    egyeb: properties.filter(p => !["epulet", "telek", "lakas", "uzlet"].includes(p.property_type)).length,
   };
 
   const renderPropertyCard = (p: AdminProperty) => (
@@ -298,6 +309,9 @@ const AdminProperties = () => {
           <Button variant="outline" onClick={() => { setBroadcastSelected(properties.map(p => p.id)); setBroadcastMsg(""); setBroadcastOpen(true); }}>
             <Megaphone className="h-4 w-4 mr-2" /> {t('chat.broadcast')}
           </Button>
+          <Button variant="outline" onClick={openNewStructure}>
+            <Plus className="h-4 w-4 mr-2" /> {t('props.newStructure')}
+          </Button>
           <Button onClick={openNew} className="gradient-primary-bg border-0">
             <Plus className="h-4 w-4 mr-2" /> {t('props.new')}
           </Button>
@@ -314,6 +328,11 @@ const AdminProperties = () => {
         {countByType.epulet > 0 && (
           <button onClick={() => setFilterType(filterType === "epulet" ? "all" : "epulet")}>
             {typeBadgeClickable("epulet", filterType === "epulet")}
+          </button>
+        )}
+        {countByType.telek > 0 && (
+          <button onClick={() => setFilterType(filterType === "telek" ? "all" : "telek")}>
+            {typeBadgeClickable("telek", filterType === "telek")}
           </button>
         )}
         {countByType.lakas > 0 && (
@@ -333,17 +352,17 @@ const AdminProperties = () => {
         )}
       </div>
 
-      {filterType === "epulet" ? (
+      {filterType === "epulet" || filterType === "telek" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-in-delay-2">
-          {filteredBuildings.map(renderPropertyCard)}
+          {filteredCollectors.map(renderPropertyCard)}
         </div>
       ) : (
         <div className="space-y-6 animate-in-delay-2">
-          {filterType === "all" && filteredBuildings.length > 0 && (
+          {filterType === "all" && filteredCollectors.length > 0 && (
             <div className="space-y-3">
-              <h2 className="font-display text-lg font-semibold">{t('common.epulet')}</h2>
+              <h2 className="font-display text-lg font-semibold">{t('props.collectors')}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredBuildings.map(renderPropertyCard)}
+                {filteredCollectors.map(renderPropertyCard)}
               </div>
             </div>
           )}
@@ -374,7 +393,7 @@ const AdminProperties = () => {
             </div>
           )}
 
-          {filteredUnits.length === 0 && (
+          {filteredUnits.length === 0 && filteredCollectors.length === 0 && (
             <div className="text-sm text-muted-foreground">{t('common.noData')}</div>
           )}
         </div>
@@ -411,6 +430,7 @@ const AdminProperties = () => {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="epulet">{t('common.epulet')}</SelectItem>
+                  <SelectItem value="telek">{t('common.telek')}</SelectItem>
                   <SelectItem value="lakas">{t('common.lakas')}</SelectItem>
                   <SelectItem value="uzlet">{t('common.uzlet')}</SelectItem>
                   <SelectItem value="egyeb">{t('common.egyeb')}</SelectItem>

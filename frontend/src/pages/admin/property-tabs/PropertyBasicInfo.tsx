@@ -252,6 +252,7 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="epulet">{t('common.epulet')}</SelectItem>
+                <SelectItem value="telek">{t('common.telek')}</SelectItem>
                 <SelectItem value="lakas">{t('common.lakas')}</SelectItem>
                 <SelectItem value="uzlet">{t('common.uzlet')}</SelectItem>
                 <SelectItem value="egyeb">{t('common.egyeb')}</SelectItem>
