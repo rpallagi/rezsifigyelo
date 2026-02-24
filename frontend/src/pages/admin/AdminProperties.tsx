@@ -107,7 +107,7 @@ const AdminProperties = () => {
         purchase_price: form.purchase_price ? Number(form.purchase_price) : null,
         tariff_group_id: form.tariff_group_id ? Number(form.tariff_group_id) : null,
         notes: form.notes || null,
-        building_property_id: form.property_type === 'lakas' && form.building_property_id
+        building_property_id: !['epulet', 'telek'].includes(form.property_type) && form.building_property_id
           ? Number(form.building_property_id)
           : null,
       };
@@ -171,8 +171,9 @@ const AdminProperties = () => {
   const allBuildings = properties.filter((p) => p.property_type === "epulet");
   const filteredCollectors = filteredProperties.filter((p) => p.property_type === "epulet" || p.property_type === "telek");
   const filteredUnits = filteredProperties.filter((p) => p.property_type !== "epulet" && p.property_type !== "telek");
+  const allCollectors = properties.filter((p) => p.property_type === "epulet" || p.property_type === "telek");
 
-  const groupedUnitsByBuilding = allBuildings
+  const groupedUnitsByBuilding = allCollectors
     .map((building) => ({
       building,
       units: filteredUnits.filter((u) => u.building_property_id === building.id),
@@ -180,11 +181,11 @@ const AdminProperties = () => {
     .filter((g) => g.units.length > 0);
 
   const unassignedUnits = filteredUnits.filter(
-    (u) => !u.building_property_id || !allBuildings.some((b) => b.id === u.building_property_id),
+    (u) => !u.building_property_id || !allCollectors.some((b) => b.id === u.building_property_id),
   );
 
   const buildingOptions = properties.filter(
-    (p) => p.property_type === "epulet" && (!editingId || p.id !== editingId),
+    (p) => (p.property_type === "epulet" || p.property_type === "telek") && (!editingId || p.id !== editingId),
   );
 
   // Count by type
@@ -424,7 +425,7 @@ const AdminProperties = () => {
                 onValueChange={(v) => setForm((f) => ({
                   ...f,
                   property_type: v,
-                  building_property_id: v === 'lakas' ? f.building_property_id : '',
+                  building_property_id: (v !== 'epulet' && v !== 'telek') ? f.building_property_id : '',
                 }))}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -438,16 +439,16 @@ const AdminProperties = () => {
               </Select>
             </div>
 
-            {form.property_type === 'lakas' && (
+            {!['epulet', 'telek'].includes(form.property_type) && (
               <div>
-                <label className="text-sm text-muted-foreground block mb-1">{t('props.building')}</label>
+                <label className="text-sm text-muted-foreground block mb-1">{t('props.collector')}</label>
                 <Select
                   value={form.building_property_id || 'none'}
                   onValueChange={(v) => set('building_property_id', v === 'none' ? '' : v)}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">{t('props.noBuilding')}</SelectItem>
+                    <SelectItem value="none">{t('props.noCollector')}</SelectItem>
                     {buildingOptions.map((b) => (
                       <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
                     ))}

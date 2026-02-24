@@ -25,7 +25,7 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [tariffGroups, setTariffGroups] = useState<TariffGroupItem[]>([]);
-  const [buildingOptions, setBuildingOptions] = useState<AdminProperty[]>([]);
+  const [collectorOptions, setCollectorOptions] = useState<AdminProperty[]>([]);
 
   const [form, setForm] = useState({
     name: property.name,
@@ -44,8 +44,8 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
   useEffect(() => {
     getAdminProperties().then((data) => {
       setTariffGroups(data.tariff_groups);
-      setBuildingOptions(
-        (data.properties || []).filter((p) => p.property_type === 'epulet' && p.id !== property.id),
+      setCollectorOptions(
+        (data.properties || []).filter((p) => (p.property_type === 'epulet' || p.property_type === 'telek') && p.id !== property.id),
       );
     });
   }, [property.id]);
@@ -152,7 +152,7 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
         purchase_price: form.purchase_price ? Number(form.purchase_price) : null,
         tariff_group_id: form.tariff_group_id ? Number(form.tariff_group_id) : null,
         notes: form.notes || null,
-        building_property_id: form.property_type === 'lakas' && form.building_property_id
+        building_property_id: !['epulet', 'telek'].includes(form.property_type) && form.building_property_id
           ? Number(form.building_property_id)
           : null,
       };
@@ -246,7 +246,7 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
               onValueChange={(v) => setForm((f) => ({
                 ...f,
                 property_type: v,
-                building_property_id: v === 'lakas' ? f.building_property_id : '',
+                building_property_id: (v !== 'epulet' && v !== 'telek') ? f.building_property_id : '',
               }))}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -260,25 +260,6 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
             </Select>
           </div>
         </div>
-
-        {form.property_type === 'lakas' && (
-          <div>
-            <label className="text-sm text-muted-foreground block mb-1">{t('props.building')}</label>
-            <Select
-              value={form.building_property_id || 'none'}
-              onValueChange={(v) => set('building_property_id', v === 'none' ? '' : v)}
-            >
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{t('props.noBuilding')}</SelectItem>
-                {buildingOptions.map((b) => (
-                  <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
         <div>
           <label className="text-sm text-muted-foreground block mb-1">{t('props.address')}</label>
           <Input value={form.address} onChange={(e) => set("address", e.target.value)} />
@@ -322,6 +303,24 @@ const PropertyBasicInfo = ({ property, onSaved }: Props) => {
               </SelectContent>
             </Select>
           </div>
+
+          {!['epulet', 'telek'].includes(form.property_type) && (
+            <div>
+              <label className="text-sm text-muted-foreground block mb-1">{t('props.collector')}</label>
+              <Select
+                value={form.building_property_id || 'none'}
+                onValueChange={(v) => set('building_property_id', v === 'none' ? '' : v)}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('props.noCollector')}</SelectItem>
+                  {collectorOptions.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         <div>

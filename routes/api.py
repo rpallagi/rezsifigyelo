@@ -1212,8 +1212,8 @@ def _normalize_property_type(value):
 
 
 def _parse_building_property_id(raw_value, *, current_property_id=None, property_type='lakas'):
-    # Only apartments can be attached to a building.
-    if property_type != 'lakas':
+    # Only non-collector units can be attached to a parent collector.
+    if property_type in ('epulet', 'telek'):
         return None, None
 
     if raw_value in (None, '', 0, '0'):
@@ -1222,20 +1222,20 @@ def _parse_building_property_id(raw_value, *, current_property_id=None, property
     try:
         building_id = int(raw_value)
     except (TypeError, ValueError):
-        return None, 'Érvénytelen épület azonosító.'
+        return None, 'Érvénytelen gyűjtő azonosító.'
 
     if building_id <= 0:
-        return None, 'Érvénytelen épület azonosító.'
+        return None, 'Érvénytelen gyűjtő azonosító.'
 
     if current_property_id and building_id == int(current_property_id):
-        return None, 'Az ingatlan nem lehet saját maga épülete.'
+        return None, 'Az ingatlan nem lehet saját maga szülője.'
 
     building = Property.query.get(building_id)
     if not building:
-        return None, 'A kiválasztott épület nem található.'
+        return None, 'A kiválasztott gyűjtő nem található.'
 
-    if (building.property_type or '').strip().lower() != 'epulet':
-        return None, 'Csak Épület típusú ingatlan választható.'
+    if (building.property_type or '').strip().lower() not in ('epulet', 'telek'):
+        return None, 'Csak Épület vagy Telek típusú ingatlan választható.'
 
     return building_id, None
 
