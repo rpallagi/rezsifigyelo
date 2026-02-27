@@ -698,11 +698,13 @@ export const ocrMeterPhoto = (photo: File, role: 'admin' | 'tenant' = 'admin', u
 // ============ OCR Provider Settings ============
 
 export interface OcrSettings {
-  provider: 'claude' | 'openai' | 'tesseract';
+  provider: 'claude' | 'openai' | 'gemini' | 'tesseract';
   anthropic_configured: boolean;
   openai_configured: boolean;
+  gemini_configured: boolean;
   anthropic_key_masked: string;
   openai_key_masked: string;
+  gemini_key_masked: string;
 }
 
 export const getOcrSettings = () =>
@@ -712,6 +714,7 @@ export const saveOcrSettings = (data: {
   provider?: string;
   anthropic_key?: string;
   openai_key?: string;
+  gemini_key?: string;
 }) => request<{ success: boolean }>('/admin/settings/ocr', {
   method: 'POST',
   body: JSON.stringify(data),

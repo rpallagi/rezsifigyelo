@@ -77,15 +77,19 @@ const AdminSettings = () => {
   const [tailscaleResult, setTailscaleResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // OCR settings state
-  const [ocrProvider, setOcrProvider] = useState<OcrSettings['provider']>('openai');
+  const [ocrProvider, setOcrProvider] = useState<OcrSettings['provider']>('claude');
   const [ocrAnthropicKey, setOcrAnthropicKey] = useState('');
   const [ocrOpenaiKey, setOcrOpenaiKey] = useState('');
   const [ocrAnthropicConfigured, setOcrAnthropicConfigured] = useState(false);
   const [ocrOpenaiConfigured, setOcrOpenaiConfigured] = useState(false);
   const [ocrAnthropicMasked, setOcrAnthropicMasked] = useState('');
   const [ocrOpenaiMasked, setOcrOpenaiMasked] = useState('');
+  const [ocrGeminiKey, setOcrGeminiKey] = useState('');
+  const [ocrGeminiConfigured, setOcrGeminiConfigured] = useState(false);
+  const [ocrGeminiMasked, setOcrGeminiMasked] = useState('');
   const [ocrShowAnthropicKey, setOcrShowAnthropicKey] = useState(false);
   const [ocrShowOpenaiKey, setOcrShowOpenaiKey] = useState(false);
+  const [ocrShowGeminiKey, setOcrShowGeminiKey] = useState(false);
   const [ocrShowHowto, setOcrShowHowto] = useState(false);
   const [ocrSaving, setOcrSaving] = useState(false);
   const [ocrSaveResult, setOcrSaveResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -107,8 +111,10 @@ const AdminSettings = () => {
       setOcrProvider(data.provider || 'openai');
       setOcrAnthropicConfigured(data.anthropic_configured);
       setOcrOpenaiConfigured(data.openai_configured);
+      setOcrGeminiConfigured(data.gemini_configured);
       setOcrAnthropicMasked(data.anthropic_key_masked || '');
       setOcrOpenaiMasked(data.openai_key_masked || '');
+      setOcrGeminiMasked(data.gemini_key_masked || '');
     }).catch(() => {});
   }, []);
 
@@ -249,16 +255,20 @@ const AdminSettings = () => {
         provider: ocrProvider,
         anthropic_key: ocrAnthropicKey || undefined,
         openai_key: ocrOpenaiKey || undefined,
+        gemini_key: ocrGeminiKey || undefined,
       });
       setOcrSaveResult({ ok: true, msg: t('settings.ocrSaved') });
       // Refresh status
       const updated = await getOcrSettings();
       setOcrAnthropicConfigured(updated.anthropic_configured);
       setOcrOpenaiConfigured(updated.openai_configured);
+      setOcrGeminiConfigured(updated.gemini_configured);
       setOcrAnthropicMasked(updated.anthropic_key_masked || '');
       setOcrOpenaiMasked(updated.openai_key_masked || '');
+      setOcrGeminiMasked(updated.gemini_key_masked || '');
       setOcrAnthropicKey('');
       setOcrOpenaiKey('');
+      setOcrGeminiKey('');
       setTimeout(() => setOcrSaveResult(null), 4000);
     } catch (e: any) {
       setOcrSaveResult({ ok: false, msg: e.message || t('settings.ocrSaveError') });
@@ -422,7 +432,7 @@ const AdminSettings = () => {
           <div>
             <label className="text-sm text-muted-foreground block mb-1">{t('settings.ocrProvider')}</label>
             <div className="grid grid-cols-3 gap-2">
-              {(['claude', 'openai', 'tesseract'] as const).map((p) => (
+              {(['claude', 'openai', 'gemini', 'tesseract'] as const).map((p) => (
                 <button
                   key={p}
                   onClick={() => setOcrProvider(p)}
@@ -432,7 +442,7 @@ const AdminSettings = () => {
                       : 'border-border hover:border-primary/50'
                   }`}
                 >
-                  {p === 'claude' ? 'Claude (Anthropic)' : p === 'openai' ? 'GPT-4o mini' : 'Tesseract'}
+                  {p === 'claude' ? 'Claude Haiku' : p === 'openai' ? 'GPT-4o mini' : p === 'gemini' ? 'Gemini Flash' : 'Tesseract'}
                 </button>
               ))}
             </div>
@@ -504,6 +514,38 @@ const AdminSettings = () => {
             </div>
           )}
 
+          {/* Gemini API key */}
+          {ocrProvider === 'gemini' && (
+            <div>
+              <label className="text-sm text-muted-foreground block mb-1">Google Gemini API kulcs</label>
+              <div className="relative">
+                <Input
+                  type="text"
+                  value={ocrShowGeminiKey ? ocrGeminiKey : (ocrGeminiKey ? '•'.repeat(Math.min(ocrGeminiKey.length, 20)) : '')}
+                  onChange={(e) => setOcrGeminiKey(e.target.value)}
+                  onFocus={() => setOcrShowGeminiKey(true)}
+                  placeholder={ocrGeminiConfigured ? `${ocrGeminiMasked} (hagyd üresen a megtartáshoz)` : 'AIzaSy...'}
+                  autoComplete="off"
+                  className="font-mono text-xs pr-8"
+                />
+                <button
+                  type="button"
+                  onClick={() => setOcrShowGeminiKey(!ocrShowGeminiKey)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {ocrShowGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5 mt-1">
+                {ocrGeminiConfigured ? (
+                  <><CheckCircle2 className="h-3.5 w-3.5 text-green-500" /><span className="text-xs text-green-600">{t('settings.ocrKeyConfigured')}</span></>
+                ) : (
+                  <><AlertCircle className="h-3.5 w-3.5 text-amber-500" /><span className="text-xs text-amber-600">{t('settings.ocrKeyNotConfigured')}</span></>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Tesseract info */}
           {ocrProvider === 'tesseract' && (
             <div className="bg-muted/40 rounded-lg p-3 text-sm text-muted-foreground">
@@ -512,7 +554,7 @@ const AdminSettings = () => {
           )}
 
           {/* How-to guide */}
-          {ocrProvider !== 'tesseract' && (
+          {(ocrProvider === 'claude' || ocrProvider === 'openai' || ocrProvider === 'gemini') && (
             <div>
               <button
                 onClick={() => setOcrShowHowto(!ocrShowHowto)}
@@ -526,6 +568,8 @@ const AdminSettings = () => {
                   <p>
                     {ocrProvider === 'claude'
                       ? t('settings.ocrHowtoClaude')
+                      : ocrProvider === 'gemini'
+                      ? 'Nyisd meg: aistudio.google.com → Get API key → Create API key. Másold be az "AIzaSy..." kezdetű kulcsot.'
                       : t('settings.ocrHowtoOpenai')}
                   </p>
                 </div>

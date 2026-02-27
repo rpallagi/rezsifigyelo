@@ -114,17 +114,20 @@ def _build_ocr_prompt(utility_type: str = "") -> str:
     return (
         f"{type_hint}\n\n"
         "DIGITALIS (LED/LCD kijelzo):\n"
-        "- A kijelzon lathato . vagy , PONTOSAN jelzi a tizedest - hasznald!\n"
+        "- Ha latszik . vagy , a kijelzon, az a tizedes elvalaszto - hasznald!\n"
         "- Pl: '5588.3' → 5588.3, '4112,65' → 4112.65\n\n"
-        "ANALOG/MECHANIKUS merő:\n"
-        "- PIROS szamu vagy PIROS KERET/HATTER mogotti szamok = tizedes resz\n"
-        "- Feher/fekete szamu szamok = egeszek\n"
-        "- Ha nincs szinezes: hasznald a fenti merőtipus-szabalyt!\n\n"
+        "ANALOG/MECHANIKUS merő - tizedes felismerese:\n"
+        "- Nezd meg hany szam van PIROS szinnel vagy PIROS KERETBEN / PIROS HATTERREL\n"
+        "- Azok a szamok a TIZEDES RESZ (jobbrol annyi tizedes, amennyi piros)\n"
+        "- A tobbi (feher/fekete hatteru) szam az EGESZ RESZ\n"
+        "- Pl: '0002928' ahol az utolso 2 piros → 292.28... azaz 29.28\n"
+        "- Pl: '0035907' ahol az utolso 1 piros → 3590.7 azaz 3590.7\n"
+        "- Pl: '0008155' ahol az utolso 3 piros → 8.155\n\n"
         "SZABALYOK:\n"
-        "- Vezeto nullakat hagyj el (0035907 → 35907)\n"
+        "- Vezeto nullakat hagyj el (0035907 → 35907, de ha tizedes: 29.28)\n"
         "- Csak a szamot ird ki, semmi mast (nincs egyseg, nincs szo)\n"
         "- Tizedes elvalaszto: pontot hasznalj\n"
-        "- Helyes valasz peldak: 35907.6 vagy 8.155 vagy 5181.907 vagy 5588.3"
+        "- Helyes valasz peldak: 29.28 vagy 3590.7 vagy 8.155 vagy 5588.3"
     )
 
 
@@ -335,24 +338,61 @@ def _ocr_openai(image_data: bytes, mime_type: str = "image/jpeg", utility_type: 
 
 
 # ---------------------------------------------------------------------------
-# Provider: Google Cloud Vision
+# Provider: Google Gemini Vision
+# ---------------------------------------------------------------------------
+
+def _ocr_gemini(image_data: bytes, mime_type: str = "image/jpeg", utility_type: str = "") -> dict:
+    """Use Google Gemini Flash with vision to extract meter reading."""
+    from flask import current_app
+
+    api_key = current_app.config.get("GEMINI_API_KEY", "")
+    # Override with AppSetting if available
+    try:
+        from models import AppSetting
+        setting = AppSetting.query.get("gemini_api_key")
+        if setting and setting.value:
+            api_key = setting.value
+    except Exception:
+        pass
+
+    if not api_key:
+        logger.warning("GEMINI_API_KEY is not configured")
+        return {"value": None, "confidence": "low", "raw_text": "", "error": "Missing GEMINI_API_KEY"}
+
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        return {"value": None, "confidence": "low", "raw_text": "", "error": "google-generativeai not installed"}
+
+    prompt = _build_ocr_prompt(utility_type)
+
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        import PIL.Image, io
+        image = PIL.Image.open(io.BytesIO(image_data))
+        response = model.generate_content([prompt, image])
+        raw_text = response.text.strip() if response.text else ""
+        value = _parse_numeric_value(raw_text)
+        confidence = _assess_confidence(value, raw_text)
+
+        logger.info("Gemini OCR result: value=%s, confidence=%s, raw=%r", value, confidence, raw_text[:200])
+
+        return {"value": value, "confidence": confidence, "raw_text": raw_text}
+
+    except Exception as exc:
+        logger.error("Gemini OCR failed: %s", exc)
+        return {"value": None, "confidence": "low", "raw_text": "", "error": f"Gemini error: {exc}"}
+
+
+# ---------------------------------------------------------------------------
+# Provider: Google Cloud Vision (legacy stub)
 # ---------------------------------------------------------------------------
 
 def _ocr_google(image_data: bytes, mime_type: str = "image/jpeg") -> dict:
-    """Use Google Cloud Vision API for meter reading OCR.
-
-    TODO: Implement Google Cloud Vision integration.
-    - Requires google-cloud-vision package
-    - Requires GOOGLE_APPLICATION_CREDENTIALS env var pointing to service account JSON
-    - Use TEXT_DETECTION or DOCUMENT_TEXT_DETECTION feature
-    """
-    logger.warning("Google Cloud Vision OCR provider is not yet implemented")
-    return {
-        "value": None,
-        "confidence": "low",
-        "raw_text": "",
-        "error": "Google Cloud Vision provider not yet implemented",
-    }
+    """Legacy stub — use gemini provider instead."""
+    logger.warning("Use 'gemini' provider instead of 'google'")
+    return _ocr_gemini(image_data, mime_type)
 
 
 # ---------------------------------------------------------------------------
@@ -363,6 +403,7 @@ _PROVIDERS = {
     "claude": _ocr_claude,
     "tesseract": _ocr_tesseract,
     "openai": _ocr_openai,
+    "gemini": _ocr_gemini,
     "google": _ocr_google,
 }
 
@@ -427,6 +468,6 @@ def ocr_meter_reading(image_data: bytes, provider: str = "claude", utility_type:
                 provider, utility_type, len(image_data), mime_type)
 
     fn = _PROVIDERS[provider]
-    if provider in ("claude", "openai"):
+    if provider in ("claude", "openai", "gemini"):
         return fn(image_data, mime_type, utility_type=utility_type)
     return fn(image_data, mime_type)

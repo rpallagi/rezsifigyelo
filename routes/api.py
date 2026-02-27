@@ -3543,16 +3543,20 @@ def get_ocr_settings():
             return ''
         return k[:8] + '...' + k[-4:]
 
+    gem_setting = AppSetting.query.get('gemini_api_key')
     ant_key = ant_setting.value if ant_setting else current_app.config.get('ANTHROPIC_API_KEY', '')
     oai_key = oai_setting.value if oai_setting else current_app.config.get('OPENAI_API_KEY', '')
+    gem_key = gem_setting.value if gem_setting else current_app.config.get('GEMINI_API_KEY', '')
     provider = (provider_setting.value if provider_setting else None) or current_app.config.get('OCR_PROVIDER', 'claude')
 
     return jsonify({
         'provider': provider,
         'anthropic_configured': bool(ant_key),
         'openai_configured': bool(oai_key),
+        'gemini_configured': bool(gem_key),
         'anthropic_key_masked': mask(ant_key),
         'openai_key_masked': mask(oai_key),
+        'gemini_key_masked': mask(gem_key),
     })
 
 
@@ -3582,6 +3586,10 @@ def save_ocr_settings():
     oai_key = data.get('openai_key', '').strip()
     if oai_key:
         upsert('openai_api_key', oai_key)
+
+    gem_key = data.get('gemini_key', '').strip()
+    if gem_key:
+        upsert('gemini_api_key', gem_key)
 
     db.session.commit()
     return jsonify({'success': True})
