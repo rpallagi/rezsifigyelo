@@ -16,9 +16,8 @@ import {
 } from "@/components/ui/select";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { useI18n } from "@/lib/i18n";
-import MeterReadingFormContent, {
-  initialMeterReadingFormState, type MeterReadingFormState,
-} from "@/components/MeterReadingFormContent";
+import MeterReadingFormContent from "@/components/MeterReadingFormContent";
+import { initialMeterReadingFormState, type MeterReadingFormState } from "@/components/meterReadingFormState";
 
 interface Props {
   propertyId: number;

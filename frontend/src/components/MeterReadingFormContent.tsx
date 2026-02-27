@@ -10,25 +10,7 @@ import { ocrMeterPhoto } from "@/lib/api";
 import { formatHuf, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 
-export interface MeterReadingFormState {
-  value: string;
-  readingDate: string;
-  photo: File | null;
-  photoPreview: string | null;
-  notes: string;
-  ocrLoading: boolean;
-  ocrResult: { value: number | null; confidence: string } | null;
-}
-
-export const initialMeterReadingFormState = (): MeterReadingFormState => ({
-  value: "",
-  readingDate: new Date().toISOString().split("T")[0],
-  photo: null,
-  photoPreview: null,
-  notes: "",
-  ocrLoading: false,
-  ocrResult: null,
-});
+import type { MeterReadingFormState } from "./meterReadingFormState";
 
 interface Props {
   state: MeterReadingFormState;

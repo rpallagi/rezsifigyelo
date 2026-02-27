@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { getTenantDashboard, submitReading, type TenantDashboardData } from "@/lib/api";
 import { formatHuf, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
-import MeterReadingFormContent, {
-  initialMeterReadingFormState, type MeterReadingFormState,
-} from "@/components/MeterReadingFormContent";
+import MeterReadingFormContent from "@/components/MeterReadingFormContent";
+import { initialMeterReadingFormState, type MeterReadingFormState } from "@/components/meterReadingFormState";
 
 const MeterReading = () => {
   const [step, setStep] = useState(0);
@@ -173,6 +172,7 @@ const MeterReading = () => {
               csatornaRate={csatornaRate}
               role="tenant"
             />
+          </div>
 
           <div className="flex gap-3 pt-2">
             <Button variant="outline" className="flex-1 h-12" onClick={() => { setStep(0); setFormState(initialMeterReadingFormState()); }}>
