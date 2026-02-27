@@ -564,6 +564,7 @@ const AdminSettings = () => {
         </div>
 
         <form onSubmit={handlePasswordChange} className="space-y-4">
+          <input type="text" name="username" autoComplete="username" aria-hidden="true" tabIndex={-1} style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }} readOnly />
           <div>
             <label className="text-sm text-muted-foreground block mb-1">{t('settings.currentPassword')}</label>
             <Input
