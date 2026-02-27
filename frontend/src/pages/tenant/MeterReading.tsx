@@ -1,26 +1,23 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Droplets, Flame, ChevronRight, Check, Camera, CalendarDays, MessageSquare, ArrowLeft, ImagePlus, ScanLine, X } from "lucide-react";
+import { Zap, Droplets, Flame, ChevronRight, Check, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getTenantDashboard, submitReading, ocrMeterPhoto, type TenantDashboardData } from "@/lib/api";
+import { getTenantDashboard, submitReading, type TenantDashboardData } from "@/lib/api";
 import { formatHuf, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
+import MeterReadingFormContent, {
+  initialMeterReadingFormState, type MeterReadingFormState,
+} from "@/components/MeterReadingFormContent";
 
 const MeterReading = () => {
   const [step, setStep] = useState(0);
   const [selectedType, setSelectedType] = useState<{ id: 'villany' | 'viz' | 'gaz'; label: string; Icon: typeof Zap; color: string; unit: string; desc: string } | null>(null);
-  const [value, setValue] = useState("");
-  const [readingDate, setReadingDate] = useState(new Date().toISOString().split('T')[0]);
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [notes, setNotes] = useState("");
+  const [formState, setFormState] = useState<MeterReadingFormState>(initialMeterReadingFormState());
+  const patchForm = (patch: Partial<MeterReadingFormState>) => setFormState((s) => ({ ...s, ...patch }));
   const [submitted, setSubmitted] = useState(false);
   const [dashData, setDashData] = useState<TenantDashboardData | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrResult, setOcrResult] = useState<{ value: number | null; confidence: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { t } = useI18n();
 
@@ -40,9 +37,6 @@ const MeterReading = () => {
       : dashData.last_gaz?.value) || 0
     : 0;
 
-  const currentValue = parseFloat(value) || 0;
-  const consumption = currentValue > prevValue ? currentValue - prevValue : 0;
-
   const rate = selectedType && dashData?.tariffs
     ? (selectedType.id === 'villany'
         ? dashData.tariffs.villany?.rate_huf
@@ -51,38 +45,11 @@ const MeterReading = () => {
         : dashData.tariffs.gaz?.rate_huf) || 0
     : 0;
 
-  const estimatedCost = consumption * rate;
   const csatornaRate = dashData?.tariffs?.csatorna?.rate_huf || 0;
+  const currentValue = parseFloat(formState.value) || 0;
+  const consumption = currentValue > prevValue ? currentValue - prevValue : 0;
+  const estimatedCost = consumption * rate;
   const csatornaCost = selectedType?.id === 'viz' ? consumption * csatornaRate : 0;
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setPhoto(file);
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setPhotoPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    } else {
-      setPhotoPreview(null);
-    }
-  };
-
-  const handleOcr = async () => {
-    if (!photo) return;
-    setOcrLoading(true);
-    setOcrResult(null);
-    try {
-      const result = await ocrMeterPhoto(photo, 'tenant', selectedType?.id);
-      setOcrResult({ value: result.value, confidence: result.confidence });
-      if (result.value != null) {
-        setValue(String(result.value));
-      }
-    } catch {
-      setOcrResult({ value: null, confidence: 'low' });
-    } finally {
-      setOcrLoading(false);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!selectedType) return;
@@ -91,9 +58,9 @@ const MeterReading = () => {
       const fd = new FormData();
       fd.append('utility_type', selectedType.id);
       fd.append('value', String(currentValue));
-      fd.append('reading_date', readingDate);
-      if (notes) fd.append('notes', notes);
-      if (photo) fd.append('photo', photo);
+      fd.append('reading_date', formState.readingDate);
+      if (formState.notes) fd.append('notes', formState.notes);
+      if (formState.photo) fd.append('photo', formState.photo);
 
       await submitReading(fd);
       setSubmitted(true);
@@ -196,210 +163,19 @@ const MeterReading = () => {
                 <p className="text-xs text-muted-foreground">{t('reading.previous')}: {formatNumber(prevValue)} {selectedType.unit}</p>
               </div>
             </div>
-            <Input
-              type="number"
-              inputMode="decimal"
-              placeholder={`pl. ${formatNumber(prevValue + 100)}`}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              className="text-3xl font-display font-bold h-16 text-center border-2 focus:border-primary"
-              autoFocus
+            {/* Shared form content — same as admin */}
+            <MeterReadingFormContent
+              state={formState}
+              onChange={patchForm}
+              utilityType={selectedType.id}
+              prevValue={prevValue}
+              rate={rate}
+              csatornaRate={csatornaRate}
+              role="tenant"
             />
-          </div>
-
-          {currentValue > 0 && (
-            <div className="glass-card p-5 animate-in space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">{t('reading.consumption')}</span>
-                <span className="font-mono font-semibold text-base">{formatNumber(consumption)} {selectedType.unit}</span>
-              </div>
-              <div className="h-px bg-border/50" />
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">{t('reading.estimatedCost')}</span>
-                <span className="font-display font-bold text-xl text-primary format-hu">{formatHuf(estimatedCost)}</span>
-              </div>
-              {csatornaCost > 0 && (
-                <>
-                  <div className="h-px bg-border/50" />
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">+ {t('common.csatorna')}</span>
-                    <span className="font-display font-semibold text-sm format-hu">{formatHuf(csatornaCost)}</span>
-                  </div>
-                  <div className="h-px bg-border/50" />
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">{t('reading.total')}</span>
-                    <span className="font-display font-bold text-lg format-hu">{formatHuf(estimatedCost + csatornaCost)}</span>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {/* Photo - prominent camera button */}
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <Camera className="h-4 w-4 text-muted-foreground" />
-                <label className="text-sm text-muted-foreground">{t('reading.photo')}</label>
-              </div>
-
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handlePhotoChange}
-                className="hidden"
-              />
-
-              {!photo ? (
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (fileInputRef.current) {
-                        fileInputRef.current.setAttribute('capture', 'environment');
-                        fileInputRef.current.click();
-                      }
-                    }}
-                    className="flex-1 h-20 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all flex flex-col items-center justify-center gap-1.5 active:scale-[0.98]"
-                  >
-                    <Camera className="h-7 w-7 text-primary" />
-                    <span className="text-xs font-medium text-primary">{t('reading.takePhoto')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (fileInputRef.current) {
-                        fileInputRef.current.removeAttribute('capture');
-                        fileInputRef.current.click();
-                      }
-                    }}
-                    className="flex-1 h-20 rounded-xl border-2 border-dashed border-border hover:bg-accent/50 hover:border-accent-foreground/20 transition-all flex flex-col items-center justify-center gap-1.5 active:scale-[0.98]"
-                  >
-                    <ImagePlus className="h-6 w-6 text-muted-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground">{t('reading.gallery')}</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {/* Full photo preview — no crop */}
-                  {photoPreview && (
-                    <div className={`relative rounded-xl overflow-hidden border-2 transition-colors ${ocrResult?.value != null ? 'border-success' : 'border-border'}`}>
-                      <img
-                        src={photoPreview}
-                        alt={t('reading.photo')}
-                        className="w-full object-contain max-h-64"
-                      />
-                      {/* Loading overlay */}
-                      {ocrLoading && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl">
-                          <div className="bg-white/90 rounded-xl px-4 py-2 flex items-center gap-2 text-sm font-medium">
-                            <ScanLine className="h-4 w-4 animate-pulse text-primary" />
-                            {t('reading.ocrProcessing')}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Zoomed digit view after successful OCR — landscape crop on display area */}
-                  {ocrResult?.value != null && photoPreview && (
-                    <div className="rounded-xl overflow-hidden border-2 border-success relative" style={{ height: '72px' }}>
-                      <img
-                        src={photoPreview}
-                        alt="digits"
-                        className="absolute"
-                        style={{
-                          width: '100%', height: '100%',
-                          objectFit: 'cover',
-                          objectPosition: 'center 50%',
-                          transform: 'scale(2.8)',
-                          transformOrigin: 'center 50%',
-                        }}
-                      />
-                      <div className="absolute inset-0 ring-inset ring-2 ring-success/60 rounded-xl pointer-events-none" />
-                      <div className="absolute bottom-1.5 right-2 bg-success text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-lg flex items-center gap-1">
-                        <Check className="h-3 w-3" />
-                        {ocrResult.value}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Filename + remove */}
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-xs text-success font-medium flex items-center gap-1.5">
-                      <Check className="h-3.5 w-3.5" />
-                      {photo.name}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => { setPhoto(null); setPhotoPreview(null); setOcrResult(null); }}
-                      className="text-xs text-destructive hover:underline"
-                    >
-                      {t('reading.removePhoto')}
-                    </button>
-                  </div>
-
-                  {/* OCR button */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/5"
-                    onClick={handleOcr}
-                    disabled={ocrLoading}
-                  >
-                    <ScanLine className="h-4 w-4" />
-                    {ocrLoading ? t('reading.ocrProcessing') : t('reading.ocrBtn')}
-                  </Button>
-
-                  {/* OCR result text */}
-                  {ocrResult && (
-                    <div className={`rounded-xl p-3 flex items-center gap-3 text-sm ${ocrResult.value != null ? 'bg-success/10 border border-success/30' : 'bg-destructive/10 border border-destructive/30'}`}>
-                      {ocrResult.value != null ? (
-                        <>
-                          <Check className="h-4 w-4 text-success flex-shrink-0" />
-                          <div className="flex-1">
-                            <span className="font-semibold">{t('reading.ocrSuccess').replace('{value}', String(ocrResult.value))}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              ({t(`reading.ocr${ocrResult.confidence.charAt(0).toUpperCase() + ocrResult.confidence.slice(1)}` as any)})
-                            </span>
-                          </div>
-                          <button type="button" onClick={() => setOcrResult(null)}>
-                            <X className="h-4 w-4 text-muted-foreground" />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <X className="h-4 w-4 text-destructive flex-shrink-0" />
-                          <span>{t('reading.ocrFailed')}</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <label className="text-sm text-muted-foreground">{t('reading.date')}</label>
-              </div>
-              <Input type="date" value={readingDate} onChange={(e) => setReadingDate(e.target.value)} />
-            </div>
-            <div className="glass-card p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <label className="text-sm text-muted-foreground">{t('reading.notes')}</label>
-              </div>
-              <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('reading.notesPlaceholder')} />
-            </div>
-          </div>
 
           <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1 h-12" onClick={() => { setStep(0); setValue(""); }}>
+            <Button variant="outline" className="flex-1 h-12" onClick={() => { setStep(0); setFormState(initialMeterReadingFormState()); }}>
               <ArrowLeft className="h-4 w-4 mr-2" /> {t('common.back')}
             </Button>
             <Button className="flex-1 h-12 gradient-primary-bg border-0 font-semibold" disabled={currentValue <= prevValue} onClick={() => setStep(2)}>
@@ -432,9 +208,9 @@ const MeterReading = () => {
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-muted-foreground">{t('reading.date')}</span>
-                <span className="font-medium">{readingDate}</span>
+                <span className="font-medium">{formState.readingDate}</span>
               </div>
-              {photo && (
+              {formState.photo && (
                 <div className="flex justify-between py-1">
                   <span className="text-muted-foreground">{t('reading.photo')}</span>
                   <span className="text-success font-medium">{t('reading.photoAttached')}</span>
@@ -449,9 +225,9 @@ const MeterReading = () => {
           </div>
 
           {/* Photo preview in confirmation */}
-          {photoPreview && (
+          {formState.photoPreview && (
             <div className="glass-card p-3 animate-in">
-              <img src={photoPreview} alt={t('reading.photo')} className="w-full h-40 object-cover rounded-lg" />
+              <img src={formState.photoPreview} alt={t('reading.photo')} className="w-full h-40 object-cover rounded-lg" />
             </div>
           )}
 

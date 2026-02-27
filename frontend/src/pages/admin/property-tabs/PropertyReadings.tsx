@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Zap, Droplets, Waves, Flame, TrendingUp, TrendingDown, Plus, Camera, Trash2, Loader2 } from "lucide-react";
 import {
   getPropertyReadings, adminSubmitReading, deletePropertyReadingsByUtility,
@@ -7,7 +7,6 @@ import {
 import { formatHuf, formatDate, formatNumber } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -17,6 +16,9 @@ import {
 } from "@/components/ui/select";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { useI18n } from "@/lib/i18n";
+import MeterReadingFormContent, {
+  initialMeterReadingFormState, type MeterReadingFormState,
+} from "@/components/MeterReadingFormContent";
 
 interface Props {
   propertyId: number;
@@ -31,14 +33,11 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingUtility, setDeletingUtility] = useState<string | null>(null);
-  const [readingForm, setReadingForm] = useState({
-    utility_type: "villany",
-    value: "",
-    reading_date: new Date().toISOString().split("T")[0],
-    notes: "",
-  });
-  const [photo, setPhoto] = useState<File | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [utilityType, setUtilityType] = useState<"villany" | "viz" | "gaz">("villany");
+  const [formState, setFormState] = useState<MeterReadingFormState>(initialMeterReadingFormState());
+
+  const patchForm = (patch: Partial<MeterReadingFormState>) =>
+    setFormState((s) => ({ ...s, ...patch }));
 
   const load = () => {
     setLoading(true);
@@ -49,21 +48,35 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
 
   useEffect(() => { load(); }, [propertyId]);
 
+  const openDialog = () => {
+    setFormState(initialMeterReadingFormState());
+    setUtilityType("villany");
+    setDialogOpen(true);
+  };
+
+  // Compute previous value for selected utility from readings
+  const prevValue = (() => {
+    if (!data) return 0;
+    const matching = data.readings
+      .filter((r) => r.utility_type === utilityType)
+      .sort((a, b) => (a.reading_date > b.reading_date ? -1 : 1));
+    return matching[0]?.value ?? 0;
+  })();
+
   const handleSubmitReading = async () => {
     setSaving(true);
     try {
       const fd = new FormData();
       fd.append("property_id", String(propertyId));
-      fd.append("utility_type", readingForm.utility_type);
-      fd.append("value", readingForm.value);
-      fd.append("reading_date", readingForm.reading_date);
-      if (readingForm.notes) fd.append("notes", readingForm.notes);
-      if (photo) fd.append("photo", photo);
+      fd.append("utility_type", utilityType);
+      fd.append("value", formState.value);
+      fd.append("reading_date", formState.readingDate);
+      if (formState.notes) fd.append("notes", formState.notes);
+      if (formState.photo) fd.append("photo", formState.photo);
 
       await adminSubmitReading(fd);
       setDialogOpen(false);
-      setReadingForm({ utility_type: "villany", value: "", reading_date: new Date().toISOString().split("T")[0], notes: "" });
-      setPhoto(null);
+      setFormState(initialMeterReadingFormState());
       load();
     } catch (e: any) {
       alert(e.message || t('common.error'));
@@ -72,17 +85,16 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
     }
   };
 
-  const handleDeleteUtilityReadings = async (utilityType: string, utilityLabel: string) => {
+  const handleDeleteUtilityReadings = async (ut: string, label: string) => {
     const ok = window.confirm(
       t('adminReadings.deleteUtilityConfirm')
-        .replace('{utility}', utilityLabel)
+        .replace('{utility}', label)
         .replace('{property}', propertyName),
     );
     if (!ok) return;
-
-    setDeletingUtility(utilityType);
+    setDeletingUtility(ut);
     try {
-      const res = await deletePropertyReadingsByUtility(propertyId, utilityType as any);
+      const res = await deletePropertyReadingsByUtility(propertyId, ut as any);
       alert(t('adminReadings.deleteUtilityDone').replace('{count}', String(res.deleted || 0)));
       load();
     } catch (e: any) {
@@ -132,9 +144,11 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
     return hasReadings || hasSpark || Boolean(card.trend);
   });
 
+  const currentValue = parseFloat(formState.value) || 0;
+
   return (
     <div className="space-y-5">
-      {/* Trend cards with sparklines */}
+      {/* Trend cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {trendCards.map((card) => {
           const sparkData = (card.spark || []).map((v, i) => ({ v, i }));
@@ -166,7 +180,6 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
                       className="h-7 w-7 text-muted-foreground hover:text-destructive"
                       onClick={() => handleDeleteUtilityReadings(card.type, card.label)}
                       disabled={deletingUtility === card.type}
-                      title={t('adminReadings.deleteUtilityTitle').replace('{utility}', card.label)}
                     >
                       {deletingUtility === card.type ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                     </Button>
@@ -212,7 +225,7 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
 
       {/* New reading button */}
       <div className="flex justify-end">
-        <Button onClick={() => setDialogOpen(true)} className="gradient-primary-bg border-0">
+        <Button onClick={openDialog} className="gradient-primary-bg border-0">
           <Plus className="h-4 w-4 mr-2" />
           {t('adminReadings.newReading')}
         </Button>
@@ -238,13 +251,10 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
-                    {r.utility_type === 'villany'
-                      ? t('common.villany')
-                      : r.utility_type === 'viz'
-                        ? t('common.viz')
-                        : r.utility_type === 'gaz'
-                          ? t('common.gaz')
-                          : t('common.csatorna')}
+                    {r.utility_type === 'villany' ? t('common.villany')
+                      : r.utility_type === 'viz' ? t('common.viz')
+                      : r.utility_type === 'gaz' ? t('common.gaz')
+                      : t('common.csatorna')}
                   </Badge>
                   {r.photo_filename && <Camera className="h-3 w-3 text-muted-foreground" />}
                 </div>
@@ -270,15 +280,17 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
 
       {/* Submit reading dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display">{t('adminReadings.newReading')}</DialogTitle>
             <DialogDescription>{propertyName}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
+
+          <div className="py-2">
+            {/* Utility type selector */}
+            <div className="mb-4">
               <label className="text-sm text-muted-foreground block mb-1">{t('adminReadings.utilityType')} *</label>
-              <Select value={readingForm.utility_type} onValueChange={(v) => setReadingForm(f => ({...f, utility_type: v}))}>
+              <Select value={utilityType} onValueChange={(v) => { setUtilityType(v as any); setFormState(initialMeterReadingFormState()); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="villany">{t('common.villany')}</SelectItem>
@@ -287,39 +299,22 @@ const PropertyReadings = ({ propertyId, propertyName, tariffGroupId }: Props) =>
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="text-sm text-muted-foreground block mb-1">{t('adminReadings.meterValue')} *</label>
-              <Input
-                type="number"
-                step="0.1"
-                value={readingForm.value}
-                onChange={(e) => setReadingForm(f => ({...f, value: e.target.value}))}
-                placeholder={t('adminReadings.enterValue')}
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground block mb-1">{t('adminReadings.date')}</label>
-              <Input
-                type="date"
-                value={readingForm.reading_date}
-                onChange={(e) => setReadingForm(f => ({...f, reading_date: e.target.value}))}
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground block mb-1">{t('adminReadings.photo')}</label>
-              <Input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => setPhoto(e.target.files?.[0] || null)}
-              />
-            </div>
+
+            {/* Shared form content */}
+            <MeterReadingFormContent
+              state={formState}
+              onChange={patchForm}
+              utilityType={utilityType}
+              prevValue={prevValue}
+              role="admin"
+            />
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>
             <Button
               onClick={handleSubmitReading}
-              disabled={saving || !readingForm.value}
+              disabled={saving || !formState.value || currentValue <= 0}
               className="gradient-primary-bg border-0"
             >
               {saving ? t('common.saving') : t('adminReadings.submitReading')}
