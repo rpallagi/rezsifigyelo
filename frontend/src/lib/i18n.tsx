@@ -725,6 +725,26 @@ const hu: Record<string, string> = {
   'settings.haMovedToProperty': 'A Home Assistant + Tailscale kapcsolatot mostantól az adott ingatlan Mérők fülén állítod be, így külön profil menthető lakásonként/épületenként.',
   'settings.haLastSeen': 'Utoljára elérve',
 
+  // --- OCR beállítások ---
+  'settings.ocrTitle': 'Mérőóra fotófelismerés (OCR)',
+  'settings.ocrDesc': 'AI provider és API kulcs beállítása a fotóból való leolvasáshoz.',
+  'settings.ocrProvider': 'OCR provider',
+  'settings.ocrProviderClaude': 'Claude Haiku (Anthropic)',
+  'settings.ocrProviderOpenai': 'GPT-4o mini (OpenAI)',
+  'settings.ocrProviderTesseract': 'Tesseract (helyi, ingyenes)',
+  'settings.ocrAnthropicKey': 'Anthropic API kulcs',
+  'settings.ocrAnthropicKeyPlaceholder': 'sk-ant-...',
+  'settings.ocrOpenaiKey': 'OpenAI API kulcs',
+  'settings.ocrOpenaiKeyPlaceholder': 'sk-proj-...',
+  'settings.ocrKeyConfigured': 'API kulcs beállítva',
+  'settings.ocrKeyNotConfigured': 'Nincs beállítva',
+  'settings.ocrHowto': 'Hogyan szerzem meg az API kulcsot?',
+  'settings.ocrHowtoClaude': 'Nyisd meg: console.anthropic.com → Bejelentkezés → API Keys → Create Key. Másold be a "sk-ant-..." kezdetű kulcsot.',
+  'settings.ocrHowtoOpenai': 'Nyisd meg: platform.openai.com → Bejelentkezés → API Keys → Create new secret key. Másold be a "sk-proj-..." vagy "sk-..." kezdetű kulcsot.',
+  'settings.ocrHowtoTesseract': 'Tesseract helyi OCR motor — nem kell API kulcs, szerveren fut. Kevésbé pontos, mint az AI alapú megoldások.',
+  'settings.ocrSaved': 'OCR beállítások mentve!',
+  'settings.ocrSaveError': 'Nem sikerült menteni az OCR beállításokat.',
+
   // --- Auto-login ---
   'login.autoDetected': 'Automatikus bejelentkezés...',
 
@@ -1708,6 +1728,26 @@ const en: Record<string, string> = {
   'settings.haDiscoveredHint': 'Click an item to auto-fill the URL field.',
   'settings.haMovedToProperty': 'Home Assistant + Tailscale connection is now configured in each property\'s Meters tab, so profiles can be saved per apartment/building.',
   'settings.haLastSeen': 'Last seen',
+
+  // --- OCR settings ---
+  'settings.ocrTitle': 'Meter photo recognition (OCR)',
+  'settings.ocrDesc': 'Configure AI provider and API key for photo-based meter reading.',
+  'settings.ocrProvider': 'OCR provider',
+  'settings.ocrProviderClaude': 'Claude Haiku (Anthropic)',
+  'settings.ocrProviderOpenai': 'GPT-4o mini (OpenAI)',
+  'settings.ocrProviderTesseract': 'Tesseract (local, free)',
+  'settings.ocrAnthropicKey': 'Anthropic API key',
+  'settings.ocrAnthropicKeyPlaceholder': 'sk-ant-...',
+  'settings.ocrOpenaiKey': 'OpenAI API key',
+  'settings.ocrOpenaiKeyPlaceholder': 'sk-proj-...',
+  'settings.ocrKeyConfigured': 'API key configured',
+  'settings.ocrKeyNotConfigured': 'Not configured',
+  'settings.ocrHowto': 'How to get an API key?',
+  'settings.ocrHowtoClaude': 'Go to: console.anthropic.com → Sign in → API Keys → Create Key. Copy the key starting with "sk-ant-...".',
+  'settings.ocrHowtoOpenai': 'Go to: platform.openai.com → Sign in → API Keys → Create new secret key. Copy the key starting with "sk-proj-..." or "sk-...".',
+  'settings.ocrHowtoTesseract': 'Tesseract is a local OCR engine — no API key needed, runs on the server. Less accurate than AI-based solutions.',
+  'settings.ocrSaved': 'OCR settings saved!',
+  'settings.ocrSaveError': 'Could not save OCR settings.',
 
   // --- Auto-login ---
   'login.autoDetected': 'Auto-logging in...',

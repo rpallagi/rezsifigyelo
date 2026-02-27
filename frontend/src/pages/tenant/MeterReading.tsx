@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Droplets, Flame, ChevronRight, Check, Camera, CalendarDays, MessageSquare, ArrowLeft, ImagePlus } from "lucide-react";
+import { Zap, Droplets, Flame, ChevronRight, Check, Camera, CalendarDays, MessageSquare, ArrowLeft, ImagePlus, ScanLine, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getTenantDashboard, submitReading, type TenantDashboardData } from "@/lib/api";
+import { getTenantDashboard, submitReading, ocrMeterPhoto, type TenantDashboardData } from "@/lib/api";
 import { formatHuf, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 
@@ -18,6 +18,8 @@ const MeterReading = () => {
   const [submitted, setSubmitted] = useState(false);
   const [dashData, setDashData] = useState<TenantDashboardData | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState<{ value: number | null; confidence: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { t } = useI18n();
@@ -62,6 +64,23 @@ const MeterReading = () => {
       reader.readAsDataURL(file);
     } else {
       setPhotoPreview(null);
+    }
+  };
+
+  const handleOcr = async () => {
+    if (!photo) return;
+    setOcrLoading(true);
+    setOcrResult(null);
+    try {
+      const result = await ocrMeterPhoto(photo, 'tenant', selectedType?.id);
+      setOcrResult({ value: result.value, confidence: result.confidence });
+      if (result.value != null) {
+        setValue(String(result.value));
+      }
+    } catch {
+      setOcrResult({ value: null, confidence: 'low' });
+    } finally {
+      setOcrLoading(false);
     }
   };
 
@@ -264,25 +283,101 @@ const MeterReading = () => {
                   </button>
                 </div>
               ) : (
-                <div className="relative">
-                  <div className="rounded-xl overflow-hidden border border-border">
-                    {photoPreview && (
-                      <img src={photoPreview} alt={t('reading.photo')} className="w-full h-32 object-cover" />
-                    )}
-                    <div className="p-2 flex items-center justify-between bg-accent/30">
-                      <span className="text-xs text-success font-medium flex items-center gap-1.5">
-                        <Check className="h-3.5 w-3.5" />
-                        {photo.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => { setPhoto(null); setPhotoPreview(null); }}
-                        className="text-xs text-destructive hover:underline"
-                      >
-                        {t('reading.removePhoto')}
-                      </button>
+                <div className="space-y-2">
+                  {/* Full photo preview — no crop */}
+                  {photoPreview && (
+                    <div className={`relative rounded-xl overflow-hidden border-2 transition-colors ${ocrResult?.value != null ? 'border-success' : 'border-border'}`}>
+                      <img
+                        src={photoPreview}
+                        alt={t('reading.photo')}
+                        className="w-full object-contain max-h-64"
+                      />
+                      {/* Loading overlay */}
+                      {ocrLoading && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl">
+                          <div className="bg-white/90 rounded-xl px-4 py-2 flex items-center gap-2 text-sm font-medium">
+                            <ScanLine className="h-4 w-4 animate-pulse text-primary" />
+                            {t('reading.ocrProcessing')}
+                          </div>
+                        </div>
+                      )}
                     </div>
+                  )}
+
+                  {/* Zoomed digit view after successful OCR — landscape crop on display area */}
+                  {ocrResult?.value != null && photoPreview && (
+                    <div className="rounded-xl overflow-hidden border-2 border-success relative" style={{ height: '72px' }}>
+                      <img
+                        src={photoPreview}
+                        alt="digits"
+                        className="absolute"
+                        style={{
+                          width: '100%', height: '100%',
+                          objectFit: 'cover',
+                          objectPosition: 'center 50%',
+                          transform: 'scale(2.8)',
+                          transformOrigin: 'center 50%',
+                        }}
+                      />
+                      <div className="absolute inset-0 ring-inset ring-2 ring-success/60 rounded-xl pointer-events-none" />
+                      <div className="absolute bottom-1.5 right-2 bg-success text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-lg flex items-center gap-1">
+                        <Check className="h-3 w-3" />
+                        {ocrResult.value}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Filename + remove */}
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs text-success font-medium flex items-center gap-1.5">
+                      <Check className="h-3.5 w-3.5" />
+                      {photo.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => { setPhoto(null); setPhotoPreview(null); setOcrResult(null); }}
+                      className="text-xs text-destructive hover:underline"
+                    >
+                      {t('reading.removePhoto')}
+                    </button>
                   </div>
+
+                  {/* OCR button */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/5"
+                    onClick={handleOcr}
+                    disabled={ocrLoading}
+                  >
+                    <ScanLine className="h-4 w-4" />
+                    {ocrLoading ? t('reading.ocrProcessing') : t('reading.ocrBtn')}
+                  </Button>
+
+                  {/* OCR result text */}
+                  {ocrResult && (
+                    <div className={`rounded-xl p-3 flex items-center gap-3 text-sm ${ocrResult.value != null ? 'bg-success/10 border border-success/30' : 'bg-destructive/10 border border-destructive/30'}`}>
+                      {ocrResult.value != null ? (
+                        <>
+                          <Check className="h-4 w-4 text-success flex-shrink-0" />
+                          <div className="flex-1">
+                            <span className="font-semibold">{t('reading.ocrSuccess').replace('{value}', String(ocrResult.value))}</span>
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              ({t(`reading.ocr${ocrResult.confidence.charAt(0).toUpperCase() + ocrResult.confidence.slice(1)}` as any)})
+                            </span>
+                          </div>
+                          <button type="button" onClick={() => setOcrResult(null)}>
+                            <X className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <X className="h-4 w-4 text-destructive flex-shrink-0" />
+                          <span>{t('reading.ocrFailed')}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

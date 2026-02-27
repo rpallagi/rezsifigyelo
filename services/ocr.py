@@ -81,8 +81,55 @@ def _assess_confidence(value: float | None, raw_text: str) -> str:
 # Provider: Claude (Anthropic) -- PRIMARY
 # ---------------------------------------------------------------------------
 
-def _ocr_claude(image_data: bytes, mime_type: str = "image/jpeg") -> dict:
-    """Use Anthropic Claude claude-haiku-4-20250514 with vision to extract meter reading.
+def _build_ocr_prompt(utility_type: str = "") -> str:
+    """Build a meter-type-aware OCR prompt for Claude Vision."""
+    # Decimal digit counts per meter type (mechanical rollover meters)
+    decimal_hints = {
+        "villany": (
+            "Ez egy VILLANYMERO (elektromos energia mero).\n"
+            "Mechanikus merő eseten: az utolso 1 szamjegy tizedes (piros keretben).\n"
+            "Pl: ha '0359076' latszik → 35907,6 kWh\n"
+            "Ha '0035907,6' → 35907,6 kWh"
+        ),
+        "viz": (
+            "Ez egy VIZMERŐ (vizfogyasztas mero).\n"
+            "Mechanikus merő eseten: az utolso 3 szamjegy tizedes (piros keretben).\n"
+            "Pl: ha '0008155' latszik → 8,155 m3\n"
+            "Ha '0008,155' → 8,155 m3"
+        ),
+        "gaz": (
+            "Ez egy GAZMERŐ (gazfogyasztas mero).\n"
+            "Mechanikus merő eseten: az utolso 3 szamjegy tizedes (piros keretben).\n"
+            "Pl: ha '5181907' latszik → 5181,907 m3\n"
+            "Ha '1716,655' → 1716,655 m3"
+        ),
+    }
+
+    type_hint = decimal_hints.get(utility_type, (
+        "Ez egy kozmu merőora (villany/viz/gaz).\n"
+        "Mechanikus merő eseten: a piros/szines keretu vagy hatteru szamok a tizedesek.\n"
+        "Tipikusan: villanymerő 1 tizedes, viz/gazmerő 3 tizedes."
+    ))
+
+    return (
+        f"{type_hint}\n\n"
+        "DIGITALIS (LED/LCD kijelzo):\n"
+        "- A kijelzon lathato . vagy , PONTOSAN jelzi a tizedest - hasznald!\n"
+        "- Pl: '5588.3' → 5588.3, '4112,65' → 4112.65\n\n"
+        "ANALOG/MECHANIKUS merő:\n"
+        "- PIROS szamu vagy PIROS KERET/HATTER mogotti szamok = tizedes resz\n"
+        "- Feher/fekete szamu szamok = egeszek\n"
+        "- Ha nincs szinezes: hasznald a fenti merőtipus-szabalyt!\n\n"
+        "SZABALYOK:\n"
+        "- Vezeto nullakat hagyj el (0035907 → 35907)\n"
+        "- Csak a szamot ird ki, semmi mast (nincs egyseg, nincs szo)\n"
+        "- Tizedes elvalaszto: pontot hasznalj\n"
+        "- Helyes valasz peldak: 35907.6 vagy 8.155 vagy 5181.907 vagy 5588.3"
+    )
+
+
+def _ocr_claude(image_data: bytes, mime_type: str = "image/jpeg", utility_type: str = "") -> dict:
+    """Use Anthropic Claude with vision to extract meter reading.
 
     This is the primary, fully-implemented provider.
     """
@@ -95,17 +142,13 @@ def _ocr_claude(image_data: bytes, mime_type: str = "image/jpeg") -> dict:
         return {"value": None, "confidence": "low", "raw_text": "", "error": "Missing ANTHROPIC_API_KEY"}
 
     b64_image = base64.b64encode(image_data).decode("utf-8")
-
-    prompt = (
-        "Ez egy meroora kijelzoje. Olvasd ki a meroallast szamjegyekkel. "
-        "Csak a szamot ird ki, semmi mast. Ha tobb szam lathato, a fo meroallast add meg."
-    )
+    prompt = _build_ocr_prompt(utility_type)
 
     client = anthropic.Anthropic(api_key=api_key)
 
     try:
         message = client.messages.create(
-            model="claude-haiku-4-20250514",
+            model="claude-haiku-4-5-20251001",
             max_tokens=128,
             messages=[
                 {
@@ -215,11 +258,8 @@ def _ocr_tesseract(image_data: bytes, mime_type: str = "image/jpeg") -> dict:
 # Provider: OpenAI (GPT-4o-mini with vision)
 # ---------------------------------------------------------------------------
 
-def _ocr_openai(image_data: bytes, mime_type: str = "image/jpeg") -> dict:
-    """Use OpenAI GPT-4o-mini with vision to extract meter reading.
-
-    Stub implementation -- requires OPENAI_API_KEY to be set.
-    """
+def _ocr_openai(image_data: bytes, mime_type: str = "image/jpeg", utility_type: str = "") -> dict:
+    """Use OpenAI GPT-4o-mini with vision to extract meter reading."""
     from flask import current_app
 
     api_key = current_app.config.get("OPENAI_API_KEY", "")
@@ -245,17 +285,13 @@ def _ocr_openai(image_data: bytes, mime_type: str = "image/jpeg") -> dict:
 
     b64_image = base64.b64encode(image_data).decode("utf-8")
     data_url = f"data:{mime_type};base64,{b64_image}"
-
-    prompt = (
-        "Ez egy meroora kijelzoje. Olvasd ki a meroallast szamjegyekkel. "
-        "Csak a szamot ird ki, semmi mast. Ha tobb szam lathato, a fo meroallast add meg."
-    )
+    prompt = _build_ocr_prompt(utility_type)
 
     try:
         client = openai.OpenAI(api_key=api_key)
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            max_tokens=128,
+            max_tokens=64,
             messages=[
                 {
                     "role": "user",
@@ -351,13 +387,14 @@ def _guess_mime_type(image_data: bytes) -> str:
     return "image/jpeg"
 
 
-def ocr_meter_reading(image_data: bytes, provider: str = "claude") -> dict:
+def ocr_meter_reading(image_data: bytes, provider: str = "claude", utility_type: str = "") -> dict:
     """Extract a meter reading value from an image using the specified OCR provider.
 
     Args:
         image_data: Raw image bytes (JPEG, PNG, GIF, or WebP).
         provider: OCR provider to use. One of 'claude', 'tesseract', 'openai', 'google'.
                   Defaults to 'claude'.
+        utility_type: Meter type hint: 'villany', 'viz', or 'gaz'. Used to guide decimal detection.
 
     Returns:
         dict with keys:
@@ -386,6 +423,10 @@ def ocr_meter_reading(image_data: bytes, provider: str = "claude") -> dict:
         }
 
     mime_type = _guess_mime_type(image_data)
-    logger.info("Running OCR with provider=%s, image_size=%d bytes, mime=%s", provider, len(image_data), mime_type)
+    logger.info("Running OCR with provider=%s, utility_type=%r, image_size=%d bytes, mime=%s",
+                provider, utility_type, len(image_data), mime_type)
 
-    return _PROVIDERS[provider](image_data, mime_type)
+    fn = _PROVIDERS[provider]
+    if provider in ("claude", "openai"):
+        return fn(image_data, mime_type, utility_type=utility_type)
+    return fn(image_data, mime_type)

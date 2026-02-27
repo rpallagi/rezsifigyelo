@@ -7,8 +7,7 @@ Admin auth uses Flask-Login (current_user).
 import os
 import subprocess
 import bcrypt
-import base64
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime
 from flask import (
     Blueprint, request, jsonify, session, current_app, send_from_directory
 )
@@ -22,8 +21,6 @@ from models import (
 )
 import json
 import uuid
-from urllib import request as urlrequest, error as urlerror
-from urllib.parse import urlparse, quote, urlencode
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
 
@@ -64,8 +61,6 @@ def property_to_dict(p, include_readings=False):
         'tariff_group_id': p.tariff_group_id,
         'tariff_group_name': p.tariff_group.name if p.tariff_group else None,
         'avatar_filename': p.avatar_filename,
-        'building_property_id': p.building_property_id,
-        'building_name': p.building.name if getattr(p, 'building', None) else None,
     }
     if include_readings:
         lv = get_last_reading(p.id, 'villany')
@@ -134,723 +129,6 @@ def _git_run(cmd):
         return result.stdout.strip()
     except Exception as e:
         return str(e)
-
-
-def _to_float(value):
-    """Best-effort float conversion."""
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        try:
-            return float(value.strip().replace(',', '.'))
-        except Exception:
-            return None
-    return None
-
-
-def _slugify(value):
-    safe = ''.join(ch.lower() if ch.isalnum() or ch in '-_.' else '-' for ch in str(value or ''))
-    while '--' in safe:
-        safe = safe.replace('--', '-')
-    safe = safe.strip('-')
-    return safe or 'meter'
-
-
-def _guess_utility(entity_id, unit='', device_class=''):
-    text = f"{entity_id} {unit} {device_class}".lower()
-
-    if 'gas' in text or 'gaz' in text:
-        return 'gaz'
-    if 'water' in text or 'viz' in text:
-        return 'viz'
-    if any(k in text for k in ('kwh', 'wh', 'w ', ' kw', 'power', 'energy', 'electric', 'villany', 'p1')):
-        return 'villany'
-
-    unit_lower = str(unit or '').lower()
-    if unit_lower in ('m3', 'm³'):
-        return 'gaz'
-
-    return 'villany'
-
-
-def _default_value_field(utility_type):
-    if utility_type == 'gaz':
-        return 'energy_m3_total'
-    if utility_type == 'viz':
-        return 'water_m3_total'
-    return 'energy_kwh_total'
-
-
-def _http_json(method, url, headers=None, payload=None, timeout=12):
-    req_headers = {'Accept': 'application/json'}
-    if headers:
-        req_headers.update(headers)
-
-    data = None
-    if payload is not None:
-        req_headers['Content-Type'] = 'application/json'
-        data = json.dumps(payload).encode('utf-8')
-
-    req = urlrequest.Request(url, data=data, headers=req_headers, method=method.upper())
-    try:
-        with urlrequest.urlopen(req, timeout=timeout) as resp:
-            body = resp.read().decode('utf-8', errors='ignore')
-            parsed = json.loads(body) if body else {}
-            return resp.getcode(), parsed, None
-    except urlerror.HTTPError as e:
-        body = e.read().decode('utf-8', errors='ignore')
-        try:
-            parsed = json.loads(body) if body else {}
-        except Exception:
-            parsed = {'raw': body}
-        return e.code, parsed, parsed.get('message') if isinstance(parsed, dict) else str(parsed)
-    except Exception as e:
-        return 0, None, str(e)
-
-
-def _parse_property_id(value):
-    if value in (None, ''):
-        return None
-    try:
-        prop_id = int(value)
-    except (TypeError, ValueError):
-        return None
-    return prop_id if prop_id > 0 else None
-
-
-def _ha_setting_key(base_key, property_id=None):
-    if property_id is None:
-        return base_key
-    return f'{base_key}_p{property_id}'
-
-
-def _get_ha_setting_value(base_key, property_id=None, fallback_global=False):
-    value = AppSetting.get(_ha_setting_key(base_key, property_id), '').strip()
-    if not value and fallback_global and property_id is not None:
-        value = AppSetting.get(base_key, '').strip()
-    return value
-
-
-def _set_ha_setting_value(base_key, value, property_id=None):
-    AppSetting.set(_ha_setting_key(base_key, property_id), str(value or '').strip())
-
-
-def _get_ha_settings(property_id=None, fallback_global=False):
-    return {
-        'ha_name': _get_ha_setting_value('ha_name', property_id, fallback_global),
-        'ha_location': _get_ha_setting_value('ha_location', property_id, fallback_global),
-        'ha_local_username': _get_ha_setting_value('ha_local_username', property_id, fallback_global),
-        'ha_local_password': _get_ha_setting_value('ha_local_password', property_id, fallback_global),
-        'ha_base_url': _get_ha_setting_value('ha_base_url', property_id, fallback_global).rstrip('/'),
-        'ha_token': _get_ha_setting_value('ha_token', property_id, fallback_global),
-        'tailscale_api_token': _get_ha_setting_value('tailscale_api_token', property_id, fallback_global),
-        'tailscale_tailnet': _get_ha_setting_value('tailscale_tailnet', property_id, fallback_global),
-        'scope': 'property' if property_id is not None else 'global',
-        'property_id': property_id,
-    }
-
-
-def _normalize_ha_base_url(value):
-    raw = str(value or '').strip().rstrip('/')
-    if not raw:
-        return '', None
-
-    parsed = urlparse(raw)
-    if parsed.scheme not in ('http', 'https') or not parsed.netloc:
-        return '', 'Home Assistant URL formátum hibás. Pl.: http://192.168.8.235:8123'
-
-    return raw, None
-
-
-def _normalize_ha_token(value):
-    token = str(value or '').strip()
-    if token.lower().startswith('bearer '):
-        token = token[7:].strip()
-
-    if not token:
-        return '', None
-
-    if 'react router future flag warning' in token.lower():
-        return token, 'A Home Assistant token mezőbe konzol figyelmeztetés került. Másold be a valódi Long-Lived Access Tokent.'
-
-    if any(ch.isspace() for ch in token):
-        return token, 'Home Assistant token formátum hibás: szóköz/sortörés nem megengedett.'
-
-    try:
-        token.encode('ascii')
-    except UnicodeEncodeError:
-        return token, 'Home Assistant token formátum hibás: csak ASCII karakterek megengedettek.'
-
-    if len(token) < 20:
-        return token, 'Home Assistant token túl rövid.'
-
-    return token, None
-
-
-def _validated_ha_connection_settings(property_id=None, fallback_global=False):
-    settings = _get_ha_settings(property_id=property_id, fallback_global=fallback_global)
-    raw_url = settings['ha_base_url']
-    raw_token = settings['ha_token']
-
-    if not str(raw_url or '').strip():
-        return None, None, 'Home Assistant URL hiányzik.', 400
-    if not str(raw_token or '').strip():
-        return None, None, 'Home Assistant token hiányzik.', 400
-
-    base_url, url_err = _normalize_ha_base_url(raw_url)
-    if url_err:
-        return None, None, url_err, 400
-
-    token, token_err = _normalize_ha_token(raw_token)
-    if token_err:
-        return None, None, token_err, 400
-
-    return base_url, token, None, None
-
-
-def _ha_api_error_response(code, err, fallback_message):
-    err_text = str(err or '').strip()
-    err_lower = err_text.lower()
-
-    if code in (401, 403):
-        return jsonify({'error': 'Home Assistant token érvénytelen vagy lejárt.'}), 401
-
-    if code == 404:
-        return jsonify({'error': 'Home Assistant URL hibás. Ellenőrizd a címet (pl. http://IP:8123).'}), 400
-
-    if code == 0 and err_lower:
-        if 'timed out' in err_lower:
-            return jsonify({'error': 'Home Assistant nem érhető el (timeout).'}), 504
-        if 'latin-1' in err_lower or 'ascii' in err_lower:
-            return jsonify({'error': 'Home Assistant token formátum hibás. Csak a valódi token értéket másold be.'}), 400
-        if any(k in err_lower for k in ('connection refused', 'nodename nor servname', 'name or service not known')):
-            return jsonify({'error': 'Home Assistant URL nem érhető el. Ellenőrizd a címet és hálózati elérést.'}), 502
-
-    return jsonify({'error': err_text or fallback_message}), 502
-
-
-def _ha_auth_header(token):
-    return {'Authorization': f'Bearer {token}'} if token else {}
-
-
-def _set_app_setting_nocommit(key, value):
-    row = AppSetting.query.get(key)
-    val = str(value or '').strip()
-    if row:
-        row.value = val
-    else:
-        db.session.add(AppSetting(key=key, value=val))
-
-
-def _ha_entity_setting_key(device_db_id):
-    return f'ha_entity_device_{int(device_db_id)}'
-
-
-def _ha_entity_mode_setting_key(device_db_id):
-    return f'ha_entity_mode_device_{int(device_db_id)}'
-
-
-def _ha_import_entity_setting_key(device_db_id):
-    return f'ha_import_entity_device_{int(device_db_id)}'
-
-
-def _ha_export_entity_setting_key(device_db_id):
-    return f'ha_export_entity_device_{int(device_db_id)}'
-
-
-def _normalize_ha_entity_id(value):
-    entity_id = str(value or '').strip().lower()
-    if not entity_id:
-        return ''
-    return entity_id if entity_id.startswith('sensor.') else f'sensor.{entity_id}'
-
-
-def _set_ha_entity_for_device_nocommit(device_db_id, entity_id):
-    normalized = _normalize_ha_entity_id(entity_id)
-    _set_app_setting_nocommit(_ha_entity_setting_key(device_db_id), normalized)
-    _set_app_setting_nocommit(_ha_entity_mode_setting_key(device_db_id), 'single')
-    _set_app_setting_nocommit(_ha_import_entity_setting_key(device_db_id), '')
-    _set_app_setting_nocommit(_ha_export_entity_setting_key(device_db_id), '')
-
-
-def _set_ha_net_pair_for_device_nocommit(device_db_id, import_entity_id, export_entity_id):
-    import_norm = _normalize_ha_entity_id(import_entity_id)
-    export_norm = _normalize_ha_entity_id(export_entity_id)
-    _set_app_setting_nocommit(_ha_entity_mode_setting_key(device_db_id), 'p1_net')
-    _set_app_setting_nocommit(_ha_import_entity_setting_key(device_db_id), import_norm)
-    _set_app_setting_nocommit(_ha_export_entity_setting_key(device_db_id), export_norm)
-    _set_app_setting_nocommit(_ha_entity_setting_key(device_db_id), import_norm)
-
-
-def _guess_ha_entity_mapping_from_device_id(device_id):
-    raw = str(device_id or '').strip().lower()
-    for utility in ('villany', 'viz', 'gaz'):
-        marker = f'-{utility}-'
-        idx = raw.find(marker)
-        if idx >= 0 and idx + len(marker) < len(raw):
-            suffix = raw[idx + len(marker):].strip('-')
-            if suffix:
-                return {'kind': 'single', 'entity_id': f'sensor.{suffix}'}
-    return {'kind': 'none'}
-
-
-def _get_ha_entity_mapping_for_device(device):
-    mode = AppSetting.get(_ha_entity_mode_setting_key(device.id), '').strip().lower()
-    if mode == 'p1_net':
-        import_id = _normalize_ha_entity_id(AppSetting.get(_ha_import_entity_setting_key(device.id), ''))
-        export_id = _normalize_ha_entity_id(AppSetting.get(_ha_export_entity_setting_key(device.id), ''))
-        if import_id and export_id:
-            return {
-                'kind': 'p1_net',
-                'import_entity_id': import_id,
-                'export_entity_id': export_id,
-            }
-
-    mapped = _normalize_ha_entity_id(AppSetting.get(_ha_entity_setting_key(device.id), ''))
-    if mapped:
-        return {'kind': 'single', 'entity_id': mapped}
-
-    return _guess_ha_entity_mapping_from_device_id(device.device_id)
-
-
-def _get_ha_entity_for_device(device):
-    mapping = _get_ha_entity_mapping_for_device(device)
-    if mapping.get('kind') == 'single':
-        return mapping.get('entity_id', '')
-    return ''
-
-
-def _find_existing_ha_device_for_entity(property_id, entity_id):
-    normalized = _normalize_ha_entity_id(entity_id)
-    if not normalized:
-        return None
-
-    devices = SmartMeterDevice.query.filter_by(property_id=property_id).all()
-    for device in devices:
-        mapping = _get_ha_entity_mapping_for_device(device)
-        kind = mapping.get('kind')
-        if kind == 'single' and mapping.get('entity_id') == normalized:
-            return device
-        if kind == 'p1_net' and (
-            mapping.get('import_entity_id') == normalized or
-            mapping.get('export_entity_id') == normalized
-        ):
-            return device
-    return None
-
-
-def _find_existing_ha_device_for_net_pair(property_id, import_entity_id, export_entity_id):
-    import_norm = _normalize_ha_entity_id(import_entity_id)
-    export_norm = _normalize_ha_entity_id(export_entity_id)
-    if not import_norm or not export_norm:
-        return None
-
-    devices = SmartMeterDevice.query.filter_by(property_id=property_id).all()
-    for device in devices:
-        mapping = _get_ha_entity_mapping_for_device(device)
-        if mapping.get('kind') != 'p1_net':
-            continue
-        left = mapping.get('import_entity_id')
-        right = mapping.get('export_entity_id')
-        if left == import_norm and right == export_norm:
-            return device
-    return None
-
-
-def _month_start_utc(year, month):
-    return datetime(year, month, 1, 0, 0, 0, tzinfo=timezone.utc)
-
-
-def _month_starts_back_from_now(months_back):
-    now = datetime.now(timezone.utc)
-    starts = []
-    for i in range(months_back):
-        year = now.year
-        month = now.month - i
-        while month <= 0:
-            month += 12
-            year -= 1
-        starts.append(_month_start_utc(year, month))
-    starts.reverse()
-    return starts
-
-
-def _get_tariff_for_reading_date(tariff_group_id, utility_type, reading_date):
-    if not tariff_group_id or not reading_date:
-        return None
-    return Tariff.query.filter_by(
-        tariff_group_id=tariff_group_id,
-        utility_type=utility_type,
-    ).filter(Tariff.valid_from <= reading_date).order_by(Tariff.valid_from.desc()).first()
-
-
-def _recompute_property_utility_readings(property_id, utility_type):
-    readings = MeterReading.query.filter_by(
-        property_id=property_id,
-        utility_type=utility_type,
-    ).order_by(MeterReading.reading_date.asc(), MeterReading.id.asc()).all()
-
-    prop = Property.query.get(property_id)
-    prev_value = None
-
-    for row in readings:
-        row.prev_value = prev_value
-
-        consumption = None
-        if prev_value is not None and row.value is not None and row.value >= prev_value:
-            consumption = round(float(row.value) - float(prev_value), 3)
-        row.consumption = consumption
-
-        tariff = _get_tariff_for_reading_date(
-            prop.tariff_group_id if prop else None,
-            utility_type,
-            row.reading_date,
-        )
-        row.tariff_id = tariff.id if tariff else None
-        row.cost_huf = round(consumption * tariff.rate_huf, 2) if (tariff and consumption is not None) else None
-
-        prev_value = row.value
-
-
-def _next_month_start_utc(dt):
-    year = dt.year + (1 if dt.month == 12 else 0)
-    month = 1 if dt.month == 12 else dt.month + 1
-    return datetime(year, month, 1, tzinfo=timezone.utc)
-
-
-def _parse_ha_datetime(raw):
-    if not raw:
-        return None
-    try:
-        dt = datetime.fromisoformat(str(raw).replace('Z', '+00:00'))
-    except ValueError:
-        return None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
-
-
-def _ha_history_points(base_url, token, entity_id, start_utc, end_utc):
-    query = urlencode({
-        'filter_entity_id': entity_id,
-        'end_time': end_utc.isoformat().replace('+00:00', 'Z'),
-        'minimal_response': '1',
-        'no_attributes': '1',
-    })
-    start_encoded = quote(start_utc.isoformat().replace('+00:00', 'Z'), safe=':-TZ')
-    url = f"{base_url}/api/history/period/{start_encoded}?{query}"
-
-    code, payload, err = _http_json('GET', url, headers=_ha_auth_header(token), timeout=25)
-    if code != 200:
-        return None, err or f'HA history error ({code})'
-
-    states = payload[0] if isinstance(payload, list) and payload else []
-    if not isinstance(states, list):
-        return None, 'Invalid HA history payload'
-
-    points = []
-    for item in states:
-        if not isinstance(item, dict):
-            continue
-        numeric = _to_float(item.get('state'))
-        if numeric is None:
-            continue
-        dt = _parse_ha_datetime(item.get('last_updated') or item.get('last_changed'))
-        points.append((dt, float(numeric)))
-
-    points.sort(key=lambda x: x[0] or datetime.min.replace(tzinfo=timezone.utc))
-    return points, None
-
-
-def _ha_history_state_for_month_start(base_url, token, entity_id, month_start_utc):
-    next_month_start = _next_month_start_utc(month_start_utc)
-
-    # Primary window: first numeric point inside the month.
-    in_month_points, in_month_err = _ha_history_points(
-        base_url,
-        token,
-        entity_id,
-        month_start_utc,
-        min(next_month_start + timedelta(days=2), month_start_utc + timedelta(days=40)),
-    )
-    if in_month_err:
-        return None, in_month_err
-
-    for dt, value in in_month_points:
-        if dt is None or dt >= month_start_utc:
-            return value, None
-
-    # Carry-over fallback: use the latest known value before month start.
-    carry_points, carry_err = _ha_history_points(
-        base_url,
-        token,
-        entity_id,
-        month_start_utc - timedelta(days=31),
-        month_start_utc + timedelta(minutes=1),
-    )
-    if carry_err:
-        return None, carry_err
-
-    if carry_points:
-        return carry_points[-1][1], None
-
-    return None, None
-
-
-def _ha_statistics_rows_rest(base_url, token, entity_id, start_utc, end_utc):
-    start_iso = start_utc.isoformat().replace('+00:00', 'Z')
-    end_iso = end_utc.isoformat().replace('+00:00', 'Z')
-    params = urlencode({
-        'start_time': start_iso,
-        'end_time': end_iso,
-        'statistic_ids': entity_id,
-        'period': 'hour',
-    })
-
-    urls = [
-        f'{base_url}/api/history/statistics_during_period?{params}',
-        f'{base_url}/api/statistics_during_period?{params}',
-        f'{base_url}/api/recorder/statistics_during_period?{params}',
-    ]
-
-    last_error = None
-    for url in urls:
-        code, payload, err = _http_json('GET', url, headers=_ha_auth_header(token))
-        if code == 404:
-            last_error = err or 'Statistics endpoint not available'
-            continue
-        if code != 200:
-            return None, err or f'HA statistics error ({code})'
-
-        rows = []
-        if isinstance(payload, dict):
-            rows = payload.get(entity_id) or payload.get(entity_id.lower()) or []
-        elif isinstance(payload, list):
-            rows = payload
-
-        if not isinstance(rows, list):
-            return None, 'Invalid HA statistics payload'
-
-        return rows, None
-
-    if last_error:
-        return None, last_error
-    return None, 'Statistics endpoint not available'
-
-
-def _ha_statistics_rows_service(base_url, token, entity_id, start_utc, end_utc):
-    payload = {
-        'start_time': start_utc.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
-        'end_time': end_utc.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
-        'statistic_ids': [entity_id],
-        'period': 'hour',
-        'types': ['state', 'sum', 'mean', 'min', 'max'],
-    }
-
-    code, response, err = _http_json(
-        'POST',
-        f'{base_url}/api/services/recorder/get_statistics?return_response',
-        headers=_ha_auth_header(token),
-        payload=payload,
-        timeout=25,
-    )
-
-    if code == 404:
-        return None, 'Statistics service not available'
-    if code != 200:
-        return None, err or f'HA recorder statistics service error ({code})'
-
-    envelope = response
-    if isinstance(response, list) and response and isinstance(response[0], dict):
-        envelope = response[0]
-
-    if not isinstance(envelope, dict):
-        return None, 'Invalid HA statistics service payload'
-
-    service_response = envelope.get('service_response') or envelope.get('response') or {}
-    if not isinstance(service_response, dict):
-        return None, 'Invalid HA statistics service response'
-
-    statistics = service_response.get('statistics') or {}
-    if not isinstance(statistics, dict):
-        return None, 'Invalid HA statistics map'
-
-    rows = statistics.get(entity_id) or statistics.get(str(entity_id).lower()) or []
-    if not isinstance(rows, list):
-        return None, 'Invalid HA statistics rows'
-
-    return rows, None
-
-
-def _ha_statistics_entity_candidates(entity_id):
-    base = str(entity_id or '').strip()
-    if not base:
-        return []
-
-    candidates = []
-
-    def _add(candidate):
-        value = str(candidate or '').strip()
-        if value and value not in candidates:
-            candidates.append(value)
-
-    _add(base)
-
-    if base.startswith('sensor.'):
-        stem = base[len('sensor.'):]
-        variants = {
-            stem.replace('_meter_stored_total', '_total_consumption'),
-            stem.replace('_stored_total', '_total_consumption'),
-            stem.replace('_total', '_total_consumption'),
-        }
-        for variant in variants:
-            if variant and variant != stem:
-                _add(f'sensor.{variant}')
-
-    return candidates
-
-
-def _ha_statistics_rows(base_url, token, entity_id, start_utc, end_utc):
-    """Read statistics rows from HA, with compatibility fallbacks.
-
-    Priority:
-    1) Legacy REST statistics endpoints
-    2) recorder.get_statistics service (modern HA)
-    3) Alternate statistic-id candidates for *_stored_total entities
-    """
-    candidates = _ha_statistics_entity_candidates(entity_id)
-    saw_available_empty = False
-    last_error = None
-
-    for statistic_id in candidates:
-        for reader in (_ha_statistics_rows_rest, _ha_statistics_rows_service):
-            rows, err = reader(base_url, token, statistic_id, start_utc, end_utc)
-            if err:
-                err_lower = str(err).lower()
-                if 'not available' in err_lower:
-                    continue
-                last_error = err
-                continue
-
-            if rows:
-                return rows, None
-
-            saw_available_empty = True
-
-    if last_error:
-        return None, last_error
-    if saw_available_empty:
-        return [], None
-    return None, 'Statistics endpoint not available'
-
-
-def _ha_statistics_state_for_month_start(base_url, token, entity_id, month_start_utc):
-    """Resolve month-start value from HA long-term statistics."""
-    rows, err = _ha_statistics_rows(
-        base_url,
-        token,
-        entity_id,
-        month_start_utc - timedelta(days=2),
-        month_start_utc + timedelta(days=2),
-    )
-    if err:
-        return None, err
-
-    if not rows:
-        return None, None
-
-    points = []
-    for row in rows:
-        if not isinstance(row, dict):
-            continue
-
-        dt = _parse_ha_datetime(row.get('start') or row.get('start_time') or row.get('created'))
-        if dt is None:
-            continue
-
-        val = None
-        for key in ('state', 'sum', 'mean', 'max', 'min'):
-            val = _to_float(row.get(key))
-            if val is not None:
-                break
-
-        if val is None:
-            continue
-
-        points.append((dt, float(val)))
-
-    if not points:
-        return None, None
-
-    points.sort(key=lambda x: x[0])
-
-    before_or_at = [p for p in points if p[0] <= month_start_utc]
-    if before_or_at:
-        return before_or_at[-1][1], None
-
-    return points[0][1], None
-
-
-def _ha_month_start_value(base_url, token, entity_id, month_start_utc):
-    """Try statistics first, then fallback to history when needed."""
-    value, stat_err = _ha_statistics_state_for_month_start(base_url, token, entity_id, month_start_utc)
-    if value is not None:
-        return value, None, 'statistics'
-
-    hist_value, hist_err = _ha_history_state_for_month_start(base_url, token, entity_id, month_start_utc)
-    if hist_value is not None:
-        return hist_value, None, 'history'
-
-    if stat_err and hist_err:
-        return None, f'{stat_err}; {hist_err}', 'none'
-    if stat_err:
-        return None, stat_err, 'none'
-    return None, hist_err, 'none'
-
-
-def _extract_ha_entities(states):
-    entities = []
-    keywords = ('energy', 'power', 'gas', 'water', 'meter', 'consumption', 'import', 'kwh', 'm3', 'm³', 'villany', 'viz', 'gaz')
-
-    for item in states:
-        entity_id = str(item.get('entity_id') or '').strip()
-        if not entity_id.startswith('sensor.'):
-            continue
-
-        attrs = item.get('attributes') or {}
-        state_str = str(item.get('state', '')).strip()
-        unit = str(attrs.get('unit_of_measurement') or '').strip()
-        device_class = str(attrs.get('device_class') or '').strip()
-        friendly_name = str(attrs.get('friendly_name') or entity_id)
-        numeric = _to_float(state_str) is not None
-
-        text = f"{entity_id} {friendly_name} {unit} {device_class}".lower()
-        if not numeric and not any(k in text for k in keywords):
-            continue
-
-        utility = _guess_utility(entity_id, unit, device_class)
-        entities.append({
-            'entity_id': entity_id,
-            'friendly_name': friendly_name,
-            'unit': unit,
-            'state': state_str,
-            'utility_type': utility,
-            'numeric': numeric,
-        })
-
-    entities.sort(key=lambda e: (e['utility_type'], e['friendly_name'].lower(), e['entity_id']))
-    return entities
-
-
-def _unique_device_id(base_device_id):
-    candidate = base_device_id
-    i = 2
-    while SmartMeterDevice.query.filter_by(device_id=candidate).first():
-        candidate = f'{base_device_id}-{i}'
-        i += 1
-    return candidate
 
 
 # ============================================================
@@ -1356,41 +634,6 @@ def admin_dashboard():
 # Admin Properties CRUD
 # ============================================================
 
-def _normalize_property_type(value):
-    raw = str(value or '').strip().lower()
-    allowed = {'lakas', 'uzlet', 'egyeb', 'epulet', 'telek'}
-    return raw if raw in allowed else 'lakas'
-
-
-def _parse_building_property_id(raw_value, *, current_property_id=None, property_type='lakas'):
-    # Only non-collector units can be attached to a parent collector.
-    if property_type in ('epulet', 'telek'):
-        return None, None
-
-    if raw_value in (None, '', 0, '0'):
-        return None, None
-
-    try:
-        building_id = int(raw_value)
-    except (TypeError, ValueError):
-        return None, 'Érvénytelen gyűjtő azonosító.'
-
-    if building_id <= 0:
-        return None, 'Érvénytelen gyűjtő azonosító.'
-
-    if current_property_id and building_id == int(current_property_id):
-        return None, 'Az ingatlan nem lehet saját maga szülője.'
-
-    building = Property.query.get(building_id)
-    if not building:
-        return None, 'A kiválasztott gyűjtő nem található.'
-
-    if (building.property_type or '').strip().lower() not in ('epulet', 'telek'):
-        return None, 'Csak Épület vagy Telek típusú ingatlan választható.'
-
-    return building_id, None
-
-
 @api_bp.route('/admin/properties', methods=['GET'])
 @login_required
 def admin_properties_list():
@@ -1405,20 +648,12 @@ def admin_properties_list():
 @api_bp.route('/admin/properties', methods=['POST'])
 @login_required
 def admin_property_add():
-    data = request.get_json() or {}
+    data = request.get_json()
     name = data.get('name', '').strip()
     tariff_group_id = data.get('tariff_group_id')
 
     if not name or not tariff_group_id:
         return jsonify({'error': 'Név és tarifa csoport kötelező!'}), 400
-
-    property_type = _normalize_property_type(data.get('property_type', 'lakas'))
-    building_property_id, building_error = _parse_building_property_id(
-        data.get('building_property_id'),
-        property_type=property_type,
-    )
-    if building_error:
-        return jsonify({'error': building_error}), 400
 
     # PIN is optional now (legacy)
     pin = data.get('pin', '')
@@ -1426,10 +661,9 @@ def admin_property_add():
 
     prop = Property(
         name=name,
-        property_type=property_type,
+        property_type=data.get('property_type', 'lakas'),
         pin_hash=pin_hash,
         tariff_group_id=int(tariff_group_id),
-        building_property_id=building_property_id,
         contact_name=data.get('contact_name') or None,
         contact_phone=data.get('contact_phone') or None,
         contact_email=data.get('contact_email') or None,
@@ -1448,21 +682,11 @@ def admin_property_add():
 @login_required
 def admin_property_edit(prop_id):
     prop = Property.query.get_or_404(prop_id)
-    data = request.get_json() or {}
-
-    property_type = _normalize_property_type(data.get('property_type', prop.property_type))
-    building_property_id, building_error = _parse_building_property_id(
-        data.get('building_property_id', prop.building_property_id),
-        current_property_id=prop.id,
-        property_type=property_type,
-    )
-    if building_error:
-        return jsonify({'error': building_error}), 400
+    data = request.get_json()
 
     prop.name = data.get('name', prop.name).strip()
-    prop.property_type = property_type
+    prop.property_type = data.get('property_type', prop.property_type)
     prop.tariff_group_id = int(data.get('tariff_group_id', prop.tariff_group_id))
-    prop.building_property_id = building_property_id
     prop.contact_name = data.get('contact_name') or None
     prop.contact_phone = data.get('contact_phone') or None
     prop.contact_email = data.get('contact_email') or None
@@ -1490,10 +714,6 @@ def admin_property_edit(prop_id):
 @login_required
 def admin_property_delete(prop_id):
     prop = Property.query.get_or_404(prop_id)
-    Property.query.filter_by(building_property_id=prop_id).update(
-        {'building_property_id': None},
-        synchronize_session=False,
-    )
     MeterReading.query.filter_by(property_id=prop_id).delete()
     Payment.query.filter_by(property_id=prop_id).delete()
     MaintenanceLog.query.filter_by(property_id=prop_id).delete()
@@ -1990,48 +1210,24 @@ def admin_property_readings(prop_id):
         'trends': {
             'villany': get_trend('villany'),
             'viz': get_trend('viz'),
-            'gaz': get_trend('gaz'),
         },
         'sparklines': {
             'villany': get_sparkline('villany'),
             'viz': get_sparkline('viz'),
-            'gaz': get_sparkline('gaz'),
         },
     })
 
 
-@api_bp.route('/admin/properties/<int:prop_id>/readings/utility/<string:utility_type>', methods=['DELETE'])
+@api_bp.route('/admin/properties/<int:prop_id>/readings/<utility_type>', methods=['DELETE'])
 @login_required
-def admin_delete_property_utility_readings(prop_id, utility_type):
-    """Delete all readings for one utility type under a property (including dependent smart meter logs)."""
-    Property.query.get_or_404(prop_id)
-
-    utility = str(utility_type or '').strip().lower()
+def admin_delete_readings_by_utility(prop_id, utility_type):
+    """Delete all readings of a given utility type for a property."""
     allowed = {'villany', 'viz', 'gaz', 'csatorna'}
-    if utility not in allowed:
-        return jsonify({'error': 'Érvénytelen utility_type'}), 400
-
-    reading_ids_q = db.session.query(MeterReading.id).filter_by(
-        property_id=prop_id,
-        utility_type=utility,
-    )
-
-    log_deleted = SmartMeterLog.query.filter(
-        SmartMeterLog.reading_id.in_(reading_ids_q)
-    ).delete(synchronize_session=False)
-
-    deleted = MeterReading.query.filter_by(
-        property_id=prop_id,
-        utility_type=utility,
-    ).delete(synchronize_session=False)
-
+    if utility_type not in allowed:
+        return jsonify({'error': f'Érvénytelen mérő típus: {utility_type}'}), 400
+    deleted = MeterReading.query.filter_by(property_id=prop_id, utility_type=utility_type).delete()
     db.session.commit()
-    return jsonify({
-        'success': True,
-        'deleted': int(deleted),
-        'logs_deleted': int(log_deleted),
-        'utility_type': utility,
-    })
+    return jsonify({'success': True, 'deleted': deleted})
 
 
 @api_bp.route('/admin/readings', methods=['POST'])
@@ -2056,7 +1252,7 @@ def admin_reading_submit():
         return jsonify({'error': 'Válassz ingatlant!'}), 400
     prop = Property.query.get_or_404(property_id)
 
-    if not utility_type or utility_type not in ('villany', 'viz', 'gaz'):
+    if not utility_type or utility_type not in ('villany', 'viz'):
         return jsonify({'error': 'Válassz közüzemi típust!'}), 400
 
     try:
@@ -3328,262 +2524,6 @@ def admin_test_email():
 
 
 # ============================================================
-# Home Assistant / Tailscale Settings (Admin)
-# ============================================================
-
-@api_bp.route('/admin/settings/home-assistant', methods=['GET'])
-@login_required
-def admin_get_home_assistant_settings():
-    """Get Home Assistant and Tailscale integration settings (global or property scope)."""
-    prop_id_raw = request.args.get('property_id')
-    property_id = _parse_property_id(prop_id_raw)
-    if prop_id_raw not in (None, '') and property_id is None:
-        return jsonify({'error': 'Érvénytelen property_id.'}), 400
-
-    if property_id is not None:
-        Property.query.get_or_404(property_id)
-        return jsonify(_get_ha_settings(property_id=property_id, fallback_global=True))
-
-    return jsonify(_get_ha_settings())
-
-
-@api_bp.route('/admin/settings/home-assistant', methods=['POST'])
-@login_required
-def admin_save_home_assistant_settings():
-    """Save Home Assistant and Tailscale integration settings (global or property scope)."""
-    data = request.get_json() or {}
-    prop_id_raw = request.args.get('property_id')
-    property_id = _parse_property_id(prop_id_raw)
-    if prop_id_raw not in (None, '') and property_id is None:
-        return jsonify({'error': 'Érvénytelen property_id.'}), 400
-
-    if property_id is not None:
-        Property.query.get_or_404(property_id)
-
-    setting_scope_id = property_id
-
-    if 'ha_name' in data:
-        _set_ha_setting_value('ha_name', data.get('ha_name'), setting_scope_id)
-
-    if 'ha_location' in data:
-        _set_ha_setting_value('ha_location', data.get('ha_location'), setting_scope_id)
-
-    if 'ha_local_username' in data:
-        _set_ha_setting_value('ha_local_username', data.get('ha_local_username'), setting_scope_id)
-
-    if 'ha_local_password' in data:
-        _set_ha_setting_value('ha_local_password', data.get('ha_local_password'), setting_scope_id)
-
-    if 'ha_base_url' in data:
-        ha_base_url, url_err = _normalize_ha_base_url(data.get('ha_base_url'))
-        if url_err:
-            return jsonify({'error': url_err}), 400
-        _set_ha_setting_value('ha_base_url', ha_base_url, setting_scope_id)
-
-    if 'ha_token' in data:
-        ha_token, token_err = _normalize_ha_token(data.get('ha_token'))
-        if token_err:
-            return jsonify({'error': token_err}), 400
-        _set_ha_setting_value('ha_token', ha_token, setting_scope_id)
-
-    if 'tailscale_api_token' in data:
-        _set_ha_setting_value('tailscale_api_token', data.get('tailscale_api_token'), setting_scope_id)
-    if 'tailscale_tailnet' in data:
-        _set_ha_setting_value('tailscale_tailnet', data.get('tailscale_tailnet'), setting_scope_id)
-
-    return jsonify({'success': True})
-
-
-@api_bp.route('/admin/settings/home-assistant/copy-profile', methods=['POST'])
-@login_required
-def admin_copy_home_assistant_profile():
-    """Copy a property-level Home Assistant profile to another property."""
-    data = request.get_json() or {}
-    source_property_id = _parse_property_id(data.get('source_property_id'))
-    target_property_id = _parse_property_id(data.get('target_property_id'))
-
-    if source_property_id is None or target_property_id is None:
-        return jsonify({'error': 'source_property_id és target_property_id kötelező.'}), 400
-    if source_property_id == target_property_id:
-        return jsonify({'error': 'A forrás és cél ingatlan nem lehet azonos.'}), 400
-
-    Property.query.get_or_404(source_property_id)
-    Property.query.get_or_404(target_property_id)
-
-    source_settings = _get_ha_settings(property_id=source_property_id, fallback_global=True)
-    keys = (
-        'ha_name',
-        'ha_location',
-        'ha_local_username',
-        'ha_local_password',
-        'ha_base_url',
-        'ha_token',
-        'tailscale_api_token',
-        'tailscale_tailnet',
-    )
-
-    for key in keys:
-        _set_ha_setting_value(key, source_settings.get(key, ''), target_property_id)
-
-    return jsonify({
-        'success': True,
-        'source_property_id': source_property_id,
-        'target_property_id': target_property_id,
-        'copied_keys': len(keys),
-    })
-
-
-@api_bp.route('/admin/settings/home-assistant/test', methods=['POST'])
-@login_required
-def admin_test_home_assistant_connection():
-    """Test Home Assistant API connectivity using saved settings."""
-    prop_id_raw = request.args.get('property_id')
-    property_id = _parse_property_id(prop_id_raw)
-    if prop_id_raw not in (None, '') and property_id is None:
-        return jsonify({'error': 'Érvénytelen property_id.'}), 400
-
-    if property_id is not None:
-        Property.query.get_or_404(property_id)
-
-    base_url, token, settings_err, status_code = _validated_ha_connection_settings(
-        property_id=property_id,
-        fallback_global=True,
-    )
-    if settings_err:
-        return jsonify({'error': settings_err}), status_code
-
-    code, payload, err = _http_json('GET', f'{base_url}/api/states', headers=_ha_auth_header(token))
-    if code != 200 or not isinstance(payload, list):
-        return _ha_api_error_response(code, err, f'Home Assistant kapcsolat hiba ({code})')
-
-    sensor_count = len([s for s in payload if str(s.get('entity_id') or '').startswith('sensor.')])
-    return jsonify({'success': True, 'sensor_count': sensor_count, 'total_entities': len(payload)})
-
-
-@api_bp.route('/admin/settings/home-assistant/entities', methods=['GET'])
-@login_required
-def admin_get_home_assistant_entities():
-    """List relevant Home Assistant sensor entities for meter onboarding."""
-    prop_id_raw = request.args.get('property_id')
-    property_id = _parse_property_id(prop_id_raw)
-    if prop_id_raw not in (None, '') and property_id is None:
-        return jsonify({'error': 'Érvénytelen property_id.'}), 400
-
-    if property_id is not None:
-        Property.query.get_or_404(property_id)
-
-    base_url, token, settings_err, status_code = _validated_ha_connection_settings(
-        property_id=property_id,
-        fallback_global=True,
-    )
-    if settings_err:
-        return jsonify({'error': settings_err}), status_code
-
-    code, payload, err = _http_json('GET', f'{base_url}/api/states', headers=_ha_auth_header(token))
-    if code != 200 or not isinstance(payload, list):
-        return _ha_api_error_response(code, err, f'Home Assistant lekérés hiba ({code})')
-
-    entities = _extract_ha_entities(payload)
-    query = (request.args.get('q') or '').strip().lower()
-    if query:
-        entities = [
-            e for e in entities
-            if query in e['entity_id'].lower() or query in e['friendly_name'].lower()
-        ]
-
-    return jsonify({'entities': entities, 'count': len(entities)})
-
-
-@api_bp.route('/admin/settings/home-assistant/tailscale/devices', methods=['GET'])
-@login_required
-def admin_get_tailscale_devices():
-    """Discover online devices via Tailscale API and suggest HA URLs."""
-    prop_id_raw = request.args.get('property_id')
-    property_id = _parse_property_id(prop_id_raw)
-    if prop_id_raw not in (None, '') and property_id is None:
-        return jsonify({'error': 'Érvénytelen property_id.'}), 400
-
-    if property_id is not None:
-        Property.query.get_or_404(property_id)
-
-    settings = _get_ha_settings(property_id=property_id, fallback_global=True)
-    api_token = settings['tailscale_api_token']
-    tailnet = settings['tailscale_tailnet']
-
-    if not api_token or not tailnet:
-        return jsonify({'error': 'Tailscale API token és tailnet szükséges.'}), 400
-
-    basic = base64.b64encode(f'{api_token}:'.encode('utf-8')).decode('ascii')
-    code, payload, err = _http_json(
-        'GET',
-        f'https://api.tailscale.com/api/v2/tailnet/{tailnet}/devices',
-        headers={'Authorization': f'Basic {basic}'},
-    )
-
-    if code != 200 or not isinstance(payload, dict):
-        return jsonify({'error': err or f'Tailscale API hiba ({code})'}), 502
-
-    now_utc = datetime.now(timezone.utc)
-
-    def _parse_ts(value):
-        raw = str(value or '').strip()
-        if not raw:
-            return None
-        try:
-            dt = datetime.fromisoformat(raw.replace('Z', '+00:00'))
-        except ValueError:
-            return None
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
-
-    devices = payload.get('devices') or []
-    result = []
-    for d in devices:
-        addresses = d.get('addresses') or []
-        ip = ''
-        for addr in addresses:
-            if isinstance(addr, str) and ':' not in addr:
-                ip = addr
-                break
-        if not ip and addresses:
-            ip = str(addresses[0])
-
-        hostname = str(d.get('hostname') or '')
-        name = str(d.get('name') or hostname or d.get('id') or '')
-        text = f'{name} {hostname}'.lower()
-        likely_ha = any(tag in text for tag in ('homeassistant', 'home-assistant', 'hass', ' ha '))
-        ha_url = f'http://{ip}:8123' if ip else ''
-
-        last_seen_raw = d.get('lastSeen') or d.get('last_seen') or ''
-        last_seen_dt = _parse_ts(last_seen_raw)
-        online = bool(d.get('online', False))
-        status_reason = 'online_flag' if online else 'offline_flag'
-
-        if not online and last_seen_dt is not None:
-            if now_utc - last_seen_dt <= timedelta(minutes=5):
-                online = True
-                status_reason = 'recent_activity'
-            else:
-                status_reason = 'inactive'
-
-        result.append({
-            'id': str(d.get('id') or name or ip),
-            'name': name,
-            'hostname': hostname,
-            'online': online,
-            'status_reason': status_reason,
-            'last_seen': last_seen_dt.isoformat() if last_seen_dt else '',
-            'ip': ip,
-            'ha_url': ha_url,
-            'likely_home_assistant': likely_ha,
-        })
-
-    result.sort(key=lambda item: (not item['likely_home_assistant'], not item['online'], item['name'].lower()))
-    return jsonify({'devices': result, 'count': len(result)})
-
-
-# ============================================================
 # Move-In / Move-Out Workflow Endpoints
 # ============================================================
 
@@ -3939,15 +2879,23 @@ def generic_webhook():
     if not valid:
         return jsonify({'error': 'Invalid token'}), 401
 
-    # Canonical payload mode: if "value" is missing, try extracting from full JSON payload
-    # (e.g. energy_kwh_total / energy_m3_total / nested telemetry.* fields).
-    raw_value = data.get('value', data)
-    timestamp = data.get('timestamp')
+    value = data.get('value')
+    if value is None:
+        return jsonify({'error': 'value required'}), 400
+
+    timestamp = None
+    ts_str = data.get('timestamp')
+    if ts_str:
+        try:
+            from dateutil.parser import parse as parse_date
+            timestamp = parse_date(ts_str)
+        except Exception:
+            pass
 
     from services.smart_meter import process_smart_meter_reading
     result = process_smart_meter_reading(
         device_id=device_id,
-        raw_value=raw_value,
+        raw_value=value,
         source='http',
         raw_payload=json.dumps(data),
         timestamp=timestamp,
@@ -4079,13 +3027,6 @@ def get_property_smart_meters(prop_id):
     return jsonify({'devices': [smart_meter_to_dict(d) for d in devices]})
 
 
-def _default_mqtt_topic(property_id, device_id):
-    """Generate a predictable topic for lightweight onboarding."""
-    safe_device = ''.join(ch if ch.isalnum() or ch in '-_.' else '-' for ch in str(device_id or 'meter-01')).strip('-')
-    safe_device = safe_device or 'meter-01'
-    return f'rpallagi/property-{property_id}/unit-main/{safe_device}/telemetry'
-
-
 @api_bp.route('/admin/properties/<int:prop_id>/smart-meters', methods=['POST'])
 @login_required
 def add_smart_meter(prop_id):
@@ -4099,19 +3040,14 @@ def add_smart_meter(prop_id):
     if existing:
         return jsonify({'error': f'Device ID {data["device_id"]} already registered'}), 409
 
-    source = data.get('source', 'ttn')
-    mqtt_topic = data.get('mqtt_topic')
-    if source == 'mqtt' and (not mqtt_topic or not str(mqtt_topic).strip()):
-        mqtt_topic = _default_mqtt_topic(prop_id, data['device_id'])
-
     device = SmartMeterDevice(
         property_id=prop_id,
         device_id=data['device_id'],
-        source=source,
+        source=data.get('source', 'ttn'),
         utility_type=data.get('utility_type', 'villany'),
         name=data.get('name'),
         ttn_app_id=data.get('ttn_app_id'),
-        mqtt_topic=mqtt_topic,
+        mqtt_topic=data.get('mqtt_topic'),
         value_field=data.get('value_field', 'meter_value'),
         multiplier=float(data.get('multiplier', 1.0)),
         offset=float(data.get('offset', 0.0)),
@@ -4125,438 +3061,6 @@ def add_smart_meter(prop_id):
     _refresh_mqtt_subscriptions()
 
     return jsonify({'success': True, 'id': device.id}), 201
-
-
-@api_bp.route('/admin/properties/<int:prop_id>/smart-meters/import-home-assistant', methods=['POST'])
-@login_required
-def import_home_assistant_smart_meters(prop_id):
-    """Import selected Home Assistant entities as smart meters and run quick verification."""
-    data = request.get_json() or {}
-    entities = data.get('entities') or []
-    if not isinstance(entities, list) or not entities:
-        return jsonify({'error': 'entities list required'}), 400
-
-    # Ensure property exists
-    Property.query.get_or_404(prop_id)
-
-    base_url, token, settings_err, status_code = _validated_ha_connection_settings(property_id=prop_id, fallback_global=True)
-    if settings_err:
-        return jsonify({'error': settings_err}), status_code
-
-    # Fetch current HA states once for both import metadata and verification
-    code, states_payload, err = _http_json('GET', f'{base_url}/api/states', headers=_ha_auth_header(token))
-    if code != 200 or not isinstance(states_payload, list):
-        return _ha_api_error_response(code, err, f'Home Assistant lekérés hiba ({code})')
-
-    state_map = {}
-    for item in states_payload:
-        entity_id = str(item.get('entity_id') or '').strip()
-        if entity_id:
-            state_map[entity_id] = item
-
-    webhook_token = AppSetting.get('ha_webhook_token', '').strip()
-    if not webhook_token:
-        webhook_token = f'ha-{uuid.uuid4().hex[:24]}'
-        AppSetting.set('ha_webhook_token', webhook_token)
-
-    created = []
-    verify = []
-    skipped = []
-
-    from services.smart_meter import process_smart_meter_reading
-
-    for item in entities:
-        entity_id = _normalize_ha_entity_id((item or {}).get('entity_id'))
-        if not entity_id:
-            continue
-
-        existing_device = _find_existing_ha_device_for_entity(prop_id, entity_id)
-        if existing_device:
-            skipped.append({
-                'entity_id': entity_id,
-                'device_id': existing_device.device_id,
-                'reason': 'already_imported',
-            })
-            continue
-
-        state_item = state_map.get(entity_id)
-        attrs = state_item.get('attributes', {}) if isinstance(state_item, dict) else {}
-        unit = str(attrs.get('unit_of_measurement') or '')
-        device_class = str(attrs.get('device_class') or '')
-
-        utility_type = (item or {}).get('utility_type') or _guess_utility(entity_id, unit, device_class)
-        if utility_type not in ('villany', 'viz', 'gaz'):
-            utility_type = 'villany'
-
-        base_device_id = (item or {}).get('device_id')
-        if not base_device_id:
-            suffix = _slugify(entity_id.replace('sensor.', ''))[:48]
-            base_device_id = f'ha-p{prop_id}-{utility_type}-{suffix}'
-        device_id = _unique_device_id(base_device_id[:180])
-
-        name = str((item or {}).get('name') or attrs.get('friendly_name') or entity_id)[:200]
-
-        device = SmartMeterDevice(
-            property_id=prop_id,
-            device_id=device_id,
-            source='http',
-            utility_type=utility_type,
-            name=name,
-            ttn_app_id=webhook_token,
-            mqtt_topic=None,
-            value_field=_default_value_field(utility_type),
-            multiplier=1.0,
-            offset=0.0,
-            min_interval_minutes=1 if utility_type == 'villany' else 5,
-            is_active=True,
-        )
-        db.session.add(device)
-        db.session.flush()
-
-        _set_ha_entity_for_device_nocommit(device.id, entity_id)
-
-        created.append({
-            'id': device.id,
-            'device_id': device.device_id,
-            'entity_id': entity_id,
-            'utility_type': utility_type,
-        })
-
-        if not state_item:
-            verify.append({
-                'entity_id': entity_id,
-                'device_id': device.device_id,
-                'ok': False,
-                'reason': 'entity_not_found',
-            })
-            continue
-
-        state_value = state_item.get('state')
-        numeric = _to_float(state_value)
-        if numeric is None:
-            verify.append({
-                'entity_id': entity_id,
-                'device_id': device.device_id,
-                'ok': False,
-                'reason': 'non_numeric_state',
-            })
-            continue
-
-        result = process_smart_meter_reading(
-            device_id=device.device_id,
-            raw_value=numeric,
-            source='http',
-            raw_payload=json.dumps({'entity_id': entity_id, 'state': state_value}),
-            timestamp=datetime.utcnow(),
-        )
-        verify.append({
-            'entity_id': entity_id,
-            'device_id': device.device_id,
-            'ok': result.get('status') == 'ok',
-            'reason': None if result.get('status') == 'ok' else result.get('error', result.get('status')),
-            'reading_id': result.get('reading_id'),
-        })
-
-    db.session.commit()
-    _refresh_mqtt_subscriptions()
-
-    return jsonify({
-        'success': True,
-        'created': created,
-        'verify': verify,
-        'skipped': skipped,
-    }), 201
-
-
-@api_bp.route('/admin/properties/<int:prop_id>/smart-meters/import-home-assistant-net', methods=['POST'])
-@login_required
-def import_home_assistant_net_smart_meter(prop_id):
-    """Import a net (import-export) Home Assistant electricity meter."""
-    data = request.get_json() or {}
-
-    import_entity_id = _normalize_ha_entity_id(data.get('import_entity_id'))
-    export_entity_id = _normalize_ha_entity_id(data.get('export_entity_id'))
-    if not import_entity_id or not export_entity_id:
-        return jsonify({'error': 'Import és export entity kötelező.'}), 400
-    if import_entity_id == export_entity_id:
-        return jsonify({'error': 'Az import és export entity nem lehet azonos.'}), 400
-
-    Property.query.get_or_404(prop_id)
-
-    base_url, token, settings_err, status_code = _validated_ha_connection_settings(property_id=prop_id, fallback_global=True)
-    if settings_err:
-        return jsonify({'error': settings_err}), status_code
-
-    code, states_payload, err = _http_json('GET', f'{base_url}/api/states', headers=_ha_auth_header(token))
-    if code != 200 or not isinstance(states_payload, list):
-        return _ha_api_error_response(code, err, f'Home Assistant lekérés hiba ({code})')
-
-    state_map = {}
-    for item in states_payload:
-        entity_id = _normalize_ha_entity_id(item.get('entity_id'))
-        if entity_id:
-            state_map[entity_id] = item
-
-    import_item = state_map.get(import_entity_id)
-    export_item = state_map.get(export_entity_id)
-    if not import_item or not export_item:
-        return jsonify({'error': 'Nem található az egyik kiválasztott entity a Home Assistantban.'}), 400
-
-    import_value = _to_float(import_item.get('state'))
-    export_value = _to_float(export_item.get('state'))
-    if import_value is None or export_value is None:
-        return jsonify({'error': 'A kiválasztott import/export entity aktuális állapota nem numerikus.'}), 400
-
-    webhook_token = AppSetting.get('ha_webhook_token', '').strip()
-    if not webhook_token:
-        webhook_token = f'ha-{uuid.uuid4().hex[:24]}'
-        AppSetting.set('ha_webhook_token', webhook_token)
-
-    name = str(data.get('name') or 'P1 nettó villany').strip()[:200]
-    base_device_id = str(data.get('device_id') or f'ha-p{prop_id}-villany-p1-net').strip()
-    device_id = _unique_device_id(_slugify(base_device_id)[:180])
-
-    device = SmartMeterDevice(
-        property_id=prop_id,
-        device_id=device_id,
-        source='http',
-        utility_type='villany',
-        name=name,
-        ttn_app_id=webhook_token,
-        mqtt_topic=None,
-        value_field='energy_kwh_total',
-        multiplier=1.0,
-        offset=0.0,
-        min_interval_minutes=1,
-        is_active=True,
-    )
-    db.session.add(device)
-    db.session.flush()
-
-    _set_ha_net_pair_for_device_nocommit(device.id, import_entity_id, export_entity_id)
-
-    net_value = float(import_value) - float(export_value)
-
-    from services.smart_meter import process_smart_meter_reading
-    result = process_smart_meter_reading(
-        device_id=device.device_id,
-        raw_value=net_value,
-        source='http',
-        raw_payload=json.dumps({
-            'mode': 'p1_net',
-            'import_entity_id': import_entity_id,
-            'export_entity_id': export_entity_id,
-            'import_state': import_item.get('state'),
-            'export_state': export_item.get('state'),
-            'net_state': net_value,
-        }),
-        timestamp=datetime.utcnow(),
-    )
-
-    db.session.commit()
-    _refresh_mqtt_subscriptions()
-
-    return jsonify({
-        'success': True,
-        'created': {
-            'id': device.id,
-            'device_id': device.device_id,
-            'name': device.name,
-            'utility_type': device.utility_type,
-            'mode': 'p1_net',
-            'import_entity_id': import_entity_id,
-            'export_entity_id': export_entity_id,
-        },
-        'verify': {
-            'ok': result.get('status') == 'ok',
-            'reason': None if result.get('status') == 'ok' else result.get('error', result.get('status')),
-            'reading_id': result.get('reading_id'),
-            'net_state': net_value,
-        },
-    }), 201
-
-
-
-@api_bp.route('/admin/properties/<int:prop_id>/smart-meters/backfill-home-assistant', methods=['POST'])
-@login_required
-def backfill_home_assistant_monthly(prop_id):
-    """Backfill monthly first-day readings from Home Assistant statistics (with history fallback) for imported devices."""
-    prop = Property.query.get_or_404(prop_id)
-    data = request.get_json() or {}
-
-    months_back = int(data.get('months_back') or 12)
-    months_back = max(1, min(months_back, 120))
-    until_data_start = bool(data.get('until_data_start', False))
-    if until_data_start:
-        months_back = 120
-
-    requested_ids = data.get('device_ids') or []
-    requested_ids_set = set()
-    if isinstance(requested_ids, list):
-        for item in requested_ids:
-            try:
-                requested_ids_set.add(int(item))
-            except (TypeError, ValueError):
-                continue
-
-    base_url, token, settings_err, status_code = _validated_ha_connection_settings(
-        property_id=prop_id,
-        fallback_global=True,
-    )
-    if settings_err:
-        return jsonify({'error': settings_err}), status_code
-
-    query = SmartMeterDevice.query.filter_by(property_id=prop_id)
-    devices = query.order_by(SmartMeterDevice.id.asc()).all()
-    if requested_ids_set:
-        devices = [d for d in devices if d.id in requested_ids_set]
-
-    targets = []
-    skipped_devices = []
-    for d in devices:
-        mapping = _get_ha_entity_mapping_for_device(d)
-        if mapping.get('kind') == 'none':
-            skipped_devices.append({'device_id': d.device_id, 'reason': 'no_entity_mapping'})
-            continue
-        targets.append((d, mapping))
-
-    if not targets:
-        return jsonify({
-            'success': True,
-            'months_back': months_back,
-            'created': 0,
-            'skipped': 0,
-            'devices': [],
-            'skipped_devices': skipped_devices,
-            'errors': [],
-            'no_targets': True,
-            'message': 'Előbb importálj legalább egy Home Assistant szenzort a listából.',
-        })
-
-    month_starts = _month_starts_back_from_now(months_back)
-
-    created_total = 0
-    skipped_total = 0
-    errors = []
-    per_device = []
-    touched_utils = set()
-
-    for device, mapping in targets:
-        device_created = 0
-        device_skipped = 0
-
-        mapping_kind = mapping.get('kind')
-        if mapping_kind == 'p1_net':
-            label_entity = f"{mapping.get('import_entity_id', '')} - {mapping.get('export_entity_id', '')}"
-        else:
-            label_entity = mapping.get('entity_id', '')
-
-        for month_start in month_starts:
-            reading_date = month_start.date()
-
-            existing = MeterReading.query.filter_by(
-                property_id=prop_id,
-                utility_type=device.utility_type,
-                reading_date=reading_date,
-            ).order_by(MeterReading.id.asc()).first()
-            if existing:
-                device_skipped += 1
-                skipped_total += 1
-                continue
-
-            value = None
-            if mapping_kind == 'p1_net':
-                import_entity = mapping.get('import_entity_id')
-                export_entity = mapping.get('export_entity_id')
-
-                import_value, import_err, import_source = _ha_month_start_value(base_url, token, import_entity, month_start)
-                if import_err:
-                    errors.append({
-                        'device_id': device.device_id,
-                        'entity_id': import_entity,
-                        'reading_date': reading_date.isoformat(),
-                        'error': import_err,
-                    })
-                    continue
-
-                export_value, export_err, export_source = _ha_month_start_value(base_url, token, export_entity, month_start)
-                if export_err:
-                    errors.append({
-                        'device_id': device.device_id,
-                        'entity_id': export_entity,
-                        'reading_date': reading_date.isoformat(),
-                        'error': export_err,
-                    })
-                    continue
-
-                if import_value is None or export_value is None:
-                    device_skipped += 1
-                    skipped_total += 1
-                    continue
-
-                value = float(import_value) - float(export_value)
-            else:
-                entity_id = mapping.get('entity_id')
-                value, err, value_source = _ha_month_start_value(base_url, token, entity_id, month_start)
-                if err:
-                    errors.append({
-                        'device_id': device.device_id,
-                        'entity_id': entity_id,
-                        'reading_date': reading_date.isoformat(),
-                        'error': err,
-                    })
-                    continue
-
-                if value is None:
-                    device_skipped += 1
-                    skipped_total += 1
-                    continue
-
-            if mapping_kind == 'p1_net':
-                if import_value is not None and export_value is not None and import_source == 'statistics' and export_source == 'statistics':
-                    value_source = 'statistics'
-                else:
-                    value_source = 'history'
-
-            row = MeterReading(
-                property_id=prop_id,
-                utility_type=device.utility_type,
-                value=value,
-                prev_value=None,
-                consumption=None,
-                tariff_id=None,
-                cost_huf=None,
-                reading_date=reading_date,
-                notes=f'HA havi {value_source} import ({label_entity})',
-                source='smart_ha_statistics' if value_source == 'statistics' else 'smart_ha_history',
-            )
-            db.session.add(row)
-            device_created += 1
-            created_total += 1
-            touched_utils.add(device.utility_type)
-
-        per_device.append({
-            'device_id': device.device_id,
-            'entity_id': label_entity,
-            'utility_type': device.utility_type,
-            'created': device_created,
-            'skipped': device_skipped,
-        })
-
-    for utility_type in touched_utils:
-        _recompute_property_utility_readings(prop_id, utility_type)
-
-    db.session.commit()
-
-    return jsonify({
-        'success': True,
-        'months_back': months_back,
-        'created': created_total,
-        'skipped': skipped_total,
-        'devices': per_device,
-        'skipped_devices': skipped_devices,
-        'errors': errors,
-    })
 
 
 @api_bp.route('/admin/smart-meters/<int:device_db_id>', methods=['PUT'])
@@ -4575,7 +3079,6 @@ def edit_smart_meter(device_db_id):
             return jsonify({'error': f'Device ID {data["device_id"]} already registered'}), 409
         device.device_id = data['device_id']
 
-    new_source = data.get('source', device.source)
     if 'source' in data:
         device.source = data['source']
     if 'utility_type' in data:
@@ -4585,10 +3088,7 @@ def edit_smart_meter(device_db_id):
     if 'ttn_app_id' in data:
         device.ttn_app_id = data['ttn_app_id']
     if 'mqtt_topic' in data:
-        incoming_topic = data['mqtt_topic']
-        device.mqtt_topic = incoming_topic.strip() if isinstance(incoming_topic, str) else incoming_topic
-    if new_source == 'mqtt' and (not device.mqtt_topic or not str(device.mqtt_topic).strip()):
-        device.mqtt_topic = _default_mqtt_topic(device.property_id, data.get('device_id', device.device_id))
+        device.mqtt_topic = data['mqtt_topic']
     if 'value_field' in data:
         device.value_field = data['value_field']
     if 'multiplier' in data:
@@ -4635,8 +3135,7 @@ def smart_meter_status():
     mqtt_connected = False
     mqtt_enabled = current_app.config.get('MQTT_ENABLED', False)
     if mqtt_enabled and hasattr(current_app, 'mqtt_client'):
-        connected_attr = getattr(current_app.mqtt_client, 'is_connected', False)
-        mqtt_connected = connected_attr() if callable(connected_attr) else bool(connected_attr)
+        mqtt_connected = current_app.mqtt_client.is_connected()
 
     ttn_enabled = current_app.config.get('TTN_WEBHOOK_ENABLED', True)
 
@@ -4786,7 +3285,14 @@ def ocr_meter_reading():
     if len(image_data) > 10 * 1024 * 1024:  # 10MB limit
         return jsonify({'error': 'Túl nagy fájl (max 10MB)!'}), 400
 
-    provider = current_app.config.get('OCR_PROVIDER', 'claude')
+    from models import AppSetting
+    ps = AppSetting.query.get('ocr_provider')
+    provider = (ps.value if ps else None) or current_app.config.get('OCR_PROVIDER', 'claude')
+    ak = AppSetting.query.get('anthropic_api_key')
+    ok = AppSetting.query.get('openai_api_key')
+    import os
+    if ak and ak.value: os.environ['ANTHROPIC_API_KEY'] = ak.value
+    if ok and ok.value: os.environ['OPENAI_API_KEY'] = ok.value
 
     try:
         from services.ocr import ocr_meter_reading as do_ocr
@@ -4811,12 +3317,271 @@ def tenant_ocr_meter_reading():
     if len(image_data) > 10 * 1024 * 1024:
         return jsonify({'error': 'Túl nagy fájl (max 10MB)!'}), 400
 
-    provider = current_app.config.get('OCR_PROVIDER', 'claude')
+    utility_type = request.form.get('utility_type', '')
+    from models import AppSetting
+    ps = AppSetting.query.get('ocr_provider')
+    provider = (ps.value if ps else None) or current_app.config.get('OCR_PROVIDER', 'claude')
+    ak = AppSetting.query.get('anthropic_api_key')
+    ok = AppSetting.query.get('openai_api_key')
+    import os
+    if ak and ak.value: os.environ['ANTHROPIC_API_KEY'] = ak.value
+    if ok and ok.value: os.environ['OPENAI_API_KEY'] = ok.value
 
     try:
         from services.ocr import ocr_meter_reading as do_ocr
-        result = do_ocr(image_data, provider=provider)
+        result = do_ocr(image_data, provider=provider, utility_type=utility_type)
         return jsonify(result)
     except Exception as e:
         current_app.logger.error(f"OCR error: {e}", exc_info=True)
         return jsonify({'error': str(e), 'value': None}), 500
+
+
+# ============ Home Assistant Settings ============
+
+_HA_KEYS = ['ha_base_url', 'ha_token', 'tailscale_api_token', 'tailscale_tailnet']
+
+
+@api_bp.route('/admin/settings/home-assistant', methods=['GET'])
+@login_required
+def get_ha_settings():
+    from models import AppSetting
+    return jsonify({k: AppSetting.get(k) or '' for k in _HA_KEYS})
+
+
+@api_bp.route('/admin/settings/home-assistant', methods=['POST'])
+@login_required
+def save_ha_settings():
+    from models import AppSetting
+    data = request.get_json() or {}
+    for k in _HA_KEYS:
+        if k in data:
+            AppSetting.set(k, data[k])
+    return jsonify({'success': True})
+
+
+@api_bp.route('/admin/settings/home-assistant/test', methods=['POST'])
+@login_required
+def test_ha_connection():
+    from models import AppSetting
+    import urllib.request, json as _json, ssl
+    base_url = AppSetting.get('ha_base_url') or ''
+    token = AppSetting.get('ha_token') or ''
+    if not base_url or not token:
+        return jsonify({'error': 'HA URL vagy token nincs beállítva'}), 400
+    try:
+        url = f"{base_url.rstrip('/')}/api/states"
+        req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'})
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        with urllib.request.urlopen(req, timeout=8, context=ctx) as resp:
+            states = _json.loads(resp.read())
+        sensors = [s for s in states if s.get('entity_id', '').startswith('sensor.')]
+        return jsonify({'sensor_count': len(sensors), 'total_entities': len(states)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+@api_bp.route('/admin/tailscale/devices', methods=['GET'])
+@login_required
+def get_tailscale_devices():
+    from models import AppSetting
+    import urllib.request, json as _json
+    api_token = AppSetting.get('tailscale_api_token') or ''
+    tailnet = AppSetting.get('tailscale_tailnet') or ''
+    if not api_token or not tailnet:
+        return jsonify({'error': 'Tailscale API token vagy tailnet nincs beállítva'}), 400
+    try:
+        url = f"https://api.tailscale.com/api/v2/tailnet/{tailnet}/devices"
+        req = urllib.request.Request(url, headers={'Authorization': f'Bearer {api_token}'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = _json.loads(resp.read())
+        devices = [
+            {'id': d.get('id'), 'name': d.get('name', ''), 'hostname': d.get('hostname', ''),
+             'addresses': d.get('addresses', []), 'os': d.get('os', ''), 'online': d.get('online', False)}
+            for d in data.get('devices', [])
+        ]
+        return jsonify({'devices': devices, 'count': len(devices)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+
+# ============ Home Assistant Per-Property Endpoints ============
+
+def _ha_creds():
+    """Return (base_url, token) from AppSetting, or raise ValueError."""
+    from models import AppSetting
+    base_url = AppSetting.get('ha_base_url', '')
+    token = AppSetting.get('ha_token', '')
+    if not base_url or not token:
+        raise ValueError('Home Assistant URL vagy token nincs beállítva a Beállítások oldalon.')
+    return base_url, token
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/ha-entities')
+@login_required
+def ha_entities(prop_id):
+    try:
+        base_url, token = _ha_creds()
+        from services.home_assistant import get_entities
+        entities = get_entities(base_url, token)
+        return jsonify({'entities': entities})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        current_app.logger.error('HA entities error: %s', e, exc_info=True)
+        return jsonify({'error': str(e)}), 502
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/ha-meters', methods=['POST'])
+@login_required
+def ha_import_meters(prop_id):
+    data = request.get_json() or {}
+    entities = data.get('entities', [])
+    if not entities:
+        return jsonify({'error': 'Nincs entitás kiválasztva'}), 400
+    try:
+        from models import SmartMeterDevice
+        from services.home_assistant import create_ha_smart_meter
+        created = []
+        for e in entities:
+            dev = create_ha_smart_meter(
+                db, SmartMeterDevice,
+                prop_id, e['entity_id'], e['utility_type'], e.get('name')
+            )
+            created.append({'id': dev.id, 'name': dev.name, 'entity_id': dev.ttn_app_id})
+        db.session.commit()
+        return jsonify({'created': created})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/ha-net-meter', methods=['POST'])
+@login_required
+def ha_import_net_meter(prop_id):
+    data = request.get_json() or {}
+    name = data.get('name', 'P1 nettó villany')
+    import_eid = data.get('import_entity_id', '')
+    export_eid = data.get('export_entity_id', '')
+    if not import_eid:
+        return jsonify({'error': 'Import entity_id szükséges'}), 400
+    try:
+        from models import SmartMeterDevice
+        from services.home_assistant import create_ha_smart_meter
+        dev = create_ha_smart_meter(db, SmartMeterDevice, prop_id, import_eid, 'villany', name)
+        if export_eid:
+            create_ha_smart_meter(db, SmartMeterDevice, prop_id, export_eid, 'villany', f'{name} (export)')
+        db.session.commit()
+        return jsonify({'created': {'id': dev.id}})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/ha-backfill', methods=['POST'])
+@login_required
+def ha_backfill(prop_id):
+    try:
+        base_url, token = _ha_creds()
+        params = request.get_json() or {}
+        from models import SmartMeterDevice, Tariff
+        from services.home_assistant import backfill_monthly
+        result = backfill_monthly(
+            db, MeterReading, SmartMeterDevice, Tariff,
+            base_url, token, prop_id,
+            months_back=params.get('months_back', 12),
+            until_data_start=params.get('until_data_start', False),
+            device_ids=params.get('device_ids'),
+        )
+        return jsonify(result)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error('HA backfill error: %s', e, exc_info=True)
+        return jsonify({'error': str(e)}), 502
+
+
+@api_bp.route('/admin/properties/<int:prop_id>/ha-copy-profile', methods=['POST'])
+@login_required
+def ha_copy_profile(prop_id):
+    data = request.get_json() or {}
+    target_id = data.get('target_property_id')
+    if not target_id:
+        return jsonify({'error': 'target_property_id szükséges'}), 400
+    try:
+        from models import SmartMeterDevice
+        src_devices = SmartMeterDevice.query.filter_by(property_id=prop_id, source='ha').all()
+        copied = 0
+        for src in src_devices:
+            from services.home_assistant import create_ha_smart_meter
+            create_ha_smart_meter(
+                db, SmartMeterDevice, target_id,
+                src.ttn_app_id, src.utility_type, src.name
+            )
+            copied += 1
+        db.session.commit()
+        return jsonify({'success': True, 'copied': copied})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============ OCR Provider Settings ============
+
+@api_bp.route('/admin/settings/ocr', methods=['GET'])
+@login_required
+def get_ocr_settings():
+    from models import AppSetting
+    provider_setting = AppSetting.query.get('ocr_provider')
+    ant_setting = AppSetting.query.get('anthropic_api_key')
+    oai_setting = AppSetting.query.get('openai_api_key')
+
+    def mask(k):
+        if not k or len(k) < 10:
+            return ''
+        return k[:8] + '...' + k[-4:]
+
+    ant_key = ant_setting.value if ant_setting else current_app.config.get('ANTHROPIC_API_KEY', '')
+    oai_key = oai_setting.value if oai_setting else current_app.config.get('OPENAI_API_KEY', '')
+    provider = (provider_setting.value if provider_setting else None) or current_app.config.get('OCR_PROVIDER', 'claude')
+
+    return jsonify({
+        'provider': provider,
+        'anthropic_configured': bool(ant_key),
+        'openai_configured': bool(oai_key),
+        'anthropic_key_masked': mask(ant_key),
+        'openai_key_masked': mask(oai_key),
+    })
+
+
+@api_bp.route('/admin/settings/ocr', methods=['POST'])
+@login_required
+def save_ocr_settings():
+    from models import AppSetting
+    data = request.get_json() or {}
+
+    def upsert(key, value):
+        setting = AppSetting.query.get(key)
+        if setting:
+            setting.value = value
+        else:
+            db.session.add(AppSetting(key=key, value=value))
+
+    provider = data.get('provider', '').strip()
+    if provider and provider not in ('claude', 'openai', 'tesseract'):
+        return jsonify({'error': 'Érvénytelen OCR provider'}), 400
+    if provider:
+        upsert('ocr_provider', provider)
+
+    ant_key = data.get('anthropic_key', '').strip()
+    if ant_key:
+        upsert('anthropic_api_key', ant_key)
+
+    oai_key = data.get('openai_key', '').strip()
+    if oai_key:
+        upsert('openai_api_key', oai_key)
+
+    db.session.commit()
+    return jsonify({'success': True})

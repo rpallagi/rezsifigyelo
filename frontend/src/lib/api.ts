@@ -334,8 +334,6 @@ export interface AdminProperty {
   monthly_rent: number | null;
   tariff_group_id: number;
   tariff_group_name?: string;
-  building_property_id?: number | null;
-  building_name?: string | null;
   last_villany?: ReadingSummary | null;
   last_viz?: ReadingSummary | null;
 }
@@ -450,12 +448,10 @@ export interface PropertyReadingsData {
   trends: {
     villany: { current: number; previous: number; change_pct: number } | null;
     viz: { current: number; previous: number; change_pct: number } | null;
-    gaz: { current: number; previous: number; change_pct: number } | null;
   };
   sparklines: {
     villany: number[];
     viz: number[];
-    gaz: number[];
   };
 }
 
@@ -504,6 +500,11 @@ export const getPropertyMaintenance = (id: number) =>
 export const adminSubmitReading = (data: FormData) =>
   requestMultipart<{ success: boolean; reading_id: number; consumption: number | null; cost_huf: number | null }>(
     '/admin/readings', data
+  );
+
+export const deletePropertyReadingsByUtility = (propertyId: number, utilityType: 'villany' | 'viz' | 'gaz' | 'csatorna') =>
+  request<{ success: boolean; deleted: number }>(
+    `/admin/properties/${propertyId}/readings/${utilityType}`, { method: 'DELETE' }
   );
 
 export const getPropertyDocuments = (id: number) =>
@@ -686,12 +687,111 @@ export const ocrMeterReading = (photo: File) => {
 };
 
 /** OCR meter reading from photo — multi-provider (Claude/Tesseract/OpenAI/Google) */
-export const ocrMeterPhoto = (photo: File, role: 'admin' | 'tenant' = 'admin') => {
+export const ocrMeterPhoto = (photo: File, role: 'admin' | 'tenant' = 'admin', utilityType?: string) => {
   const fd = new FormData();
   fd.append('photo', photo);
+  if (utilityType) fd.append('utility_type', utilityType);
   const endpoint = role === 'tenant' ? '/tenant/ocr/meter' : '/admin/ocr/meter';
   return requestMultipart<{ value: number | null; confidence: string; raw_text: string; error?: string }>(endpoint, fd);
 };
+
+// ============ OCR Provider Settings ============
+
+export interface OcrSettings {
+  provider: 'claude' | 'openai' | 'tesseract';
+  anthropic_configured: boolean;
+  openai_configured: boolean;
+  anthropic_key_masked: string;
+  openai_key_masked: string;
+}
+
+export const getOcrSettings = () =>
+  request<OcrSettings>('/admin/settings/ocr');
+
+export const saveOcrSettings = (data: {
+  provider?: string;
+  anthropic_key?: string;
+  openai_key?: string;
+}) => request<{ success: boolean }>('/admin/settings/ocr', {
+  method: 'POST',
+  body: JSON.stringify(data),
+});
+
+// ============ Home Assistant + Tailscale Settings ============
+
+export interface TailscaleDeviceItem {
+  id: string;
+  name: string;
+  hostname: string;
+  addresses: string[];
+  os?: string;
+  online?: boolean;
+}
+
+export const getHomeAssistantSettings = () =>
+  request<{ ha_base_url: string; ha_token: string; tailscale_api_token: string; tailscale_tailnet: string }>(
+    '/admin/settings/home-assistant'
+  );
+
+export const saveHomeAssistantSettings = (data: {
+  ha_base_url: string; ha_token: string; tailscale_api_token?: string; tailscale_tailnet?: string;
+}) =>
+  request<{ success: boolean }>('/admin/settings/home-assistant', {
+    method: 'POST', body: JSON.stringify(data),
+  });
+
+export const testHomeAssistantConnection = () =>
+  request<{ sensor_count: number; total_entities: number }>(
+    '/admin/settings/home-assistant/test', { method: 'POST' }
+  );
+
+export const getTailscaleDevices = () =>
+  request<{ devices: TailscaleDeviceItem[]; count: number }>('/admin/tailscale/devices');
+
+// HA per-property entity/import/backfill
+export interface HaEntityItem {
+  entity_id: string;
+  friendly_name: string;
+  state: string;
+  utility_type?: string;
+  unit?: string;
+}
+
+export const getHomeAssistantEntities = (propertyId: number) =>
+  request<{ entities: HaEntityItem[] }>(`/admin/properties/${propertyId}/ha-entities`);
+
+export const importHomeAssistantMeters = (
+  propertyId: number,
+  entities: { entity_id: string; utility_type: string; name?: string }[]
+) =>
+  request<{ created: { id: number; name: string; entity_id: string }[] }>(
+    `/admin/properties/${propertyId}/ha-meters`,
+    { method: 'POST', body: JSON.stringify({ entities }) }
+  );
+
+export const importHomeAssistantNetMeter = (
+  propertyId: number,
+  data: { name: string; import_entity_id: string; export_entity_id: string }
+) =>
+  request<{ created: { id: number } }>(
+    `/admin/properties/${propertyId}/ha-net-meter`,
+    { method: 'POST', body: JSON.stringify(data) }
+  );
+
+export const backfillHomeAssistantMonthly = (
+  propertyId: number,
+  params: { months_back?: number; until_data_start?: boolean; device_ids?: number[] }
+) =>
+  request<{ created: number; devices: number[]; message?: string; no_targets?: boolean }>(
+    `/admin/properties/${propertyId}/ha-backfill`,
+    { method: 'POST', body: JSON.stringify(params) }
+  );
+
+export const copyHomeAssistantProfile = (propertyId: number, targetPropertyId: number) =>
+  request<{ success: boolean; copied: number }>(
+    `/admin/properties/${propertyId}/ha-copy-profile`,
+    { method: 'POST', body: JSON.stringify({ target_property_id: targetPropertyId }) }
+  );
 
 // ============ AI Chat ============
 
@@ -749,15 +849,6 @@ export const editMeter = (meterId: number, data: any) =>
   request<{ success: boolean }>(`/admin/meters/${meterId}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteMeter = (meterId: number) =>
   request<{ success: boolean }>(`/admin/meters/${meterId}`, { method: 'DELETE' });
-
-export const deletePropertyReadingsByUtility = (
-  propId: number,
-  utilityType: 'villany' | 'viz' | 'gaz' | 'csatorna'
-) =>
-  request<{ success: boolean; deleted: number; utility_type: string }>(
-    `/admin/properties/${propId}/readings/utility/${utilityType}`,
-    { method: 'DELETE' },
-  );
 
 // ============ Chat - Admin ============
 
@@ -911,129 +1002,6 @@ export const saveEmailSettings = (data: { enabled?: boolean; admin_email?: strin
 
 export const testEmail = () =>
   request<{ success: boolean }>('/admin/settings/email/test', { method: 'POST' });
-
-// ============ Home Assistant / Tailscale Settings ============
-
-export interface HomeAssistantSettings {
-  ha_name: string;
-  ha_location: string;
-  ha_local_username: string;
-  ha_local_password: string;
-  ha_base_url: string;
-  ha_token: string;
-  tailscale_api_token: string;
-  tailscale_tailnet: string;
-  scope?: 'global' | 'property';
-  property_id?: number | null;
-}
-
-export interface HomeAssistantEntityItem {
-  entity_id: string;
-  friendly_name: string;
-  unit: string;
-  state: string;
-  utility_type: 'villany' | 'viz' | 'gaz';
-  numeric: boolean;
-}
-
-export interface TailscaleDeviceItem {
-  id: string;
-  name: string;
-  hostname: string;
-  online: boolean;
-  status_reason?: string;
-  last_seen?: string;
-  ip: string;
-  ha_url: string;
-  likely_home_assistant: boolean;
-}
-
-const homeAssistantScopeQuery = (propertyId?: number) =>
-  propertyId ? `?property_id=${propertyId}` : '';
-
-export const getHomeAssistantSettings = (propertyId?: number) =>
-  request<HomeAssistantSettings>(`/admin/settings/home-assistant${homeAssistantScopeQuery(propertyId)}`);
-
-export const saveHomeAssistantSettings = (data: Partial<HomeAssistantSettings>, propertyId?: number) =>
-  request<{ success: boolean }>(`/admin/settings/home-assistant${homeAssistantScopeQuery(propertyId)}`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-
-export const testHomeAssistantConnection = (propertyId?: number) =>
-  request<{ success: boolean; sensor_count: number; total_entities: number }>(`/admin/settings/home-assistant/test${homeAssistantScopeQuery(propertyId)}`, {
-    method: 'POST',
-  });
-
-export const getHomeAssistantEntities = (propertyId?: number) =>
-  request<{ entities: HomeAssistantEntityItem[]; count: number }>(`/admin/settings/home-assistant/entities${homeAssistantScopeQuery(propertyId)}`);
-
-export const getTailscaleDevices = (propertyId?: number) =>
-  request<{ devices: TailscaleDeviceItem[]; count: number }>(`/admin/settings/home-assistant/tailscale/devices${homeAssistantScopeQuery(propertyId)}`);
-
-export const copyHomeAssistantProfile = (sourcePropertyId: number, targetPropertyId: number) =>
-  request<{ success: boolean; source_property_id: number; target_property_id: number; copied_keys: number }>(
-    '/admin/settings/home-assistant/copy-profile',
-    {
-      method: 'POST',
-      body: JSON.stringify({ source_property_id: sourcePropertyId, target_property_id: targetPropertyId }),
-    },
-  );
-
-export const importHomeAssistantMeters = (
-  propId: number,
-  entities: Array<{ entity_id: string; utility_type?: 'villany' | 'viz' | 'gaz'; name?: string }>
-) =>
-  request<{
-    success: boolean;
-    created: Array<{ id: number; device_id: string; entity_id: string; utility_type: string }>;
-    verify: Array<{ entity_id: string; device_id: string; ok: boolean; reason?: string; reading_id?: number }>;
-    skipped: Array<{ entity_id: string; device_id: string; reason: string }>;
-  }>(`/admin/properties/${propId}/smart-meters/import-home-assistant`, {
-    method: 'POST',
-    body: JSON.stringify({ entities }),
-  });
-
-export const importHomeAssistantNetMeter = (
-  propId: number,
-  data: { import_entity_id: string; export_entity_id: string; name?: string; device_id?: string }
-) =>
-  request<{
-    success: boolean;
-    existing?: boolean;
-    created: {
-      id: number;
-      device_id: string;
-      name: string;
-      utility_type: string;
-      mode: 'p1_net';
-      import_entity_id: string;
-      export_entity_id: string;
-    };
-    verify: { ok: boolean; reason?: string; reading_id?: number | null; net_state?: number | null };
-  }>(`/admin/properties/${propId}/smart-meters/import-home-assistant-net`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-
-export const backfillHomeAssistantMonthly = (
-  propId: number,
-  data?: { months_back?: number; until_data_start?: boolean; device_ids?: number[] }
-) =>
-  request<{
-    success: boolean;
-    months_back: number;
-    created: number;
-    skipped: number;
-    devices: Array<{ device_id: string; entity_id: string; utility_type: string; created: number; skipped: number }>;
-    skipped_devices: Array<{ device_id: string; reason: string }>;
-    errors: Array<{ device_id: string; entity_id: string; reading_date: string; error: string }>;
-    no_targets?: boolean;
-    message?: string;
-  }>(`/admin/properties/${propId}/smart-meters/backfill-home-assistant`, {
-    method: 'POST',
-    body: JSON.stringify(data || {}),
-  });
 
 // ============ WiFi Networks ============
 
