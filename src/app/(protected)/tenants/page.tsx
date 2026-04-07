@@ -1,6 +1,10 @@
 import { api } from "@/trpc/server";
+import { getMessages } from "@/lib/i18n/messages";
+import { getCurrentLocale } from "@/lib/i18n/server";
 
 export default async function TenantsPage() {
+  const locale = await getCurrentLocale();
+  const m = getMessages(locale);
   const properties = await api.property.list();
 
   const allTenancies = properties.flatMap((p) =>
@@ -9,21 +13,21 @@ export default async function TenantsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Bérlők</h1>
+      <h1 className="text-2xl font-bold">{m.tenantsPage.title}</h1>
 
       {allTenancies.length === 0 ? (
         <p className="mt-8 text-muted-foreground">
-          Még nincs bérlőd. Adj hozzá bérlőt egy ingatlanhoz.
+          {m.tenantsPage.empty}
         </p>
       ) : (
         <div className="mt-6">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
-                <th className="pb-3 font-medium">Név</th>
-                <th className="pb-3 font-medium">Email</th>
-                <th className="pb-3 font-medium">Ingatlan</th>
-                <th className="pb-3 font-medium">Státusz</th>
+                <th className="pb-3 font-medium">{m.common.name}</th>
+                <th className="pb-3 font-medium">{m.common.email}</th>
+                <th className="pb-3 font-medium">{m.tenantsPage.property}</th>
+                <th className="pb-3 font-medium">{m.common.status}</th>
               </tr>
             </thead>
             <tbody>
@@ -44,7 +48,7 @@ export default async function TenantsPage() {
                           : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
                       }`}
                     >
-                      {t.active ? "Aktív" : "Inaktív"}
+                      {t.active ? m.common.active : m.common.inactive}
                     </span>
                   </td>
                 </tr>

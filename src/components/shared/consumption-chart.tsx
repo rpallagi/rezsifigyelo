@@ -9,6 +9,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+import { useLocale } from "@/components/providers/locale-provider";
+
 type Reading = {
   readingDate: string;
   consumption: number | null;
@@ -23,6 +25,7 @@ const utilityColors: Record<string, string> = {
 };
 
 export function ConsumptionChart({ readings }: { readings: Reading[] }) {
+  const { intlLocale, messages, utilityLabel } = useLocale();
   // Group by month and utility
   const byMonth = new Map<string, Record<string, number>>();
 
@@ -45,7 +48,7 @@ export function ConsumptionChart({ readings }: { readings: Reading[] }) {
 
   return (
     <div className="mt-8">
-      <h2 className="text-lg font-semibold">Fogyasztás trend</h2>
+      <h2 className="text-lg font-semibold">{messages.chart.title}</h2>
       <div className="mt-4 h-64">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
@@ -53,22 +56,9 @@ export function ConsumptionChart({ readings }: { readings: Reading[] }) {
               dataKey="month"
               tick={{ fontSize: 12 }}
               tickFormatter={(v: string) => {
-                const [, m] = v.split("-");
-                const months = [
-                  "Jan",
-                  "Feb",
-                  "Már",
-                  "Ápr",
-                  "Máj",
-                  "Jún",
-                  "Júl",
-                  "Aug",
-                  "Szep",
-                  "Okt",
-                  "Nov",
-                  "Dec",
-                ];
-                return months[Number(m) - 1] ?? m ?? "";
+                return new Intl.DateTimeFormat(intlLocale, {
+                  month: "short",
+                }).format(new Date(`${v}-01`));
               }}
             />
             <YAxis tick={{ fontSize: 12 }} />
@@ -82,7 +72,7 @@ export function ConsumptionChart({ readings }: { readings: Reading[] }) {
                 stroke={utilityColors[type] ?? "#6b7280"}
                 fill={utilityColors[type] ?? "#6b7280"}
                 fillOpacity={0.3}
-                name={type}
+                name={utilityLabel(type)}
               />
             ))}
           </AreaChart>

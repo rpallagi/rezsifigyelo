@@ -1,6 +1,14 @@
 import { api } from "@/trpc/server";
+import {
+  formatCurrency,
+  formatNumber,
+  getMessages,
+} from "@/lib/i18n/messages";
+import { getCurrentLocale } from "@/lib/i18n/server";
 
 export default async function ROIPage() {
+  const locale = await getCurrentLocale();
+  const m = getMessages(locale);
   const properties = await api.property.list();
 
   const propertiesWithROI = properties
@@ -39,48 +47,47 @@ export default async function ROIPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">ROI Áttekintés</h1>
+      <h1 className="text-2xl font-bold">{m.roiPage.title}</h1>
 
       {/* Summary */}
       <div className="mt-6 grid gap-4 md:grid-cols-4">
         <div className="rounded-lg border border-border p-6">
-          <h3 className="text-sm text-muted-foreground">Össz. befektetés</h3>
+          <h3 className="text-sm text-muted-foreground">{m.roiPage.totalInvestment}</h3>
           <p className="mt-2 text-2xl font-bold">
-            {totalPurchase.toLocaleString("hu-HU")} Ft
+            {formatCurrency(totalPurchase, locale)}
           </p>
         </div>
         <div className="rounded-lg border border-border p-6">
-          <h3 className="text-sm text-muted-foreground">Éves bevétel</h3>
+          <h3 className="text-sm text-muted-foreground">{m.roiPage.annualRevenue}</h3>
           <p className="mt-2 text-2xl font-bold">
-            {totalAnnualRent.toLocaleString("hu-HU")} Ft
+            {formatCurrency(totalAnnualRent, locale)}
           </p>
         </div>
         <div className="rounded-lg border border-border p-6">
-          <h3 className="text-sm text-muted-foreground">Átlag ROI</h3>
+          <h3 className="text-sm text-muted-foreground">{m.roiPage.averageRoi}</h3>
           <p className="mt-2 text-2xl font-bold">{avgROI}%</p>
         </div>
         <div className="rounded-lg border border-border p-6">
-          <h3 className="text-sm text-muted-foreground">Ingatlanok</h3>
-          <p className="mt-2 text-2xl font-bold">{propertiesWithROI.length}</p>
+          <h3 className="text-sm text-muted-foreground">{m.roiPage.properties}</h3>
+          <p className="mt-2 text-2xl font-bold">{formatNumber(propertiesWithROI.length, locale)}</p>
         </div>
       </div>
 
       {/* Per-property ROI */}
       {propertiesWithROI.length === 0 ? (
         <p className="mt-8 text-muted-foreground">
-          Adj meg vételárat és havi bérleti díjat az ingatlanokhoz a ROI
-          számításhoz.
+          {m.roiPage.empty}
         </p>
       ) : (
         <table className="mt-8 w-full text-sm">
           <thead>
             <tr className="border-b text-left text-muted-foreground">
-              <th className="pb-3 font-medium">Ingatlan</th>
-              <th className="pb-3 font-medium">Vételár</th>
-              <th className="pb-3 font-medium">Havi bérleti díj</th>
-              <th className="pb-3 font-medium">Éves bevétel</th>
+              <th className="pb-3 font-medium">{m.common.property}</th>
+              <th className="pb-3 font-medium">{m.roiPage.purchasePrice}</th>
+              <th className="pb-3 font-medium">{m.roiPage.monthlyRent}</th>
+              <th className="pb-3 font-medium">{m.roiPage.annualRevenue}</th>
               <th className="pb-3 font-medium">ROI</th>
-              <th className="pb-3 font-medium">Megtérülés</th>
+              <th className="pb-3 font-medium">{m.roiPage.breakEven}</th>
             </tr>
           </thead>
           <tbody>
@@ -88,16 +95,16 @@ export default async function ROIPage() {
               <tr key={p.id} className="border-b">
                 <td className="py-3 font-medium">{p.name}</td>
                 <td className="py-3">
-                  {(p.purchasePrice ?? 0).toLocaleString("hu-HU")} Ft
+                  {formatCurrency(p.purchasePrice ?? 0, locale)}
                 </td>
                 <td className="py-3">
-                  {(p.monthlyRent ?? 0).toLocaleString("hu-HU")} Ft
+                  {formatCurrency(p.monthlyRent ?? 0, locale)}
                 </td>
                 <td className="py-3">
-                  {p.annualRent.toLocaleString("hu-HU")} Ft
+                  {formatCurrency(p.annualRent, locale)}
                 </td>
                 <td className="py-3 font-semibold">{p.roiPercent}%</td>
-                <td className="py-3">{p.breakEvenYears} év</td>
+                <td className="py-3">{p.breakEvenYears} {m.common.yearsSuffix}</td>
               </tr>
             ))}
           </tbody>

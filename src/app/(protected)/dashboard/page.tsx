@@ -1,7 +1,15 @@
 import { api } from "@/trpc/server";
+import {
+  formatCurrency,
+  formatNumber,
+  getMessages,
+} from "@/lib/i18n/messages";
+import { getCurrentLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 
 export default async function DashboardPage() {
+  const locale = await getCurrentLocale();
+  const m = getMessages(locale);
   const user = await api.user.me();
   const properties = await api.property.list();
 
@@ -18,10 +26,10 @@ export default async function DashboardPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">
-        Szia, {user.firstName ?? user.email}!
+        {m.dashboardPage.greeting}, {user.firstName ?? user.email}!
       </h1>
       <p className="mt-2 text-muted-foreground">
-        Üdvözlünk a Rezsi Figyelőben.
+        {m.dashboardPage.welcome}
       </p>
 
       <div className="mt-8 grid gap-4 md:grid-cols-4">
@@ -30,31 +38,31 @@ export default async function DashboardPage() {
           className="rounded-lg border border-border p-6 hover:bg-secondary/50"
         >
           <h3 className="text-sm font-medium text-muted-foreground">
-            Ingatlanok
+            {m.dashboardPage.totalProperties}
           </h3>
-          <p className="mt-2 text-3xl font-bold">{totalProperties}</p>
+          <p className="mt-2 text-3xl font-bold">{formatNumber(totalProperties, locale)}</p>
         </Link>
         <div className="rounded-lg border border-border p-6">
           <h3 className="text-sm font-medium text-muted-foreground">
-            Aktív bérlők
+            {m.dashboardPage.activeTenants}
           </h3>
-          <p className="mt-2 text-3xl font-bold">{activeTenants}</p>
+          <p className="mt-2 text-3xl font-bold">{formatNumber(activeTenants, locale)}</p>
         </div>
         <div className="rounded-lg border border-border p-6">
           <h3 className="text-sm font-medium text-muted-foreground">
-            Mérőórák
+            {m.dashboardPage.totalMeters}
           </h3>
-          <p className="mt-2 text-3xl font-bold">{totalMeters}</p>
+          <p className="mt-2 text-3xl font-bold">{formatNumber(totalMeters, locale)}</p>
         </div>
         <div className="rounded-lg border border-border p-6">
           <h3 className="text-sm font-medium text-muted-foreground">
-            Havi bevétel
+            {m.dashboardPage.monthlyRevenue}
           </h3>
           <p className="mt-2 text-3xl font-bold">
-            {properties
-              .reduce((acc, p) => acc + (p.monthlyRent ?? 0), 0)
-              .toLocaleString("hu-HU")}{" "}
-            Ft
+            {formatCurrency(
+              properties.reduce((acc, p) => acc + (p.monthlyRent ?? 0), 0),
+              locale,
+            )}
           </p>
         </div>
       </div>
@@ -62,7 +70,7 @@ export default async function DashboardPage() {
       {/* Recent properties */}
       {properties.length > 0 && (
         <div className="mt-8">
-          <h2 className="text-lg font-semibold">Ingatlanok</h2>
+          <h2 className="text-lg font-semibold">{m.dashboardPage.recentProperties}</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {properties.slice(0, 6).map((property) => (
               <Link
@@ -72,10 +80,12 @@ export default async function DashboardPage() {
               >
                 <h3 className="font-medium">{property.name}</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {property.address ?? "Nincs cím"}
+                  {property.address ?? m.common.noAddress}
                 </p>
                 <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
-                  <span>{property.meterInfo.length} mérő</span>
+                  <span>
+                    {formatNumber(property.meterInfo.length, locale)} {m.common.metersSuffix}
+                  </span>
                   {property.tenancies.length > 0 && (
                     <span>
                       {property.tenancies[0]?.tenant.firstName ??
@@ -92,13 +102,13 @@ export default async function DashboardPage() {
       {properties.length === 0 && (
         <div className="mt-12 text-center">
           <p className="text-muted-foreground">
-            Még nincs ingatlanod. Kezdd el a nyilvántartást!
+            {m.dashboardPage.empty}
           </p>
           <Link
             href="/properties/new"
             className="mt-4 inline-block rounded-md bg-primary px-6 py-2 text-sm text-primary-foreground hover:bg-primary/90"
           >
-            + Új ingatlan létrehozása
+            {m.dashboardPage.createProperty}
           </Link>
         </div>
       )}

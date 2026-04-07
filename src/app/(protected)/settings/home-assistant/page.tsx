@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "@/components/providers/locale-provider";
 import { api } from "@/trpc/react";
 
 export default function HomeAssistantSettingsPage() {
+  const { messages } = useLocale();
   const { data: settings } = api.homeAssistant.getSettings.useQuery();
   const [baseUrl, setBaseUrl] = useState("");
   const [token, setToken] = useState("");
@@ -12,12 +14,14 @@ export default function HomeAssistantSettingsPage() {
     baseUrl.length > 0 ? baseUrl : (settings?.baseUrl ?? "");
 
   const saveSettings = api.homeAssistant.saveSettings.useMutation({
-    onSuccess: () => setTestResult("Mentve!"),
+    onSuccess: () => setTestResult(messages.homeAssistantPage.saved),
   });
 
   const testConnection = api.homeAssistant.testConnection.useMutation({
-    onSuccess: (data) => setTestResult(`Kapcsolódva: ${data.message}`),
-    onError: (err) => setTestResult(`Hiba: ${err.message}`),
+    onSuccess: (data) =>
+      setTestResult(`${messages.homeAssistantPage.connected}: ${data.message}`),
+    onError: (err) =>
+      setTestResult(`${messages.homeAssistantPage.error}: ${err.message}`),
   });
 
   const { data: entities } = api.homeAssistant.listEntities.useQuery(
@@ -27,17 +31,16 @@ export default function HomeAssistantSettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-bold">Home Assistant Integráció</h1>
+      <h1 className="text-2xl font-bold">{messages.homeAssistantPage.title}</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Csatlakoztasd a Home Assistant-edet okos mérők automatikus
-        leolvasásához.
+        {messages.homeAssistantPage.description}
       </p>
 
       {/* Connection settings */}
       <div className="mt-6 space-y-4 rounded-lg border border-border p-6">
-        <h3 className="font-semibold">Kapcsolat</h3>
+        <h3 className="font-semibold">{messages.homeAssistantPage.connection}</h3>
         <div>
-          <label className="block text-sm font-medium">HA URL</label>
+          <label className="block text-sm font-medium">{messages.homeAssistantPage.url}</label>
           <input
             type="url"
             value={effectiveBaseUrl}
@@ -48,17 +51,19 @@ export default function HomeAssistantSettingsPage() {
         </div>
         <div>
           <label className="block text-sm font-medium">
-            Long-Lived Access Token
+            {messages.homeAssistantPage.token}
           </label>
           <input
             type="password"
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            placeholder={settings?.hasToken ? "••••••••" : "Illeszd be a tokent"}
+            placeholder={
+              settings?.hasToken ? "••••••••" : messages.homeAssistantPage.tokenPlaceholder
+            }
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            HA → Profil → Long-Lived Access Tokens → Create Token
+            {messages.homeAssistantPage.tokenHint}
           </p>
         </div>
 
@@ -73,14 +78,14 @@ export default function HomeAssistantSettingsPage() {
             disabled={saveSettings.isPending}
             className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            Mentés
+            {messages.common.save}
           </button>
           <button
             onClick={() => testConnection.mutate()}
             disabled={testConnection.isPending}
             className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
           >
-            Teszt
+            {messages.common.test}
           </button>
         </div>
 
@@ -93,15 +98,15 @@ export default function HomeAssistantSettingsPage() {
       {entities && entities.length > 0 && (
         <div className="mt-8">
           <h3 className="font-semibold">
-            Elérhető szenzorok ({entities.length})
+            {messages.homeAssistantPage.sensors} ({entities.length})
           </h3>
           <div className="mt-4 max-h-96 overflow-auto rounded-lg border border-border">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-background">
                 <tr className="border-b text-left text-muted-foreground">
-                  <th className="p-2 font-medium">Entitás</th>
-                  <th className="p-2 font-medium">Érték</th>
-                  <th className="p-2 font-medium">Típus</th>
+                  <th className="p-2 font-medium">{messages.homeAssistantPage.entity}</th>
+                  <th className="p-2 font-medium">{messages.homeAssistantPage.value}</th>
+                  <th className="p-2 font-medium">{messages.homeAssistantPage.type}</th>
                 </tr>
               </thead>
               <tbody>

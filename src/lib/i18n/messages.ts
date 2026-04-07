@@ -1,0 +1,565 @@
+export const locales = ["hu", "en"] as const;
+
+export type Locale = (typeof locales)[number];
+
+const messages = {
+  hu: {
+    common: {
+      appName: "Rezsi Figyelő",
+      management: "Kezelés",
+      analytics: "Elemzés",
+      dashboard: "Dashboard",
+      properties: "Ingatlanok",
+      readings: "Leolvasások",
+      payments: "Befizetések",
+      tenants: "Bérlők",
+      todos: "Feladatok",
+      messages: "Üzenetek",
+      tariffs: "Tarifák",
+      billing: "Számlázás",
+      settings: "Beállítások",
+      overview: "Áttekintés",
+      history: "Előzmények",
+      chat: "Üzenetek",
+      save: "Mentés",
+      cancel: "Mégse",
+      test: "Teszt",
+      property: "Ingatlan",
+      amount: "Összeg",
+      date: "Dátum",
+      status: "Státusz",
+      notes: "Megjegyzés",
+      method: "Mód",
+      email: "Email",
+      name: "Név",
+      active: "Aktív",
+      inactive: "Inaktív",
+      none: "—",
+      loading: "Betöltés...",
+      noAddress: "Nincs cím",
+      noTenant: "Nincs bérlő",
+      metersSuffix: "mérő",
+      yearsSuffix: "év",
+      currencyCode: "Ft",
+    },
+    landing: {
+      signInTenant: "Bérlő belépés",
+      signInLandlord: "Bérbeadó",
+      badge: "Közüzemi nyilvántartás, egyszerűen",
+      heroPrefix: "Tartsd kézben a",
+      heroHighlight: "rezsiköltségeket",
+      heroDescription:
+        "Mérőállás rögzítés, automatikus költségszámítás, bérlői kommunikáció és teljes ingatlankezelés — egy helyen, okostelefonról is.",
+      tenantTitle: "Bérlő vagyok",
+      tenantDescription:
+        "Rögzítsd a mérőállásaidat pillanatok alatt. Kövesd a fogyasztásodat és költségeidet valós időben.",
+      tenantCta: "Mérőállás rögzítés →",
+      landlordTitle: "Bérbeadó vagyok",
+      landlordDescription:
+        "Kezeld az ingatlanportfóliódat, kövesd a bevételeidet, számlákat és optimalizáld a hozamodat egyetlen felületen.",
+      landlordCta: "Admin felület →",
+      featuresTitle: "Minden funkció, amire szükséged van",
+      featuresDescription:
+        "Rezsikövetés, ingatlankezelés és pénzügyi nyilvántartás egy helyen.",
+      ctaTitle: "Próbáld ki ingyen",
+      ctaDescription:
+        "Az első ingatlan kezelése ingyenes. Korlátlan ingatlanhoz válaszd a Pro csomagot.",
+      signUp: "Regisztráció",
+      footer:
+        "Rezsi Figyelő © 2025 — Közüzemi nyilvántartás és ingatlankezelés, egyszerűen.",
+      features: [
+        {
+          title: "Fotós leolvasás",
+          description:
+            "Fényképezd le a mérőórádat — a rendszer automatikusan leolvassa az állást (OCR).",
+        },
+        {
+          title: "Automatikus költségszámítás",
+          description:
+            "Azonnal kiszámolja a várható költséget az aktuális tarifák alapján.",
+        },
+        {
+          title: "ROI kalkulátor",
+          description:
+            "Számold ki a befektetésed megtérülését és kövesd a break-even pontot.",
+        },
+        {
+          title: "Villany · Víz · Gáz",
+          description:
+            "Minden közüzemi mérő egy helyen, egységes kezelőfelülettel.",
+        },
+        {
+          title: "Számlázás és fizetés",
+          description:
+            "Szamlazz.hu integráció, fizetési felszólítások, online fizetés.",
+        },
+        {
+          title: "Távleolvasás",
+          description:
+            "LoRaWAN, MQTT és Home Assistant integráció automatikus mérőleolvasáshoz.",
+        },
+      ],
+    },
+    dashboardPage: {
+      greeting: "Szia",
+      welcome: "Üdvözlünk a Rezsi Figyelőben.",
+      totalProperties: "Ingatlanok",
+      activeTenants: "Aktív bérlők",
+      totalMeters: "Mérőórák",
+      monthlyRevenue: "Havi bevétel",
+      recentProperties: "Ingatlanok",
+      empty: "Még nincs ingatlanod. Kezdd el a nyilvántartást!",
+      createProperty: "+ Új ingatlan létrehozása",
+    },
+    propertiesPage: {
+      title: "Ingatlanok",
+      create: "+ Új ingatlan",
+      empty: "Még nincs ingatlanod. Hozd létre az elsőt!",
+      tenantPrefix: "Bérlő",
+    },
+    tenantsPage: {
+      title: "Bérlők",
+      empty: "Még nincs bérlőd. Adj hozzá bérlőt egy ingatlanhoz.",
+      property: "Ingatlan",
+    },
+    billingPage: {
+      title: "Számlázás",
+      subscription: "Előfizetés",
+      nextBilling: "Következő számlázás",
+      noSubscription:
+        "Nincs aktív előfizetésed. A Rezsi Figyelő jelenleg ingyenesen használható.",
+    },
+    messagesPage: {
+      title: "Üzenetek",
+      description:
+        "A chat funkció az ingatlanok részleteinél érhető el. Válaszd ki az ingatlant, és a Chat fülön tudsz üzenni a bérlőnek.",
+    },
+    roiPage: {
+      title: "ROI Áttekintés",
+      totalInvestment: "Össz. befektetés",
+      annualRevenue: "Éves bevétel",
+      averageRoi: "Átlag ROI",
+      properties: "Ingatlanok",
+      empty:
+        "Adj meg vételárat és havi bérleti díjat az ingatlanokhoz a ROI számításhoz.",
+      purchasePrice: "Vételár",
+      monthlyRent: "Havi bérleti díj",
+      breakEven: "Megtérülés",
+    },
+    paymentsPage: {
+      title: "Összes befizetés",
+      empty: "Még nincs befizetés.",
+      totalPrefix: "összesen",
+    },
+    settingsPage: {
+      title: "Beállítások",
+      subtitle: "Alkalmazás, integráció és profil beállítások",
+      appearance: "Megjelenés",
+      light: "Világos",
+      dark: "Sötét",
+      system: "Rendszer",
+      language: "Nyelv",
+      integrations: "Integrációk",
+      homeAssistant: "Home Assistant",
+      homeAssistantDescription: "Kapcsolódás és entitások",
+      smartMeters: "Okos mérők",
+      smartMetersDescription: "Ingatlanhoz rendelt szenzorok",
+      emailNotifications: "Email értesítések",
+      enabled: "Bekapcsolva",
+      disabled: "Kikapcsolva",
+      adminEmail: "Admin email",
+      smtpHint:
+        "SMTP: Vercel env vars — SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD",
+      ocr: "OCR (mérő leolvasás)",
+      provider: "Provider",
+      mqtt: "MQTT",
+      broker: "Broker",
+      port: "Port",
+      user: "User",
+      password: "Jelszó",
+      topicPrefix: "Topic prefix",
+      webhookUrl: "Webhook URL",
+      token: "Token",
+      profile: "Profil",
+      languageSaved: "Nyelv frissítve.",
+      hungarian: "Magyar",
+      english: "English",
+    },
+    homeAssistantPage: {
+      title: "Home Assistant Integráció",
+      description:
+        "Kapcsold össze a saját Home Assistant példányodat. Az ingatlanhoz rendelés külön az Okos mérők oldalon történik.",
+      connection: "1. Kapcsolódás",
+      url: "HA URL",
+      token: "Long-Lived Access Token",
+      tokenPlaceholder: "Illeszd be a tokent",
+      tokenHint: "HA → Profil → Long-Lived Access Tokens → Create Token",
+      saved: "Mentve!",
+      connected: "Kapcsolódva",
+      error: "Hiba",
+      sensors: "Elérhető szenzorok",
+      entity: "Entitás",
+      value: "Érték",
+      type: "Típus",
+    },
+    smartMetersPage: {
+      title: "Okos mérő eszközök",
+      description:
+        "2. lépés: válassz ingatlant, és rendelj hozzá MQTT, TTN vagy Home Assistant szenzort.",
+      propertySelector: "Ingatlan",
+      chooseProperty: "Válassz ingatlant...",
+      devices: "Eszközök",
+      noDevices: "Nincs eszköz.",
+      lastSeen: "Utolsó",
+      newDevice: "Új eszköz",
+      utility: "Közmű",
+      source: "Forrás",
+      valueField: "Value field",
+      multiplier: "Szorzó",
+      offset: "Offset",
+      minInterval: "Min. intervallum (perc)",
+      add: "Hozzáadás",
+      deviceName: "Név",
+      mqtt: "MQTT",
+      ttn: "TTN (LoRaWAN)",
+      homeAssistant: "Home Assistant",
+    },
+    tenantShell: {
+      title: "Bérlői felület",
+      welcome: "Üdvözlünk a Rezsi Figyelő bérlői felületén.",
+      recordReading: "Mérőállás rögzítés",
+      recordReadingDescription: "Rögzítsd az aktuális mérőállásokat",
+      historyDescription: "Korábbi mérőállások és fogyasztás",
+      chatDescription: "Kommunikáció a bérbeadóval",
+      noTenancy:
+        "Nincs aktív bérleti jogviszonyod, ezért most nem tudsz mérőállást rögzíteni.",
+      success: "Sikeresen rögzítve!",
+      utility: "Közmű",
+      takePhoto: "Fotó készítés",
+      processing: "Feldolgozás...",
+      takePhotoHint: "Fotózd le a mérőórát",
+      readingValue: "Mérőállás",
+      readingPlaceholder: "pl. 12345",
+      submit: "Rögzítés",
+      saving: "Mentés...",
+      historyPlaceholder:
+        "Itt látod a korábbi mérőállásaidat és fogyasztásodat.",
+      chatPlaceholder: "Itt tudsz kommunikálni a bérbeadóddal.",
+    },
+    chart: {
+      title: "Fogyasztás trend",
+    },
+    utilities: {
+      villany: "Villany",
+      viz: "Víz",
+      gaz: "Gáz",
+      csatorna: "Csatorna",
+      internet: "Internet",
+      kozos_koltseg: "Közös költség",
+      egyeb: "Egyéb",
+    },
+  },
+  en: {
+    common: {
+      appName: "Rezsi Figyelő",
+      management: "Management",
+      analytics: "Analytics",
+      dashboard: "Dashboard",
+      properties: "Properties",
+      readings: "Readings",
+      payments: "Payments",
+      tenants: "Tenants",
+      todos: "Tasks",
+      messages: "Messages",
+      tariffs: "Tariffs",
+      billing: "Billing",
+      settings: "Settings",
+      overview: "Overview",
+      history: "History",
+      chat: "Messages",
+      save: "Save",
+      cancel: "Cancel",
+      test: "Test",
+      property: "Property",
+      amount: "Amount",
+      date: "Date",
+      status: "Status",
+      notes: "Notes",
+      method: "Method",
+      email: "Email",
+      name: "Name",
+      active: "Active",
+      inactive: "Inactive",
+      none: "—",
+      loading: "Loading...",
+      noAddress: "No address",
+      noTenant: "No tenant",
+      metersSuffix: "meters",
+      yearsSuffix: "years",
+      currencyCode: "HUF",
+    },
+    landing: {
+      signInTenant: "Tenant sign in",
+      signInLandlord: "Landlord",
+      badge: "Utility tracking made simple",
+      heroPrefix: "Stay in control of your",
+      heroHighlight: "utility costs",
+      heroDescription:
+        "Meter readings, automatic cost calculation, tenant communication and full property management in one place, optimized for mobile.",
+      tenantTitle: "I'm a tenant",
+      tenantDescription:
+        "Record meter readings in seconds. Track your consumption and costs in real time.",
+      tenantCta: "Record a reading →",
+      landlordTitle: "I'm a landlord",
+      landlordDescription:
+        "Manage your property portfolio, track income and invoices, and optimize returns from one interface.",
+      landlordCta: "Open dashboard →",
+      featuresTitle: "Everything you need in one app",
+      featuresDescription:
+        "Utility tracking, property management and financial oversight in one place.",
+      ctaTitle: "Try it for free",
+      ctaDescription:
+        "Manage your first property for free. Upgrade to Pro for unlimited properties.",
+      signUp: "Sign up",
+      footer:
+        "Rezsi Figyelő © 2025 — Utility tracking and property management made simple.",
+      features: [
+        {
+          title: "Photo-based OCR",
+          description:
+            "Take a photo of the meter and let the system read the value automatically.",
+        },
+        {
+          title: "Automatic cost calculation",
+          description:
+            "Estimate utility costs instantly based on your active tariffs.",
+        },
+        {
+          title: "ROI calculator",
+          description:
+            "Measure returns and follow your break-even point over time.",
+        },
+        {
+          title: "Electricity · Water · Gas",
+          description:
+            "Track every utility meter in one consistent workflow.",
+        },
+        {
+          title: "Billing and payments",
+          description:
+            "Invoice handling, payment reminders and online payment support.",
+        },
+        {
+          title: "Remote meter reading",
+          description:
+            "LoRaWAN, MQTT and Home Assistant integration for automated readings.",
+        },
+      ],
+    },
+    dashboardPage: {
+      greeting: "Hi",
+      welcome: "Welcome to Rezsi Figyelő.",
+      totalProperties: "Properties",
+      activeTenants: "Active tenants",
+      totalMeters: "Meters",
+      monthlyRevenue: "Monthly revenue",
+      recentProperties: "Properties",
+      empty: "You don't have any properties yet. Start tracking now.",
+      createProperty: "+ Create property",
+    },
+    propertiesPage: {
+      title: "Properties",
+      create: "+ New property",
+      empty: "You don't have any properties yet. Create your first one.",
+      tenantPrefix: "Tenant",
+    },
+    tenantsPage: {
+      title: "Tenants",
+      empty: "You don't have any tenants yet. Add one to a property.",
+      property: "Property",
+    },
+    billingPage: {
+      title: "Billing",
+      subscription: "Subscription",
+      nextBilling: "Next billing date",
+      noSubscription:
+        "You don't have an active subscription. Rezsi Figyelő is currently free to use.",
+    },
+    messagesPage: {
+      title: "Messages",
+      description:
+        "Messaging is available on each property page. Open a property and use the Chat tab to talk to the tenant.",
+    },
+    roiPage: {
+      title: "ROI Overview",
+      totalInvestment: "Total investment",
+      annualRevenue: "Annual revenue",
+      averageRoi: "Average ROI",
+      properties: "Properties",
+      empty:
+        "Add a purchase price and monthly rent to your properties to calculate ROI.",
+      purchasePrice: "Purchase price",
+      monthlyRent: "Monthly rent",
+      breakEven: "Break-even",
+    },
+    paymentsPage: {
+      title: "All payments",
+      empty: "No payments yet.",
+      totalPrefix: "total",
+    },
+    settingsPage: {
+      title: "Settings",
+      subtitle: "Application, integration and profile settings",
+      appearance: "Appearance",
+      light: "Light",
+      dark: "Dark",
+      system: "System",
+      language: "Language",
+      integrations: "Integrations",
+      homeAssistant: "Home Assistant",
+      homeAssistantDescription: "Connection and entities",
+      smartMeters: "Smart meters",
+      smartMetersDescription: "Sensors assigned to properties",
+      emailNotifications: "Email notifications",
+      enabled: "Enabled",
+      disabled: "Disabled",
+      adminEmail: "Admin email",
+      smtpHint:
+        "SMTP: Vercel env vars — SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD",
+      ocr: "OCR (meter reading)",
+      provider: "Provider",
+      mqtt: "MQTT",
+      broker: "Broker",
+      port: "Port",
+      user: "User",
+      password: "Password",
+      topicPrefix: "Topic prefix",
+      webhookUrl: "Webhook URL",
+      token: "Token",
+      profile: "Profile",
+      languageSaved: "Language updated.",
+      hungarian: "Magyar",
+      english: "English",
+    },
+    homeAssistantPage: {
+      title: "Home Assistant Integration",
+      description:
+        "Connect your Home Assistant instance once. Assign sensors to properties separately on the Smart meters page.",
+      connection: "1. Connection",
+      url: "HA URL",
+      token: "Long-Lived Access Token",
+      tokenPlaceholder: "Paste your token",
+      tokenHint: "HA → Profile → Long-Lived Access Tokens → Create Token",
+      saved: "Saved!",
+      connected: "Connected",
+      error: "Error",
+      sensors: "Available sensors",
+      entity: "Entity",
+      value: "Value",
+      type: "Type",
+    },
+    smartMetersPage: {
+      title: "Smart meter devices",
+      description:
+        "Step 2: choose a property and assign an MQTT, TTN or Home Assistant sensor to it.",
+      propertySelector: "Property",
+      chooseProperty: "Choose a property...",
+      devices: "Devices",
+      noDevices: "No devices yet.",
+      lastSeen: "Last seen",
+      newDevice: "New device",
+      utility: "Utility",
+      source: "Source",
+      valueField: "Value field",
+      multiplier: "Multiplier",
+      offset: "Offset",
+      minInterval: "Min interval (minutes)",
+      add: "Add device",
+      deviceName: "Name",
+      mqtt: "MQTT",
+      ttn: "TTN (LoRaWAN)",
+      homeAssistant: "Home Assistant",
+    },
+    tenantShell: {
+      title: "Tenant area",
+      welcome: "Welcome to the tenant area of Rezsi Figyelő.",
+      recordReading: "Record reading",
+      recordReadingDescription: "Submit your current meter values",
+      historyDescription: "Previous readings and consumption",
+      chatDescription: "Talk to your landlord",
+      noTenancy:
+        "You don't have an active tenancy, so you can't submit readings right now.",
+      success: "Saved successfully!",
+      utility: "Utility",
+      takePhoto: "Take photo",
+      processing: "Processing...",
+      takePhotoHint: "Take a picture of the meter",
+      readingValue: "Meter value",
+      readingPlaceholder: "e.g. 12345",
+      submit: "Submit",
+      saving: "Saving...",
+      historyPlaceholder: "Here you'll see your previous readings and usage.",
+      chatPlaceholder: "Here you can communicate with your landlord.",
+    },
+    chart: {
+      title: "Consumption trend",
+    },
+    utilities: {
+      villany: "Electricity",
+      viz: "Water",
+      gaz: "Gas",
+      csatorna: "Sewer",
+      internet: "Internet",
+      kozos_koltseg: "Common fee",
+      egyeb: "Other",
+    },
+  },
+} as const;
+
+export type Messages = (typeof messages)[Locale];
+
+export function getMessages(locale: Locale): Messages {
+  return messages[locale];
+}
+
+export function normalizeLocale(locale: string | null | undefined): Locale {
+  return locale === "en" ? "en" : "hu";
+}
+
+export function toIntlLocale(locale: Locale) {
+  return locale === "en" ? "en-US" : "hu-HU";
+}
+
+export function formatCurrency(value: number, locale: Locale) {
+  return new Intl.NumberFormat(toIntlLocale(locale), {
+    style: "currency",
+    currency: "HUF",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+export function formatNumber(value: number, locale: Locale) {
+  return new Intl.NumberFormat(toIntlLocale(locale)).format(value);
+}
+
+export function formatDate(
+  value: string | Date,
+  locale: Locale,
+  options?: Intl.DateTimeFormatOptions,
+) {
+  return new Intl.DateTimeFormat(toIntlLocale(locale), options).format(
+    typeof value === "string" ? new Date(value) : value,
+  );
+}
+
+export function formatDateTime(value: string | Date, locale: Locale) {
+  return formatDate(value, locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+export function getUtilityLabel(locale: Locale, utilityType: string) {
+  const utilityKey = utilityType as keyof Messages["utilities"];
+  return getMessages(locale).utilities[utilityKey] ?? utilityType;
+}

@@ -4,6 +4,7 @@ import { type Metadata } from "next";
 import { Inter } from "next/font/google";
 
 import { AuthProvider } from "@/app/provider";
+import { getCurrentLocale } from "@/lib/i18n/server";
 import { TRPCReactProvider } from "@/trpc/react";
 
 export const metadata: Metadata = {
@@ -32,13 +33,15 @@ const inter = Inter({
   display: "swap",
 });
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getCurrentLocale();
+
   return (
-    <html lang="hu" className={inter.variable} suppressHydrationWarning>
+    <html lang={locale} className={inter.variable} suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <AuthProvider>
+        <AuthProvider initialLocale={locale}>
           <TRPCReactProvider>{children}</TRPCReactProvider>
         </AuthProvider>
       </body>

@@ -2,15 +2,10 @@
 
 import { useState, useRef } from "react";
 import { api } from "@/trpc/react";
-
-const utilityLabels: Record<string, string> = {
-  villany: "Villany",
-  viz: "Víz",
-  gaz: "Gáz",
-  csatorna: "Csatorna",
-};
+import { useLocale } from "@/components/providers/locale-provider";
 
 export default function TenantReadingsPage() {
+  const { messages, utilityLabel } = useLocale();
   const [utilityType, setUtilityType] = useState("villany");
   const [value, setValue] = useState("");
   const [readingDate, setReadingDate] = useState(
@@ -67,29 +62,29 @@ export default function TenantReadingsPage() {
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="text-2xl font-bold">Mérőállás rögzítés</h1>
+      <h1 className="text-2xl font-bold">{messages.tenantShell.recordReading}</h1>
 
       {tenancyLoading && (
-        <p className="mt-4 text-sm text-muted-foreground">Betöltés...</p>
+        <p className="mt-4 text-sm text-muted-foreground">{messages.common.loading}</p>
       )}
 
       {!tenancyLoading && !activeTenancy && (
         <div className="mt-4 rounded-lg border border-border p-4 text-sm text-muted-foreground">
-          Nincs aktív bérleti jogviszonyod, ezért most nem tudsz mérőállást rögzíteni.
+          {messages.tenantShell.noTenancy}
         </div>
       )}
 
       {success && (
         <div className="mt-4 rounded-lg bg-green-100 p-3 text-sm text-green-700 dark:bg-green-900 dark:text-green-300">
-          Sikeresen rögzítve!
+          {messages.tenantShell.success}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-5">
         <div>
-          <label className="block text-sm font-medium">Közmű</label>
+          <label className="block text-sm font-medium">{messages.tenantShell.utility}</label>
           <div className="mt-2 flex gap-2">
-            {Object.entries(utilityLabels).map(([key, label]) => (
+            {(["villany", "viz", "gaz", "csatorna"] as const).map((key) => (
               <button
                 key={key}
                 type="button"
@@ -100,7 +95,7 @@ export default function TenantReadingsPage() {
                     : "border-border hover:bg-secondary"
                 }`}
               >
-                {label}
+                {utilityLabel(key)}
               </button>
             ))}
           </div>
@@ -125,28 +120,28 @@ export default function TenantReadingsPage() {
             disabled={ocrLoading}
             className="rounded-md bg-secondary px-6 py-3 text-sm hover:bg-secondary/80 disabled:opacity-50"
           >
-            {ocrLoading ? "Feldolgozás..." : "Fotó készítés"}
+            {ocrLoading ? messages.tenantShell.processing : messages.tenantShell.takePhoto}
           </button>
           <p className="mt-2 text-xs text-muted-foreground">
-            Fotózd le a mérőórát
+            {messages.tenantShell.takePhotoHint}
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Mérőállás</label>
+          <label className="block text-sm font-medium">{messages.tenantShell.readingValue}</label>
           <input
             type="number"
             step="0.01"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="pl. 12345"
+            placeholder={messages.tenantShell.readingPlaceholder}
             required
             className="mt-1 w-full rounded-lg border border-input bg-background px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Dátum</label>
+          <label className="block text-sm font-medium">{messages.common.date}</label>
           <input
             type="date"
             value={readingDate}
@@ -160,7 +155,7 @@ export default function TenantReadingsPage() {
           disabled={!value || createReading.isPending || !activeTenancy}
           className="w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {createReading.isPending ? "Mentés..." : "Rögzítés"}
+          {createReading.isPending ? messages.tenantShell.saving : messages.tenantShell.submit}
         </button>
       </form>
     </div>

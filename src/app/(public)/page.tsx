@@ -3,42 +3,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getSignedInRedirectPath } from "@/lib/auth/redirect";
-
-const features = [
-  {
-    title: "Fotós leolvasás",
-    description:
-      "Fényképezd le a mérőórádat — a rendszer automatikusan leolvassa az állást (OCR).",
-  },
-  {
-    title: "Automatikus költségszámítás",
-    description:
-      "Azonnal kiszámolja a várható költséget az aktuális tarifák alapján.",
-  },
-  {
-    title: "ROI kalkulátor",
-    description:
-      "Számold ki a befektetésed megtérülését és kövesd a break-even pontot.",
-  },
-  {
-    title: "Villany · Víz · Gáz",
-    description:
-      "Minden közüzemi mérő egy helyen, egységes kezelőfelülettel.",
-  },
-  {
-    title: "Számlázás és fizetés",
-    description:
-      "Szamlazz.hu integráció, fizetési felszólítások, online fizetés.",
-  },
-  {
-    title: "Távleolvasás",
-    description:
-      "LoRaWAN, MQTT és Home Assistant integráció automatikus mérőleolvasáshoz.",
-  },
-];
+import { getMessages } from "@/lib/i18n/messages";
+import { getCurrentLocale } from "@/lib/i18n/server";
 
 export default async function LandingPage() {
   const { userId } = await auth();
+  const locale = await getCurrentLocale();
+  const m = getMessages(locale);
 
   if (userId) {
     redirect(await getSignedInRedirectPath(userId));
@@ -50,20 +21,20 @@ export default async function LandingPage() {
       <header className="fixed inset-x-0 top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
-            <span className="text-xl font-bold">Rezsi Figyelő</span>
+            <span className="text-xl font-bold">{m.common.appName}</span>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href="/sign-in"
               className="rounded-md px-4 py-2 text-sm hover:bg-secondary"
             >
-              Bérlő belépés
+              {m.landing.signInTenant}
             </Link>
             <Link
               href="/sign-in"
               className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
             >
-              Bérbeadó
+              {m.landing.signInLandlord}
             </Link>
           </div>
         </div>
@@ -74,18 +45,16 @@ export default async function LandingPage() {
         <div className="mx-auto max-w-6xl text-center">
           <div className="mx-auto max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-1.5 text-sm font-medium">
-              Közüzemi nyilvántartás, egyszerűen
+              {m.landing.badge}
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
-              Tartsd kézben a{" "}
+              {m.landing.heroPrefix}{" "}
               <span className="bg-gradient-to-r from-green-500 to-blue-500 bg-clip-text text-transparent">
-                rezsiköltségeket
+                {m.landing.heroHighlight}
               </span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-              Mérőállás rögzítés, automatikus költségszámítás, bérlői
-              kommunikáció és teljes ingatlankezelés — egy helyen,
-              okostelefonról is.
+              {m.landing.heroDescription}
             </p>
           </div>
 
@@ -108,13 +77,12 @@ export default async function LandingPage() {
                     />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold">Bérlő vagyok</h2>
+                <h2 className="text-2xl font-bold">{m.landing.tenantTitle}</h2>
                 <p className="mt-3 leading-relaxed text-muted-foreground">
-                  Rögzítsd a mérőállásaidat pillanatok alatt. Kövesd a
-                  fogyasztásodat és költségeidet valós időben.
+                  {m.landing.tenantDescription}
                 </p>
                 <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-primary transition-all group-hover:gap-3">
-                  Mérőállás rögzítés →
+                  {m.landing.tenantCta}
                 </div>
               </div>
             </Link>
@@ -136,13 +104,12 @@ export default async function LandingPage() {
                     />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold">Bérbeadó vagyok</h2>
+                <h2 className="text-2xl font-bold">{m.landing.landlordTitle}</h2>
                 <p className="mt-3 leading-relaxed text-muted-foreground">
-                  Kezeld az ingatlanportfóliódat, kövesd a bevételeidet,
-                  számlákat és optimalizáld a hozamodat egyetlen felületen.
+                  {m.landing.landlordDescription}
                 </p>
                 <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-primary transition-all group-hover:gap-3">
-                  Admin felület →
+                  {m.landing.landlordCta}
                 </div>
               </div>
             </Link>
@@ -155,15 +122,15 @@ export default async function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 text-center">
             <h2 className="text-3xl font-bold sm:text-4xl">
-              Minden funkció, amire szükséged van
+              {m.landing.featuresTitle}
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-              Rezsikövetés, ingatlankezelés és pénzügyi nyilvántartás egy helyen.
+              {m.landing.featuresDescription}
             </p>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((f) => (
+            {m.landing.features.map((f) => (
               <div
                 key={f.title}
                 className="rounded-2xl border border-border bg-background p-6"
@@ -180,22 +147,21 @@ export default async function LandingPage() {
 
       {/* CTA */}
       <section className="px-6 py-20 text-center">
-        <h3 className="text-3xl font-bold">Próbáld ki ingyen</h3>
+        <h3 className="text-3xl font-bold">{m.landing.ctaTitle}</h3>
         <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-          Az első ingatlan kezelése ingyenes. Korlátlan ingatlanhoz válaszd a
-          Pro csomagot.
+          {m.landing.ctaDescription}
         </p>
         <Link
           href="/sign-up"
           className="mt-8 inline-block rounded-lg bg-primary px-8 py-3 text-lg font-medium text-primary-foreground hover:bg-primary/90"
         >
-          Regisztráció
+          {m.landing.signUp}
         </Link>
       </section>
 
       {/* Footer */}
       <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        <p>Rezsi Figyelő &copy; 2025 — Közüzemi nyilvántartás és ingatlankezelés, egyszerűen.</p>
+        <p>{m.landing.footer}</p>
       </footer>
     </div>
   );

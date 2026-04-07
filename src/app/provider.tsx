@@ -1,16 +1,27 @@
 "use client";
 
 import { ClerkProvider } from "@clerk/nextjs";
+import { enUS, huHU } from "@clerk/localizations";
 import { ui } from "@clerk/ui";
 import { ThemeProvider } from "next-themes";
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+import { LocaleProvider } from "@/components/providers/locale-provider";
+import { type Locale } from "@/lib/i18n/messages";
+
+export function AuthProvider({
+  children,
+  initialLocale,
+}: {
+  children: React.ReactNode;
+  initialLocale: Locale;
+}) {
   return (
     <ClerkProvider
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
       ui={ui}
       appearance={{}}
+      localization={initialLocale === "en" ? enUS : huHU}
     >
       <ThemeProvider
         attribute="class"
@@ -18,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        {children}
+        <LocaleProvider initialLocale={initialLocale}>{children}</LocaleProvider>
       </ThemeProvider>
     </ClerkProvider>
   );

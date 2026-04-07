@@ -3,10 +3,16 @@
 import { useState } from "react";
 import { useTheme } from "next-themes";
 import { UserProfile } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+
+import { useLocale } from "@/components/providers/locale-provider";
+import { api } from "@/trpc/react";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const { locale, messages, setLocale } = useLocale();
+  const router = useRouter();
 
   // Email settings
   const [emailEnabled, setEmailEnabled] = useState(false);
@@ -22,24 +28,36 @@ export default function SettingsPage() {
   const [mqttUser, setMqttUser] = useState("");
   const [mqttPassword, setMqttPassword] = useState("");
   const [mqttTopic, setMqttTopic] = useState("rezsi/#");
+  const [languageSaved, setLanguageSaved] = useState(false);
+
+  const utils = api.useUtils();
+  const updateLocale = api.user.updateLocale.useMutation({
+    onSuccess: (_, variables) => {
+      setLocale(variables.locale);
+      setLanguageSaved(true);
+      void utils.user.me.invalidate();
+      router.refresh();
+      setTimeout(() => setLanguageSaved(false), 2000);
+    },
+  });
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Beállítások</h1>
+        <h1 className="text-2xl font-bold">{messages.settingsPage.title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Alkalmazás, integráció és profil beállítások
+          {messages.settingsPage.subtitle}
         </p>
       </div>
 
       {/* Theme */}
       <section className="rounded-lg border border-border p-6">
-        <h2 className="text-lg font-semibold">Megjelenés</h2>
+        <h2 className="text-lg font-semibold">{messages.settingsPage.appearance}</h2>
         <div className="mt-4 flex gap-2">
           {[
-            { value: "light", label: "Világos" },
-            { value: "dark", label: "Sötét" },
-            { value: "system", label: "Rendszer" },
+            { value: "light", label: messages.settingsPage.light },
+            { value: "dark", label: messages.settingsPage.dark },
+            { value: "system", label: messages.settingsPage.system },
           ].map((t) => (
             <button
               key={t.value}
@@ -58,37 +76,55 @@ export default function SettingsPage() {
 
       {/* Language */}
       <section className="rounded-lg border border-border p-6">
-        <h2 className="text-lg font-semibold">Nyelv</h2>
-        <div className="mt-4 rounded-lg border border-border bg-secondary/30 p-4">
-          <p className="text-sm font-medium">Jelenleg csak magyar felület érhető el.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Az angol nyelv előkészítése megvan az adatmodellben, de a tényleges
-            fordítási rendszer még nincs bekötve a felületre. Addig nem
-            jelenítünk meg félkész nyelvváltót.
-          </p>
+        <h2 className="text-lg font-semibold">{messages.settingsPage.language}</h2>
+        <div className="mt-4 flex gap-2">
+          {[
+            { value: "hu", label: messages.settingsPage.hungarian },
+            { value: "en", label: messages.settingsPage.english },
+          ].map((option) => (
+            <button
+              key={option.value}
+              onClick={() =>
+                updateLocale.mutate({ locale: option.value as "hu" | "en" })
+              }
+              disabled={updateLocale.isPending}
+              className={`rounded-md border px-4 py-2 text-sm ${
+                locale === option.value
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-secondary"
+              } disabled:opacity-50`}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
+        {languageSaved && (
+          <p className="mt-3 text-sm text-muted-foreground">
+            {messages.settingsPage.languageSaved}
+          </p>
+        )}
       </section>
 
       {/* Integrations */}
       <section className="rounded-lg border border-border p-6">
-        <h2 className="text-lg font-semibold">Integrációk</h2>
+        <h2 className="text-lg font-semibold">{messages.settingsPage.integrations}</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <Link
             href="/settings/home-assistant"
             className="rounded-lg border border-border p-4 hover:bg-secondary/50"
           >
-            <h3 className="font-medium">Home Assistant</h3>
+            <h3 className="font-medium">{messages.settingsPage.homeAssistant}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Okos mérők, szenzorok
+              {messages.settingsPage.homeAssistantDescription}
             </p>
           </Link>
           <Link
             href="/settings/smart-meters"
             className="rounded-lg border border-border p-4 hover:bg-secondary/50"
           >
-            <h3 className="font-medium">Okos mérők (MQTT/TTN)</h3>
+            <h3 className="font-medium">{messages.settingsPage.smartMeters}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              LoRaWAN, MQTT webhook
+              {messages.settingsPage.smartMetersDescription}
             </p>
           </Link>
         </div>
@@ -96,11 +132,13 @@ export default function SettingsPage() {
 
       {/* Email */}
       <section className="rounded-lg border border-border p-6">
-        <h2 className="text-lg font-semibold">Email értesítések</h2>
+        <h2 className="text-lg font-semibold">{messages.settingsPage.emailNotifications}</h2>
         <div className="mt-4 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-sm">
-              {emailEnabled ? "Bekapcsolva" : "Kikapcsolva"}
+              {emailEnabled
+                ? messages.settingsPage.enabled
+                : messages.settingsPage.disabled}
             </span>
             <button
               onClick={() => setEmailEnabled(!emailEnabled)}
@@ -117,7 +155,7 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="block text-sm text-muted-foreground">
-              Admin email
+              {messages.settingsPage.adminEmail}
             </label>
             <input
               type="email"
@@ -128,17 +166,17 @@ export default function SettingsPage() {
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            SMTP: Vercel env vars — SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
+            {messages.settingsPage.smtpHint}
           </p>
         </div>
       </section>
 
       {/* OCR */}
       <section className="rounded-lg border border-border p-6">
-        <h2 className="text-lg font-semibold">OCR (mérő leolvasás)</h2>
+        <h2 className="text-lg font-semibold">{messages.settingsPage.ocr}</h2>
         <div className="mt-4 space-y-4">
           <div>
-            <label className="block text-sm text-muted-foreground">Provider</label>
+            <label className="block text-sm text-muted-foreground">{messages.settingsPage.provider}</label>
             <div className="mt-2 flex flex-wrap gap-2">
               {[
                 { value: "claude", label: "Claude Haiku" },
@@ -167,10 +205,14 @@ export default function SettingsPage() {
 
       {/* MQTT */}
       <section className="rounded-lg border border-border p-6">
-        <h2 className="text-lg font-semibold">MQTT</h2>
+        <h2 className="text-lg font-semibold">{messages.settingsPage.mqtt}</h2>
         <div className="mt-4 space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm">{mqttEnabled ? "Bekapcsolva" : "Kikapcsolva"}</span>
+            <span className="text-sm">
+              {mqttEnabled
+                ? messages.settingsPage.enabled
+                : messages.settingsPage.disabled}
+            </span>
             <button
               onClick={() => setMqttEnabled(!mqttEnabled)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -188,30 +230,30 @@ export default function SettingsPage() {
             <>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm text-muted-foreground">Broker</label>
+                  <label className="block text-sm text-muted-foreground">{messages.settingsPage.broker}</label>
                   <input type="text" value={mqttBroker} onChange={(e) => setMqttBroker(e.target.value)} placeholder="mqtt.example.com" className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div>
-                  <label className="block text-sm text-muted-foreground">Port</label>
+                  <label className="block text-sm text-muted-foreground">{messages.settingsPage.port}</label>
                   <input type="number" value={mqttPort} onChange={(e) => setMqttPort(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm text-muted-foreground">User</label>
+                  <label className="block text-sm text-muted-foreground">{messages.settingsPage.user}</label>
                   <input type="text" value={mqttUser} onChange={(e) => setMqttUser(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div>
-                  <label className="block text-sm text-muted-foreground">Jelszó</label>
+                  <label className="block text-sm text-muted-foreground">{messages.settingsPage.password}</label>
                   <input type="password" value={mqttPassword} onChange={(e) => setMqttPassword(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm text-muted-foreground">Topic prefix</label>
+                <label className="block text-sm text-muted-foreground">{messages.settingsPage.topicPrefix}</label>
                 <input type="text" value={mqttTopic} onChange={(e) => setMqttTopic(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <p className="text-xs text-muted-foreground">
-                Webhook URL: <code className="rounded bg-secondary px-1">/api/webhooks/smart-meter?source=mqtt</code>
+                {messages.settingsPage.webhookUrl}: <code className="rounded bg-secondary px-1">/api/webhooks/smart-meter?source=mqtt</code>
               </p>
             </>
           )}
@@ -226,13 +268,13 @@ export default function SettingsPage() {
           <code className="block rounded bg-secondary p-2 text-xs">
             POST https://rezsifigyelo.vercel.app/api/webhooks/smart-meter?source=ttn
           </code>
-          <p>Token: Vercel env var SMART_METER_WEBHOOK_TOKEN</p>
+          <p>{messages.settingsPage.token}: Vercel env var SMART_METER_WEBHOOK_TOKEN</p>
         </div>
       </section>
 
       {/* Clerk Profile */}
       <section className="rounded-lg border border-border p-6">
-        <h2 className="mb-4 text-lg font-semibold">Profil</h2>
+        <h2 className="mb-4 text-lg font-semibold">{messages.settingsPage.profile}</h2>
         <UserProfile />
       </section>
     </div>

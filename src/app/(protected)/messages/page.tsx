@@ -1,10 +1,15 @@
-export default function MessagesPage() {
+import { getMessages } from "@/lib/i18n/messages";
+import { getCurrentLocale } from "@/lib/i18n/server";
+
+export default async function MessagesPage() {
+  const locale = await getCurrentLocale();
+  const m = getMessages(locale);
+
   return (
     <div>
-      <h1 className="text-2xl font-bold">Üzenetek</h1>
+      <h1 className="text-2xl font-bold">{m.messagesPage.title}</h1>
       <p className="mt-4 text-muted-foreground">
-        A chat funkció az ingatlanok részleteinél érhető el. Válaszd ki az
-        ingatlant, és a Chat fülön tudsz üzenni a bérlőnek.
+        {m.messagesPage.description}
       </p>
     </div>
   );
