@@ -39,6 +39,22 @@ export default async function PropertyDetailPage({
         <p className="mt-2 text-muted-foreground">{property.address}</p>
       )}
 
+      {/* Actions */}
+      <div className="mt-4 flex gap-2">
+        <Link
+          href={`/properties/${property.id}/readings/new`}
+          className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+        >
+          + Mérőállás rögzítés
+        </Link>
+        <Link
+          href={`/properties/${property.id}/payments/new`}
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+        >
+          + Befizetés rögzítés
+        </Link>
+      </div>
+
       {/* Summary cards */}
       <div className="mt-6 grid gap-4 md:grid-cols-4">
         <div className="rounded-lg border border-border p-4">
