@@ -3,13 +3,10 @@
 import { useState } from "react";
 import { useTheme } from "next-themes";
 import { UserProfile } from "@clerk/nextjs";
-import { api } from "@/trpc/react";
 import Link from "next/link";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const utils = api.useUtils();
-  const { data: user } = api.user.me.useQuery();
 
   // Email settings
   const [emailEnabled, setEmailEnabled] = useState(false);
@@ -25,10 +22,6 @@ export default function SettingsPage() {
   const [mqttUser, setMqttUser] = useState("");
   const [mqttPassword, setMqttPassword] = useState("");
   const [mqttTopic, setMqttTopic] = useState("rezsi/#");
-
-  const updateLocale = api.user.updateLocale.useMutation({
-    onSuccess: () => void utils.user.me.invalidate(),
-  });
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
@@ -66,25 +59,13 @@ export default function SettingsPage() {
       {/* Language */}
       <section className="rounded-lg border border-border p-6">
         <h2 className="text-lg font-semibold">Nyelv</h2>
-        <div className="mt-4 flex gap-2">
-          {[
-            { value: "hu", label: "Magyar" },
-            { value: "en", label: "English" },
-          ].map((l) => (
-            <button
-              key={l.value}
-              onClick={() =>
-                updateLocale.mutate({ locale: l.value as "hu" | "en" })
-              }
-              className={`rounded-md border px-4 py-2 text-sm ${
-                user?.locale === l.value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border hover:bg-secondary"
-              }`}
-            >
-              {l.label}
-            </button>
-          ))}
+        <div className="mt-4 rounded-lg border border-border bg-secondary/30 p-4">
+          <p className="text-sm font-medium">Jelenleg csak magyar felület érhető el.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Az angol nyelv előkészítése megvan az adatmodellben, de a tényleges
+            fordítási rendszer még nincs bekötve a felületre. Addig nem
+            jelenítünk meg félkész nyelvváltót.
+          </p>
         </div>
       </section>
 
