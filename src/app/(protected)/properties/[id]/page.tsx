@@ -53,6 +53,12 @@ export default async function PropertyDetailPage({
         >
           + Befizetés rögzítés
         </Link>
+        <Link
+          href={`/properties/${property.id}/meters/new`}
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+        >
+          + Mérőóra
+        </Link>
       </div>
 
       {/* Summary cards */}
@@ -86,6 +92,33 @@ export default async function PropertyDetailPage({
           </p>
         </div>
       </div>
+
+      {/* Meters */}
+      {property.meterInfo.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold">Mérőórák</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {property.meterInfo.map((m) => (
+              <div
+                key={m.id}
+                className="rounded-lg border border-border p-4"
+              >
+                <p className="font-medium capitalize">{m.utilityType}</p>
+                {m.serialNumber && (
+                  <p className="mt-1 font-mono text-xs text-muted-foreground">
+                    {m.serialNumber}
+                  </p>
+                )}
+                {m.location && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {m.location}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent readings */}
       <div className="mt-8">
