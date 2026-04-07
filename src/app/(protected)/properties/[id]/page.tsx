@@ -275,6 +275,77 @@ export default async function PropertyDetailPage({
           </div>
         </div>
       )}
+      {/* Common fees */}
+      {property.commonFees.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold">Közös költség</h2>
+          <div className="mt-4 space-y-3">
+            {property.commonFees.map((f) => (
+              <div
+                key={f.id}
+                className="rounded-lg border border-border p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">
+                      {f.monthlyAmount.toLocaleString("hu-HU")} Ft / {f.frequency === "monthly" ? "hó" : "negyedév"}
+                    </p>
+                    {f.recipient && (
+                      <p className="text-sm text-muted-foreground">{f.recipient}</p>
+                    )}
+                  </div>
+                  {f.bankAccount && (
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {f.bankAccount}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Property taxes */}
+      {property.propertyTaxes.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold">Ingatlanadó</h2>
+          <div className="mt-4 space-y-3">
+            {property.propertyTaxes.map((t) => (
+              <div
+                key={t.id}
+                className="rounded-lg border border-border p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="font-medium">
+                    {t.year} — {t.annualAmount.toLocaleString("hu-HU")} Ft/év
+                  </p>
+                  <div className="flex gap-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        t.autumnPaid
+                          ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                          : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                      }`}
+                    >
+                      Ősz {t.autumnPaid ? "✓" : "✗"}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        t.springPaid
+                          ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                          : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                      }`}
+                    >
+                      Tavasz {t.springPaid ? "✓" : "✗"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

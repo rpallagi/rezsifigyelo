@@ -9,6 +9,8 @@ import { maintenanceRouter } from "@/server/api/routers/maintenance";
 import { todoRouter } from "@/server/api/routers/todo";
 import { chatRouter } from "@/server/api/routers/chat";
 import { wifiRouter } from "@/server/api/routers/wifi";
+import { commonFeeRouter } from "@/server/api/routers/common-fee";
+import { propertyTaxRouter } from "@/server/api/routers/property-tax";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 
 export const appRouter = createTRPCRouter({
@@ -23,6 +25,8 @@ export const appRouter = createTRPCRouter({
   todo: todoRouter,
   chat: chatRouter,
   wifi: wifiRouter,
+  commonFee: commonFeeRouter,
+  propertyTax: propertyTaxRouter,
 });
 
 export type AppRouter = typeof appRouter;
