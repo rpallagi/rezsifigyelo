@@ -1,4 +1,10 @@
+import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import { db } from "@/server/db";
+import { users } from "@/server/db/schema";
+import { eq } from "drizzle-orm";
 
 const features = [
   {
@@ -33,7 +39,22 @@ const features = [
   },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const { userId } = await auth();
+
+  if (userId) {
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.clerkId, userId),
+      columns: { role: true },
+    });
+
+    if (dbUser?.role === "tenant") {
+      redirect("/my-home");
+    }
+
+    redirect("/dashboard");
+  }
+
   return (
     <div className="min-h-screen">
       {/* Header */}
