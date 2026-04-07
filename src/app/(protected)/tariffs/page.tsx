@@ -1,0 +1,59 @@
+import { api } from "@/trpc/server";
+
+export default async function TariffsPage() {
+  const groups = await api.tariff.listGroups();
+
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Tarifák</h1>
+      </div>
+
+      {groups.length === 0 ? (
+        <p className="mt-8 text-muted-foreground">
+          Még nincs tarifa csoportod. Hozd létre az elsőt az ingatlanok
+          díjszabásának kezeléséhez.
+        </p>
+      ) : (
+        <div className="mt-6 space-y-6">
+          {groups.map((group) => (
+            <div key={group.id} className="rounded-lg border border-border p-6">
+              <h3 className="text-lg font-semibold">{group.name}</h3>
+              {group.description && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {group.description}
+                </p>
+              )}
+              {group.tariffs.length === 0 ? (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Nincs tarifa ebben a csoportban.
+                </p>
+              ) : (
+                <table className="mt-4 w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="pb-2 font-medium">Közmű</th>
+                      <th className="pb-2 font-medium">Díj</th>
+                      <th className="pb-2 font-medium">Egység</th>
+                      <th className="pb-2 font-medium">Érvényes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.tariffs.map((t) => (
+                      <tr key={t.id} className="border-b">
+                        <td className="py-2 capitalize">{t.utilityType}</td>
+                        <td className="py-2">{t.rateHuf} Ft</td>
+                        <td className="py-2">{t.unit}</td>
+                        <td className="py-2">{t.validFrom}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
