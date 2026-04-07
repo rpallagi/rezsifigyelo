@@ -24,6 +24,13 @@ export default function EditPropertyPage() {
   const [monthlyRent, setMonthlyRent] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [notes, setNotes] = useState("");
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [buildingPropertyId, setBuildingPropertyId] = useState<string>("");
+
+  const { data: allProperties } = api.property.list.useQuery();
+  const buildings = allProperties?.filter(
+    (p) => (p.propertyType === "lakas" || p.propertyType === "uzlet") === false && p.id !== propertyId,
+  );
 
   useEffect(() => {
     if (property) {
@@ -36,6 +43,7 @@ export default function EditPropertyPage() {
       setMonthlyRent(property.monthlyRent?.toString() ?? "");
       setPurchasePrice(property.purchasePrice?.toString() ?? "");
       setNotes(property.notes ?? "");
+      setBuildingPropertyId(property.buildingPropertyId?.toString() ?? "");
     }
   }, [property]);
 
@@ -59,6 +67,7 @@ export default function EditPropertyPage() {
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
       notes: notes || undefined,
+      buildingPropertyId: buildingPropertyId ? Number(buildingPropertyId) : undefined,
     });
   };
 
@@ -179,6 +188,62 @@ export default function EditPropertyPage() {
             </div>
           </div>
         </fieldset>
+
+        {/* Building hierarchy */}
+        <div>
+          <label className="block text-sm font-medium">Épület (szülő ingatlan)</label>
+          <select
+            value={buildingPropertyId}
+            onChange={(e) => setBuildingPropertyId(e.target.value)}
+            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Nincs (önálló)</option>
+            {allProperties
+              ?.filter((p) => p.id !== propertyId)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+          </select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ha ez egy lakás egy épületben, válaszd ki a szülő épületet
+          </p>
+        </div>
+
+        {/* Avatar */}
+        <div>
+          <label className="block text-sm font-medium">Ingatlan fotó</label>
+          {property?.avatarUrl && (
+            <img
+              src={property.avatarUrl}
+              alt={property.name}
+              className="mt-2 h-24 w-24 rounded-lg object-cover"
+            />
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              setAvatarUploading(true);
+              try {
+                const formData = new FormData();
+                formData.append("file", file);
+                const res = await fetch("/api/upload", { method: "POST", body: formData });
+                const data = await res.json();
+                if (data.url) {
+                  updateProperty.mutate({ id: propertyId, avatarUrl: data.url });
+                }
+              } finally {
+                setAvatarUploading(false);
+              }
+            }}
+            className="mt-2 text-sm"
+          />
+          {avatarUploading && <p className="mt-1 text-xs text-muted-foreground">Feltöltés...</p>}
+        </div>
 
         <div>
           <label className="block text-sm font-medium">Megjegyzés</label>

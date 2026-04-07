@@ -1,6 +1,7 @@
 import { api } from "@/trpc/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { ConsumptionChart } from "@/components/shared/consumption-chart";
 
 export default async function PropertyDetailPage({
   params,
@@ -76,6 +77,12 @@ export default async function PropertyDetailPage({
           className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
         >
           Szerkesztés
+        </Link>
+        <Link
+          href={`/properties/${property.id}/marketing`}
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+        >
+          Marketing
         </Link>
         <Link
           href={`/properties/${property.id}/chat`}
@@ -177,6 +184,15 @@ export default async function PropertyDetailPage({
           </div>
         </div>
       )}
+
+      {/* Consumption chart */}
+      <ConsumptionChart
+        readings={property.readings.map((r) => ({
+          readingDate: r.readingDate,
+          consumption: r.consumption,
+          utilityType: r.utilityType,
+        }))}
+      />
 
       {/* Recent readings */}
       <div className="mt-8">
