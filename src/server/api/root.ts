@@ -11,6 +11,7 @@ import { chatRouter } from "@/server/api/routers/chat";
 import { wifiRouter } from "@/server/api/routers/wifi";
 import { commonFeeRouter } from "@/server/api/routers/common-fee";
 import { propertyTaxRouter } from "@/server/api/routers/property-tax";
+import { documentRouter } from "@/server/api/routers/document";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 
 export const appRouter = createTRPCRouter({
@@ -27,6 +28,7 @@ export const appRouter = createTRPCRouter({
   wifi: wifiRouter,
   commonFee: commonFeeRouter,
   propertyTax: propertyTaxRouter,
+  document: documentRouter,
 });
 
 export type AppRouter = typeof appRouter;

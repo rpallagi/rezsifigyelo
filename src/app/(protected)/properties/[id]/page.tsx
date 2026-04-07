@@ -77,6 +77,12 @@ export default async function PropertyDetailPage({
         >
           Szerkesztés
         </Link>
+        <Link
+          href={`/properties/${property.id}/chat`}
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+        >
+          Chat
+        </Link>
       </div>
 
       {/* Summary cards */}
@@ -275,6 +281,35 @@ export default async function PropertyDetailPage({
           </div>
         </div>
       )}
+      {/* Documents */}
+      {property.documents.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold">Dokumentumok</h2>
+          <div className="mt-4 space-y-2">
+            {property.documents.map((d) => (
+              <a
+                key={d.id}
+                href={d.storedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-secondary/50"
+              >
+                <div>
+                  <p className="text-sm font-medium">{d.filename}</p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {d.category.replace("_", " ")}
+                    {d.fileSize && ` · ${(d.fileSize / 1024).toFixed(0)} KB`}
+                  </p>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(d.uploadedAt).toLocaleDateString("hu-HU")}
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Common fees */}
       {property.commonFees.length > 0 && (
         <div className="mt-8">

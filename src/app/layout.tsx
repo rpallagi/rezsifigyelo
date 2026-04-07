@@ -37,7 +37,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="hu" className={inter.variable} suppressHydrationWarning>
-      <body>
+      <body suppressHydrationWarning>
         <AuthProvider>
           <TRPCReactProvider>{children}</TRPCReactProvider>
         </AuthProvider>
