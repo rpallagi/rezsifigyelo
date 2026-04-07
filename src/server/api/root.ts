@@ -13,6 +13,7 @@ import { commonFeeRouter } from "@/server/api/routers/common-fee";
 import { propertyTaxRouter } from "@/server/api/routers/property-tax";
 import { documentRouter } from "@/server/api/routers/document";
 import { tenancyRouter } from "@/server/api/routers/tenancy";
+import { smartMeterRouter } from "@/server/api/routers/smart-meter";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 
 export const appRouter = createTRPCRouter({
@@ -31,6 +32,7 @@ export const appRouter = createTRPCRouter({
   propertyTax: propertyTaxRouter,
   document: documentRouter,
   tenancy: tenancyRouter,
+  smartMeter: smartMeterRouter,
 });
 
 export type AppRouter = typeof appRouter;
