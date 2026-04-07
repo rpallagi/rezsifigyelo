@@ -1,0 +1,55 @@
+import { z } from "zod";
+import { eq, desc } from "drizzle-orm";
+
+import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { tariffs, tariffGroups } from "@/server/db/schema";
+
+export const tariffRouter = createTRPCRouter({
+  listGroups: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.query.tariffGroups.findMany({
+      where: eq(tariffGroups.landlordId, ctx.dbUser.id),
+      with: { tariffs: { orderBy: [desc(tariffs.validFrom)] } },
+    });
+  }),
+
+  createGroup: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [group] = await ctx.db
+        .insert(tariffGroups)
+        .values({ landlordId: ctx.dbUser.id, ...input })
+        .returning();
+      return group;
+    }),
+
+  createTariff: protectedProcedure
+    .input(
+      z.object({
+        tariffGroupId: z.number(),
+        utilityType: z.enum([
+          "villany",
+          "viz",
+          "gaz",
+          "csatorna",
+          "internet",
+          "kozos_koltseg",
+          "egyeb",
+        ]),
+        rateHuf: z.number(),
+        unit: z.string().min(1),
+        validFrom: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [tariff] = await ctx.db
+        .insert(tariffs)
+        .values(input)
+        .returning();
+      return tariff;
+    }),
+});
