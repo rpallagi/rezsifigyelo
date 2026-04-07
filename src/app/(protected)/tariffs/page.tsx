@@ -7,6 +7,12 @@ export default async function TariffsPage() {
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Tarifák</h1>
+        <a
+          href="/tariffs/new"
+          className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+        >
+          + Új csoport
+        </a>
       </div>
 
       {groups.length === 0 ? (

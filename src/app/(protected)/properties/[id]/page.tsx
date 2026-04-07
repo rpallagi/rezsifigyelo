@@ -59,6 +59,12 @@ export default async function PropertyDetailPage({
         >
           + Mérőóra
         </Link>
+        <Link
+          href={`/properties/${property.id}/maintenance/new`}
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+        >
+          + Karbantartás
+        </Link>
       </div>
 
       {/* Summary cards */}
@@ -193,6 +199,45 @@ export default async function PropertyDetailPage({
           </table>
         )}
       </div>
+
+      {/* Maintenance */}
+      {property.maintenanceLogs.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold">Karbantartás</h2>
+          <div className="mt-4 space-y-3">
+            {property.maintenanceLogs.map((m) => (
+              <div
+                key={m.id}
+                className="rounded-lg border border-border p-4"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm">{m.description}</p>
+                    {m.category && (
+                      <span className="mt-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-xs capitalize">
+                        {m.category}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right text-xs text-muted-foreground">
+                    {m.performedDate && <p>{m.performedDate}</p>}
+                    {m.costHuf != null && m.costHuf > 0 && (
+                      <p className="font-medium text-foreground">
+                        {m.costHuf.toLocaleString("hu-HU")} Ft
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {m.performedBy && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {m.performedBy}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* WiFi */}
       {property.wifiNetworks.length > 0 && (

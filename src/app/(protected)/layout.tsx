@@ -8,7 +8,7 @@ export default function ProtectedLayout({
 }) {
   return (
     <div className="flex min-h-screen">
-      <aside className="w-64 border-r border-border bg-sidebar p-4">
+      <aside className="flex w-64 flex-col border-r border-border bg-sidebar p-4">
         <div className="mb-8">
           <Link href="/dashboard" className="text-xl font-bold">
             Rezsi Figyelő
@@ -40,10 +40,25 @@ export default function ProtectedLayout({
             Tarifák
           </Link>
           <Link
+            href="/todos"
+            className="rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent"
+          >
+            Feladatok
+          </Link>
+          <Link
             href="/messages"
             className="rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent"
           >
             Üzenetek
+          </Link>
+
+          <div className="my-2 border-t border-border" />
+
+          <Link
+            href="/billing"
+            className="rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent"
+          >
+            Számlázás
           </Link>
           <Link
             href="/settings"
@@ -56,7 +71,7 @@ export default function ProtectedLayout({
           <UserButton />
         </div>
       </aside>
-      <main className="flex-1 p-8">{children}</main>
+      <main className="flex-1 overflow-auto p-8">{children}</main>
     </div>
   );
 }
