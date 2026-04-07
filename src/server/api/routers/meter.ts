@@ -2,20 +2,14 @@ import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { meters, meterReadings } from "@/server/db/schema";
+import { meterInfo, meterReadings } from "@/server/db/schema";
 
 export const meterRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.query.meters.findMany({
-        where: eq(meters.propertyId, input.propertyId),
-        with: {
-          readings: {
-            orderBy: (r, { desc }) => [desc(r.readingDate)],
-            limit: 1,
-          },
-        },
+      return ctx.db.query.meterInfo.findMany({
+        where: eq(meterInfo.propertyId, input.propertyId),
       });
     }),
 
@@ -23,22 +17,21 @@ export const meterRouter = createTRPCRouter({
     .input(
       z.object({
         propertyId: z.number(),
-        type: z.enum([
-          "gas",
-          "water",
-          "electricity",
-          "heating",
+        utilityType: z.enum([
+          "villany",
+          "viz",
+          "gaz",
+          "csatorna",
           "internet",
-          "common_cost",
-          "other",
+          "kozos_koltseg",
+          "egyeb",
         ]),
-        name: z.string().min(1),
-        unit: z.string().min(1),
+        location: z.string().optional(),
         serialNumber: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [meter] = await ctx.db.insert(meters).values(input).returning();
+      const [meter] = await ctx.db.insert(meterInfo).values(input).returning();
       return meter;
     }),
 
@@ -46,14 +39,12 @@ export const meterRouter = createTRPCRouter({
     .input(
       z.object({
         id: z.number(),
-        name: z.string().min(1).optional(),
-        unit: z.string().min(1).optional(),
+        location: z.string().optional(),
         serialNumber: z.string().optional(),
-        isActive: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
-      await ctx.db.update(meters).set(data).where(eq(meters.id, id));
+      await ctx.db.update(meterInfo).set(data).where(eq(meterInfo.id, id));
     }),
 });

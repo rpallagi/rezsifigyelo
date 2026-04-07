@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
+import Stripe from "stripe";
 
 import { env } from "@/env";
 import { db } from "@/server/db";
@@ -25,15 +26,9 @@ export async function POST(req: NextRequest) {
     return new Response("Webhook verification failed", { status: 400 });
   }
 
-  const upsertSubscription = async (sub: {
-    id: string;
-    customer: string | { id: string };
-    items: { data: { price: { id: string } }[] };
-    status: string;
-    current_period_start: number;
-    current_period_end: number;
-    cancel_at_period_end: boolean;
-  }) => {
+  const upsertSubscription = async (
+    sub: Stripe.Subscription,
+  ) => {
     const customerId =
       typeof sub.customer === "string" ? sub.customer : sub.customer.id;
 
@@ -59,25 +54,33 @@ export async function POST(req: NextRequest) {
         paused: "paused",
       };
 
+    const firstItem = sub.items.data[0];
+    const currentPeriodStart = firstItem?.current_period_start
+      ? new Date(firstItem.current_period_start * 1000)
+      : null;
+    const currentPeriodEnd = firstItem?.current_period_end
+      ? new Date(firstItem.current_period_end * 1000)
+      : null;
+
     await db
       .insert(subscriptions)
       .values({
         userId: dbUser.id,
         stripeCustomerId: customerId,
         stripeSubscriptionId: sub.id,
-        stripePriceId: sub.items.data[0]?.price.id,
+        stripePriceId: firstItem?.price.id,
         status: statusMap[sub.status] ?? "incomplete",
-        currentPeriodStart: new Date(sub.current_period_start * 1000),
-        currentPeriodEnd: new Date(sub.current_period_end * 1000),
+        currentPeriodStart,
+        currentPeriodEnd,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
       })
       .onConflictDoUpdate({
         target: subscriptions.stripeSubscriptionId,
         set: {
-          stripePriceId: sub.items.data[0]?.price.id,
+          stripePriceId: firstItem?.price.id,
           status: statusMap[sub.status] ?? "incomplete",
-          currentPeriodStart: new Date(sub.current_period_start * 1000),
-          currentPeriodEnd: new Date(sub.current_period_end * 1000),
+          currentPeriodStart,
+          currentPeriodEnd,
           cancelAtPeriodEnd: sub.cancel_at_period_end,
         },
       });
@@ -85,7 +88,7 @@ export async function POST(req: NextRequest) {
 
   switch (event.type) {
     case "checkout.session.completed": {
-      const session = event.data.object;
+      const session = event.data.object as Stripe.Checkout.Session;
       if (session.subscription) {
         const sub = await stripe.subscriptions.retrieve(
           session.subscription as string,
@@ -96,7 +99,7 @@ export async function POST(req: NextRequest) {
     }
     case "customer.subscription.created":
     case "customer.subscription.updated":
-      await upsertSubscription(event.data.object);
+      await upsertSubscription(event.data.object as Stripe.Subscription);
       break;
     case "customer.subscription.deleted":
       await db
@@ -110,7 +113,7 @@ export async function POST(req: NextRequest) {
         );
       break;
     case "invoice.payment_failed": {
-      const invoice = event.data.object;
+      const invoice = event.data.object as unknown as { subscription?: string };
       if (invoice.subscription) {
         await db
           .update(subscriptions)
@@ -118,7 +121,7 @@ export async function POST(req: NextRequest) {
           .where(
             eq(
               subscriptions.stripeSubscriptionId,
-              invoice.subscription as string,
+              invoice.subscription,
             ),
           );
       }

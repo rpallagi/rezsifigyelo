@@ -33,7 +33,7 @@ export default async function PropertiesPage() {
                 {property.address}
               </p>
               <div className="mt-4 flex gap-4 text-xs text-muted-foreground">
-                <span>{property.meters.length} mérő</span>
+                <span>{property.meterInfo.length} mérő</span>
                 <span>
                   {property.tenancies.length > 0
                     ? `Bérlő: ${property.tenancies[0]?.tenant.firstName ?? property.tenancies[0]?.tenant.email}`
