@@ -24,7 +24,15 @@ export default async function TariffsPage() {
         <div className="mt-6 space-y-6">
           {groups.map((group) => (
             <div key={group.id} className="rounded-lg border border-border p-6">
+              <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">{group.name}</h3>
+              <a
+                href={`/tariffs/${group.id}/new-tariff`}
+                className="rounded-md border border-border px-3 py-1 text-xs hover:bg-secondary"
+              >
+                + Tarifa
+              </a>
+            </div>
               {group.description && (
                 <p className="mt-1 text-sm text-muted-foreground">
                   {group.description}

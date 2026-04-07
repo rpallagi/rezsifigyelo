@@ -8,6 +8,7 @@ import { tariffRouter } from "@/server/api/routers/tariff";
 import { maintenanceRouter } from "@/server/api/routers/maintenance";
 import { todoRouter } from "@/server/api/routers/todo";
 import { chatRouter } from "@/server/api/routers/chat";
+import { wifiRouter } from "@/server/api/routers/wifi";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 
 export const appRouter = createTRPCRouter({
@@ -21,6 +22,7 @@ export const appRouter = createTRPCRouter({
   maintenance: maintenanceRouter,
   todo: todoRouter,
   chat: chatRouter,
+  wifi: wifiRouter,
 });
 
 export type AppRouter = typeof appRouter;

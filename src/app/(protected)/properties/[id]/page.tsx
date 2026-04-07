@@ -65,6 +65,18 @@ export default async function PropertyDetailPage({
         >
           + Karbantartás
         </Link>
+        <Link
+          href={`/properties/${property.id}/wifi/new`}
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+        >
+          + WiFi
+        </Link>
+        <Link
+          href={`/properties/${property.id}/edit`}
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+        >
+          Szerkesztés
+        </Link>
       </div>
 
       {/* Summary cards */}
