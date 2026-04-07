@@ -89,6 +89,34 @@ export default async function PropertyDetailPage({
         >
           + Dokumentum
         </Link>
+        <Link
+          href={`/properties/${property.id}/common-fees/new`}
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+        >
+          + Közös ktg.
+        </Link>
+        <Link
+          href={`/properties/${property.id}/tax/new`}
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+        >
+          + Adó
+        </Link>
+        {!activeTenancy && (
+          <Link
+            href={`/properties/${property.id}/move-in`}
+            className="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
+          >
+            Beköltözés
+          </Link>
+        )}
+        {activeTenancy && (
+          <Link
+            href={`/properties/${property.id}/move-out`}
+            className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+          >
+            Kiköltözés
+          </Link>
+        )}
       </div>
 
       {/* Summary cards */}
