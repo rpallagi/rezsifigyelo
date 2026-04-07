@@ -7,6 +7,7 @@ import { ZodError } from "zod";
 import { db } from "@/server/db";
 import { users } from "@/server/db/schema";
 import { isAdmin } from "@/lib/auth/admin";
+import { normalizeEmailAddress } from "@/server/api/access";
 
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   const { userId } = await auth();
@@ -62,10 +63,11 @@ const ensureUserMiddleware = t.middleware(async ({ ctx, next }) => {
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
 
-    const primaryEmail =
+    const primaryEmail = normalizeEmailAddress(
       clerkUser.emailAddresses.find(
         (e) => e.id === clerkUser.primaryEmailAddressId,
-      )?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress ?? "";
+      )?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress ?? "",
+    );
 
     const [inserted] = await ctx.db
       .insert(users)
@@ -129,7 +131,7 @@ export const adminProcedure = t.procedure
  */
 const ensureLandlordMiddleware = t.middleware(async ({ ctx, next }) => {
   const dbUser = (ctx as { dbUser?: typeof users.$inferSelect }).dbUser;
-  if (!dbUser || dbUser.role !== "landlord") {
+  if (dbUser?.role !== "landlord") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Landlord access required" });
   }
   return next();
@@ -145,7 +147,7 @@ export const landlordProcedure = t.procedure
  */
 const ensureTenantMiddleware = t.middleware(async ({ ctx, next }) => {
   const dbUser = (ctx as { dbUser?: typeof users.$inferSelect }).dbUser;
-  if (!dbUser || dbUser.role !== "tenant") {
+  if (dbUser?.role !== "tenant") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Tenant access required" });
   }
   return next();

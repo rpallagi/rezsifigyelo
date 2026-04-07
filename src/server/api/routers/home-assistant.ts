@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import { appSettings } from "@/server/db/schema";
 
 // HA entity_id prefix → utility_type heuristics
@@ -42,14 +42,22 @@ async function haRequest(
   return res.json();
 }
 
+function getHaSettingsKeys(userId: number) {
+  return {
+    baseUrl: `ha_base_url:${userId}`,
+    token: `ha_token:${userId}`,
+  };
+}
+
 export const homeAssistantRouter = createTRPCRouter({
   // Get HA connection settings
-  getSettings: protectedProcedure.query(async ({ ctx }) => {
+  getSettings: landlordProcedure.query(async ({ ctx }) => {
+    const keys = getHaSettingsKeys(ctx.dbUser.id);
     const url = await ctx.db.query.appSettings.findFirst({
-      where: eq(appSettings.key, "ha_base_url"),
+      where: eq(appSettings.key, keys.baseUrl),
     });
     const token = await ctx.db.query.appSettings.findFirst({
-      where: eq(appSettings.key, "ha_token"),
+      where: eq(appSettings.key, keys.token),
     });
     return {
       baseUrl: url?.value ?? "",
@@ -58,7 +66,7 @@ export const homeAssistantRouter = createTRPCRouter({
   }),
 
   // Save HA connection settings
-  saveSettings: protectedProcedure
+  saveSettings: landlordProcedure
     .input(
       z.object({
         baseUrl: z.string().url(),
@@ -66,9 +74,10 @@ export const homeAssistantRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const keys = getHaSettingsKeys(ctx.dbUser.id);
       for (const [key, value] of [
-        ["ha_base_url", input.baseUrl],
-        ["ha_token", input.token],
+        [keys.baseUrl, input.baseUrl],
+        [keys.token, input.token],
       ] as const) {
         await ctx.db
           .insert(appSettings)
@@ -82,12 +91,13 @@ export const homeAssistantRouter = createTRPCRouter({
     }),
 
   // Test connection
-  testConnection: protectedProcedure.mutation(async ({ ctx }) => {
+  testConnection: landlordProcedure.mutation(async ({ ctx }) => {
+    const keys = getHaSettingsKeys(ctx.dbUser.id);
     const url = await ctx.db.query.appSettings.findFirst({
-      where: eq(appSettings.key, "ha_base_url"),
+      where: eq(appSettings.key, keys.baseUrl),
     });
     const token = await ctx.db.query.appSettings.findFirst({
-      where: eq(appSettings.key, "ha_token"),
+      where: eq(appSettings.key, keys.token),
     });
 
     if (!url?.value || !token?.value) {
@@ -101,12 +111,13 @@ export const homeAssistantRouter = createTRPCRouter({
   }),
 
   // List sensor entities
-  listEntities: protectedProcedure.query(async ({ ctx }) => {
+  listEntities: landlordProcedure.query(async ({ ctx }) => {
+    const keys = getHaSettingsKeys(ctx.dbUser.id);
     const url = await ctx.db.query.appSettings.findFirst({
-      where: eq(appSettings.key, "ha_base_url"),
+      where: eq(appSettings.key, keys.baseUrl),
     });
     const token = await ctx.db.query.appSettings.findFirst({
-      where: eq(appSettings.key, "ha_token"),
+      where: eq(appSettings.key, keys.token),
     });
 
     if (!url?.value || !token?.value) return [];
@@ -137,14 +148,15 @@ export const homeAssistantRouter = createTRPCRouter({
   }),
 
   // Get current state of an entity
-  getEntityState: protectedProcedure
+  getEntityState: landlordProcedure
     .input(z.object({ entityId: z.string() }))
     .query(async ({ ctx, input }) => {
+      const keys = getHaSettingsKeys(ctx.dbUser.id);
       const url = await ctx.db.query.appSettings.findFirst({
-        where: eq(appSettings.key, "ha_base_url"),
+        where: eq(appSettings.key, keys.baseUrl),
       });
       const token = await ctx.db.query.appSettings.findFirst({
-        where: eq(appSettings.key, "ha_token"),
+        where: eq(appSettings.key, keys.token),
       });
 
       if (!url?.value || !token?.value)

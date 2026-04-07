@@ -1,8 +1,14 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq, and, desc, lt } from "drizzle-orm";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { meterReadings, tariffs } from "@/server/db/schema";
+import {
+  createTRPCRouter,
+  landlordProcedure,
+  protectedProcedure,
+} from "@/server/api/trpc";
+import { requirePropertyAccess } from "@/server/api/access";
+import { meterReadings } from "@/server/db/schema";
 
 export const readingRouter = createTRPCRouter({
   list: protectedProcedure
@@ -24,6 +30,8 @@ export const readingRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      await requirePropertyAccess(ctx, input.propertyId);
+
       const conditions = [eq(meterReadings.propertyId, input.propertyId)];
       if (input.utilityType) {
         conditions.push(eq(meterReadings.utilityType, input.utilityType));
@@ -60,6 +68,8 @@ export const readingRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await requirePropertyAccess(ctx, input.propertyId);
+
       // Get previous reading for consumption calc
       const prevReading = await ctx.db.query.meterReadings.findFirst({
         where: and(
@@ -76,12 +86,8 @@ export const readingRouter = createTRPCRouter({
 
       // Try to find active tariff for cost calculation
       // (simplified — in full app this goes through tariff group)
-      let costHuf: number | null = null;
-      let tariffId: number | null = null;
-
-      if (consumption !== null && consumption > 0) {
-        // Cost will be calculated when tariff is assigned
-      }
+      const costHuf: number | null = null;
+      const tariffId: number | null = null;
 
       const [reading] = await ctx.db
         .insert(meterReadings)
@@ -96,7 +102,7 @@ export const readingRouter = createTRPCRouter({
           photoUrl: input.photoUrl,
           readingDate: input.readingDate,
           notes: input.notes,
-          source: input.source,
+          source: ctx.dbUser.role === "tenant" ? "tenant" : input.source,
           recordedBy: ctx.dbUser.id,
         })
         .returning();
@@ -104,9 +110,21 @@ export const readingRouter = createTRPCRouter({
       return reading;
     }),
 
-  delete: protectedProcedure
+  delete: landlordProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      const reading = await ctx.db.query.meterReadings.findFirst({
+        where: eq(meterReadings.id, input.id),
+      });
+
+      if (!reading) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Reading not found",
+        });
+      }
+
+      await requirePropertyAccess(ctx, reading.propertyId);
       await ctx.db
         .delete(meterReadings)
         .where(eq(meterReadings.id, input.id));

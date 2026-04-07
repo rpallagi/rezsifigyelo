@@ -1,20 +1,24 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
+import { requireLandlordPropertyAccess } from "@/server/api/access";
 import { commonFees, commonFeePayments } from "@/server/db/schema";
 
 export const commonFeeRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       return ctx.db.query.commonFees.findMany({
         where: eq(commonFees.propertyId, input.propertyId),
         with: { paymentsTracking: true },
       });
     }),
 
-  create: protectedProcedure
+  create: landlordProcedure
     .input(
       z.object({
         propertyId: z.number(),
@@ -28,6 +32,8 @@ export const commonFeeRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       const [fee] = await ctx.db
         .insert(commonFees)
         .values(input)
@@ -35,7 +41,7 @@ export const commonFeeRouter = createTRPCRouter({
       return fee;
     }),
 
-  markPaid: protectedProcedure
+  markPaid: landlordProcedure
     .input(
       z.object({
         commonFeeId: z.number(),
@@ -44,6 +50,18 @@ export const commonFeeRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const commonFee = await ctx.db.query.commonFees.findFirst({
+        where: eq(commonFees.id, input.commonFeeId),
+      });
+
+      if (!commonFee) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Common fee not found",
+        });
+      }
+
+      await requireLandlordPropertyAccess(ctx, commonFee.propertyId);
       const [payment] = await ctx.db
         .insert(commonFeePayments)
         .values({

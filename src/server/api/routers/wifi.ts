@@ -1,19 +1,23 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
+import { requireLandlordPropertyAccess } from "@/server/api/access";
 import { wifiNetworks } from "@/server/db/schema";
 
 export const wifiRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       return ctx.db.query.wifiNetworks.findMany({
         where: eq(wifiNetworks.propertyId, input.propertyId),
       });
     }),
 
-  create: protectedProcedure
+  create: landlordProcedure
     .input(
       z.object({
         propertyId: z.number(),
@@ -26,6 +30,8 @@ export const wifiRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       const [wifi] = await ctx.db
         .insert(wifiNetworks)
         .values(input)
@@ -33,9 +39,21 @@ export const wifiRouter = createTRPCRouter({
       return wifi;
     }),
 
-  delete: protectedProcedure
+  delete: landlordProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      const wifi = await ctx.db.query.wifiNetworks.findFirst({
+        where: eq(wifiNetworks.id, input.id),
+      });
+
+      if (!wifi) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "WiFi network not found",
+        });
+      }
+
+      await requireLandlordPropertyAccess(ctx, wifi.propertyId);
       await ctx.db
         .delete(wifiNetworks)
         .where(eq(wifiNetworks.id, input.id));

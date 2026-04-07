@@ -1,7 +1,16 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import {
+  createTRPCRouter,
+  landlordProcedure,
+  tenantProcedure,
+} from "@/server/api/trpc";
+import {
+  normalizeEmailAddress,
+  requireLandlordPropertyAccess,
+} from "@/server/api/access";
 import {
   tenancies,
   tenantHistory,
@@ -10,9 +19,11 @@ import {
 } from "@/server/db/schema";
 
 export const tenancyRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       return ctx.db.query.tenancies.findMany({
         where: eq(tenancies.propertyId, input.propertyId),
         with: { tenant: true },
@@ -20,8 +31,19 @@ export const tenancyRouter = createTRPCRouter({
       });
     }),
 
+  myActive: tenantProcedure.query(async ({ ctx }) => {
+    return ctx.db.query.tenancies.findFirst({
+      where: and(
+        eq(tenancies.tenantId, ctx.dbUser.id),
+        eq(tenancies.active, true),
+      ),
+      with: { property: true },
+      orderBy: [desc(tenancies.createdAt)],
+    });
+  }),
+
   // Move-in: create tenancy + checklist
-  moveIn: protectedProcedure
+  moveIn: landlordProcedure
     .input(
       z.object({
         propertyId: z.number(),
@@ -32,8 +54,50 @@ export const tenancyRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Find or note the tenant (they'll be created via Clerk when they sign up)
-      // For now, create a placeholder checklist
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
+      const tenantEmail = normalizeEmailAddress(input.tenantEmail);
+      const existingActiveTenancy = await ctx.db.query.tenancies.findFirst({
+        where: and(
+          eq(tenancies.propertyId, input.propertyId),
+          eq(tenancies.active, true),
+        ),
+      });
+      if (existingActiveTenancy) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "This property already has an active tenancy",
+        });
+      }
+
+      const tenant = await ctx.db.query.users.findFirst({
+        where: eq(users.email, tenantEmail),
+      });
+      if (!tenant) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "The tenant must sign up before move-in can be started",
+        });
+      }
+
+      if (tenant.role !== "tenant") {
+        await ctx.db
+          .update(users)
+          .set({ role: "tenant" })
+          .where(eq(users.id, tenant.id));
+      }
+
+      const [tenancy] = await ctx.db
+        .insert(tenancies)
+        .values({
+          propertyId: input.propertyId,
+          tenantId: tenant.id,
+          moveInDate: input.moveInDate,
+          depositAmount: input.depositAmount,
+          active: true,
+        })
+        .returning();
+
       const steps = [
         "meter_readings",
         "handover_protocol",
@@ -45,16 +109,17 @@ export const tenancyRouter = createTRPCRouter({
       for (const step of steps) {
         await ctx.db.insert(handoverChecklists).values({
           propertyId: input.propertyId,
+          tenantId: tenant.id,
           checklistType: "move_in",
           step,
         });
       }
 
-      return { success: true, message: "Beköltözés indítva" };
+      return { success: true, message: "Beköltözés elindítva", tenancy };
     }),
 
   // Move-out: end tenancy + archive + checklist
-  moveOut: protectedProcedure
+  moveOut: landlordProcedure
     .input(
       z.object({
         tenancyId: z.number(),
@@ -70,7 +135,11 @@ export const tenancyRouter = createTRPCRouter({
         with: { tenant: true, property: true },
       });
 
-      if (!tenancy) throw new Error("Tenancy not found");
+      if (!tenancy) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Tenancy not found" });
+      }
+
+      await requireLandlordPropertyAccess(ctx, tenancy.propertyId);
 
       // Archive to tenant history
       await ctx.db.insert(tenantHistory).values({
@@ -116,9 +185,11 @@ export const tenancyRouter = createTRPCRouter({
     }),
 
   // Get tenant history for a property
-  history: protectedProcedure
+  history: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       return ctx.db.query.tenantHistory.findMany({
         where: eq(tenantHistory.propertyId, input.propertyId),
         orderBy: [desc(tenantHistory.createdAt)],

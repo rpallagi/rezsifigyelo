@@ -1,19 +1,23 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { meterInfo, meterReadings } from "@/server/db/schema";
+import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
+import { requireLandlordPropertyAccess } from "@/server/api/access";
+import { meterInfo } from "@/server/db/schema";
 
 export const meterRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       return ctx.db.query.meterInfo.findMany({
         where: eq(meterInfo.propertyId, input.propertyId),
       });
     }),
 
-  create: protectedProcedure
+  create: landlordProcedure
     .input(
       z.object({
         propertyId: z.number(),
@@ -31,11 +35,13 @@ export const meterRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       const [meter] = await ctx.db.insert(meterInfo).values(input).returning();
       return meter;
     }),
 
-  update: protectedProcedure
+  update: landlordProcedure
     .input(
       z.object({
         id: z.number(),
@@ -45,6 +51,15 @@ export const meterRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      const meter = await ctx.db.query.meterInfo.findFirst({
+        where: eq(meterInfo.id, id),
+      });
+
+      if (!meter) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Meter not found" });
+      }
+
+      await requireLandlordPropertyAccess(ctx, meter.propertyId);
       await ctx.db.update(meterInfo).set(data).where(eq(meterInfo.id, id));
     }),
 });

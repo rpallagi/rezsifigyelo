@@ -1,19 +1,23 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
+import { requireLandlordPropertyAccess } from "@/server/api/access";
 import { smartMeterDevices, smartMeterLogs } from "@/server/db/schema";
 
 export const smartMeterRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       return ctx.db.query.smartMeterDevices.findMany({
         where: eq(smartMeterDevices.propertyId, input.propertyId),
       });
     }),
 
-  create: protectedProcedure
+  create: landlordProcedure
     .input(
       z.object({
         propertyId: z.number(),
@@ -39,6 +43,8 @@ export const smartMeterRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       const [device] = await ctx.db
         .insert(smartMeterDevices)
         .values(input)
@@ -46,7 +52,7 @@ export const smartMeterRouter = createTRPCRouter({
       return device;
     }),
 
-  update: protectedProcedure
+  update: landlordProcedure
     .input(
       z.object({
         id: z.number(),
@@ -60,13 +66,25 @@ export const smartMeterRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      const device = await ctx.db.query.smartMeterDevices.findFirst({
+        where: eq(smartMeterDevices.id, id),
+      });
+
+      if (!device) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Smart meter device not found",
+        });
+      }
+
+      await requireLandlordPropertyAccess(ctx, device.propertyId);
       await ctx.db
         .update(smartMeterDevices)
         .set(data)
         .where(eq(smartMeterDevices.id, id));
     }),
 
-  logs: protectedProcedure
+  logs: landlordProcedure
     .input(
       z.object({
         deviceId: z.string(),
@@ -74,6 +92,18 @@ export const smartMeterRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      const device = await ctx.db.query.smartMeterDevices.findFirst({
+        where: eq(smartMeterDevices.deviceId, input.deviceId),
+      });
+
+      if (!device) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Smart meter device not found",
+        });
+      }
+
+      await requireLandlordPropertyAccess(ctx, device.propertyId);
       return ctx.db.query.smartMeterLogs.findMany({
         where: eq(smartMeterLogs.deviceId, input.deviceId),
         orderBy: [desc(smartMeterLogs.receivedAt)],

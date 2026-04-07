@@ -1,11 +1,15 @@
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
+import {
+  requireLandlordPropertyAccess,
+  requireTariffGroupAccess,
+} from "@/server/api/access";
 import { properties } from "@/server/db/schema";
 
 export const propertyRouter = createTRPCRouter({
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: landlordProcedure.query(async ({ ctx }) => {
     return ctx.db.query.properties.findMany({
       where: and(
         eq(properties.landlordId, ctx.dbUser.id),
@@ -24,7 +28,7 @@ export const propertyRouter = createTRPCRouter({
     });
   }),
 
-  get: protectedProcedure
+  get: landlordProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
       return ctx.db.query.properties.findFirst({
@@ -64,7 +68,7 @@ export const propertyRouter = createTRPCRouter({
       });
     }),
 
-  create: protectedProcedure
+  create: landlordProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -81,6 +85,13 @@ export const propertyRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      if (input.tariffGroupId) {
+        await requireTariffGroupAccess(ctx, input.tariffGroupId);
+      }
+      if (input.buildingPropertyId) {
+        await requireLandlordPropertyAccess(ctx, input.buildingPropertyId);
+      }
+
       const [property] = await ctx.db
         .insert(properties)
         .values({
@@ -91,7 +102,7 @@ export const propertyRouter = createTRPCRouter({
       return property;
     }),
 
-  update: protectedProcedure
+  update: landlordProcedure
     .input(
       z.object({
         id: z.number(),
@@ -111,6 +122,14 @@ export const propertyRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      await requireLandlordPropertyAccess(ctx, id);
+      if (data.tariffGroupId) {
+        await requireTariffGroupAccess(ctx, data.tariffGroupId);
+      }
+      if (data.buildingPropertyId) {
+        await requireLandlordPropertyAccess(ctx, data.buildingPropertyId);
+      }
+
       await ctx.db
         .update(properties)
         .set(data)
@@ -119,7 +138,7 @@ export const propertyRouter = createTRPCRouter({
         );
     }),
 
-  archive: protectedProcedure
+  archive: landlordProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db

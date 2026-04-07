@@ -1,20 +1,24 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
+import { requireLandlordPropertyAccess } from "@/server/api/access";
 import { propertyTaxes } from "@/server/db/schema";
 
 export const propertyTaxRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       return ctx.db.query.propertyTaxes.findMany({
         where: eq(propertyTaxes.propertyId, input.propertyId),
         orderBy: [desc(propertyTaxes.year)],
       });
     }),
 
-  create: protectedProcedure
+  create: landlordProcedure
     .input(
       z.object({
         propertyId: z.number(),
@@ -30,6 +34,8 @@ export const propertyTaxRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+
       const [tax] = await ctx.db
         .insert(propertyTaxes)
         .values(input)
@@ -37,7 +43,7 @@ export const propertyTaxRouter = createTRPCRouter({
       return tax;
     }),
 
-  markPaid: protectedProcedure
+  markPaid: landlordProcedure
     .input(
       z.object({
         id: z.number(),
@@ -45,6 +51,18 @@ export const propertyTaxRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const propertyTax = await ctx.db.query.propertyTaxes.findFirst({
+        where: eq(propertyTaxes.id, input.id),
+      });
+
+      if (!propertyTax) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Property tax not found",
+        });
+      }
+
+      await requireLandlordPropertyAccess(ctx, propertyTax.propertyId);
       const today = new Date().toISOString().split("T")[0]!;
       if (input.period === "autumn") {
         await ctx.db

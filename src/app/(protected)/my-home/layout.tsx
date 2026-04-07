@@ -1,10 +1,18 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
+import { api } from "@/trpc/server";
 
-export default function TenantLayout({
+export default async function TenantLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await api.user.me();
+
+  if (user.role !== "tenant") {
+    redirect("/dashboard");
+  }
+
   return (
     <div>
       {/* Tenant sub-navigation */}

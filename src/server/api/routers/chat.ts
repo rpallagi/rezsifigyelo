@@ -1,13 +1,16 @@
 import { z } from "zod";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, ne } from "drizzle-orm";
 
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { requirePropertyAccess } from "@/server/api/access";
 import { chatMessages } from "@/server/db/schema";
 
 export const chatRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {
+      await requirePropertyAccess(ctx, input.propertyId);
+
       return ctx.db.query.chatMessages.findMany({
         where: eq(chatMessages.propertyId, input.propertyId),
         with: { sender: true },
@@ -24,6 +27,8 @@ export const chatRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await requirePropertyAccess(ctx, input.propertyId);
+
       const senderType =
         ctx.dbUser.role === "tenant" ? "tenant" : "admin";
 
@@ -42,8 +47,9 @@ export const chatRouter = createTRPCRouter({
   markRead: protectedProcedure
     .input(z.object({ propertyId: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      await requirePropertyAccess(ctx, input.propertyId);
+
       // Mark all messages in this property as read for current user
-      // (messages not sent by me)
       await ctx.db
         .update(chatMessages)
         .set({ isRead: true })
@@ -51,6 +57,7 @@ export const chatRouter = createTRPCRouter({
           and(
             eq(chatMessages.propertyId, input.propertyId),
             eq(chatMessages.isRead, false),
+            ne(chatMessages.senderId, ctx.dbUser.id),
           ),
         );
     }),

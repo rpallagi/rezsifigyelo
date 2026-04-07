@@ -1,18 +1,19 @@
 import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
+import { requireTariffGroupAccess } from "@/server/api/access";
 import { tariffs, tariffGroups } from "@/server/db/schema";
 
 export const tariffRouter = createTRPCRouter({
-  listGroups: protectedProcedure.query(async ({ ctx }) => {
+  listGroups: landlordProcedure.query(async ({ ctx }) => {
     return ctx.db.query.tariffGroups.findMany({
       where: eq(tariffGroups.landlordId, ctx.dbUser.id),
       with: { tariffs: { orderBy: [desc(tariffs.validFrom)] } },
     });
   }),
 
-  createGroup: protectedProcedure
+  createGroup: landlordProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -27,7 +28,7 @@ export const tariffRouter = createTRPCRouter({
       return group;
     }),
 
-  createTariff: protectedProcedure
+  createTariff: landlordProcedure
     .input(
       z.object({
         tariffGroupId: z.number(),
@@ -46,6 +47,8 @@ export const tariffRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await requireTariffGroupAccess(ctx, input.tariffGroupId);
+
       const [tariff] = await ctx.db
         .insert(tariffs)
         .values(input)

@@ -8,6 +8,8 @@ export default function HomeAssistantSettingsPage() {
   const [baseUrl, setBaseUrl] = useState("");
   const [token, setToken] = useState("");
   const [testResult, setTestResult] = useState("");
+  const effectiveBaseUrl =
+    baseUrl.length > 0 ? baseUrl : (settings?.baseUrl ?? "");
 
   const saveSettings = api.homeAssistant.saveSettings.useMutation({
     onSuccess: () => setTestResult("Mentve!"),
@@ -38,7 +40,7 @@ export default function HomeAssistantSettingsPage() {
           <label className="block text-sm font-medium">HA URL</label>
           <input
             type="url"
-            value={baseUrl || settings?.baseUrl || ""}
+            value={effectiveBaseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             placeholder="http://192.168.1.100:8123"
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -64,7 +66,7 @@ export default function HomeAssistantSettingsPage() {
           <button
             onClick={() =>
               saveSettings.mutate({
-                baseUrl: baseUrl || settings?.baseUrl || "",
+                baseUrl: effectiveBaseUrl,
                 token: token,
               })
             }

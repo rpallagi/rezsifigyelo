@@ -19,9 +19,8 @@ export default function TenantReadingsPage() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // TODO: Get tenant's property ID from tenancy
-  const propertyId = 1; // placeholder
+  const { data: activeTenancy, isLoading: tenancyLoading } =
+    api.tenancy.myActive.useQuery();
 
   const createReading = api.reading.record.useMutation({
     onSuccess: () => {
@@ -37,8 +36,15 @@ export default function TenantReadingsPage() {
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch("/api/ocr", { method: "POST", body: formData });
-      const data = await res.json();
-      if (data.success && data.value != null) {
+      const data: unknown = await res.json();
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        "success" in data &&
+        data.success === true &&
+        "value" in data &&
+        typeof data.value === "number"
+      ) {
         setValue(data.value.toString());
       }
     } finally {
@@ -48,8 +54,10 @@ export default function TenantReadingsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activeTenancy) return;
+
     createReading.mutate({
-      propertyId,
+      propertyId: activeTenancy.propertyId,
       utilityType: utilityType as "villany",
       value: Number(value),
       readingDate,
@@ -60,6 +68,16 @@ export default function TenantReadingsPage() {
   return (
     <div className="mx-auto max-w-md">
       <h1 className="text-2xl font-bold">Mérőállás rögzítés</h1>
+
+      {tenancyLoading && (
+        <p className="mt-4 text-sm text-muted-foreground">Betöltés...</p>
+      )}
+
+      {!tenancyLoading && !activeTenancy && (
+        <div className="mt-4 rounded-lg border border-border p-4 text-sm text-muted-foreground">
+          Nincs aktív bérleti jogviszonyod, ezért most nem tudsz mérőállást rögzíteni.
+        </div>
+      )}
 
       {success && (
         <div className="mt-4 rounded-lg bg-green-100 p-3 text-sm text-green-700 dark:bg-green-900 dark:text-green-300">
@@ -139,7 +157,7 @@ export default function TenantReadingsPage() {
 
         <button
           type="submit"
-          disabled={!value || createReading.isPending}
+          disabled={!value || createReading.isPending || !activeTenancy}
           className="w-full rounded-lg bg-primary py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {createReading.isPending ? "Mentés..." : "Rögzítés"}
