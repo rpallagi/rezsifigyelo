@@ -8,7 +8,11 @@ export default async function PropertyDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const property = await api.property.get({ id: Number(id) });
+  const numId = Number(id);
+  if (isNaN(numId)) {
+    notFound();
+  }
+  const property = await api.property.get({ id: numId });
 
   if (!property) {
     notFound();
