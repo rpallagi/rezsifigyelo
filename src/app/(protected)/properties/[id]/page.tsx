@@ -83,6 +83,12 @@ export default async function PropertyDetailPage({
         >
           Chat
         </Link>
+        <Link
+          href={`/properties/${property.id}/documents/new`}
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+        >
+          + Dokumentum
+        </Link>
       </div>
 
       {/* Summary cards */}

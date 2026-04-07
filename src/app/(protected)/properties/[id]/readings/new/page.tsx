@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
 
@@ -25,6 +25,9 @@ export default function NewReadingPage() {
     new Date().toISOString().split("T")[0]!,
   );
   const [notes, setNotes] = useState("");
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createReading = api.reading.record.useMutation({
     onSuccess: () => {
@@ -32,6 +35,34 @@ export default function NewReadingPage() {
       router.refresh();
     },
   });
+
+  const handleOCR = async (file: File) => {
+    setOcrLoading(true);
+    setOcrError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/ocr", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.value != null) {
+        setValue(data.value.toString());
+        setOcrError("");
+      } else {
+        setOcrError(data.error ?? "OCR sikertelen");
+      }
+    } catch {
+      setOcrError("Hiba a fotó feldolgozásakor");
+    } finally {
+      setOcrLoading(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +99,36 @@ export default function NewReadingPage() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* OCR */}
+        <div className="rounded-lg border-2 border-dashed border-border p-4">
+          <p className="text-sm font-medium">Fotóból leolvasás (OCR)</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Készíts fotót a mérőóráról — automatikusan leolvassuk az állást
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleOCR(f);
+            }}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={ocrLoading}
+            className="mt-3 rounded-md bg-secondary px-4 py-2 text-sm hover:bg-secondary/80 disabled:opacity-50"
+          >
+            {ocrLoading ? "Feldolgozás..." : "Fotó készítés / Feltöltés"}
+          </button>
+          {ocrError && (
+            <p className="mt-2 text-xs text-destructive">{ocrError}</p>
+          )}
         </div>
 
         {/* Value */}

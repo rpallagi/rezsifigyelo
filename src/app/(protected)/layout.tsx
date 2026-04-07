@@ -51,6 +51,12 @@ export default function ProtectedLayout({
           >
             Üzenetek
           </Link>
+          <Link
+            href="/roi"
+            className="rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent"
+          >
+            ROI
+          </Link>
 
           <div className="my-2 border-t border-border" />
 
