@@ -1,7 +1,13 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 
-import { getMessages, formatCurrency, formatNumber } from "@/lib/i18n/messages";
+import {
+  formatCurrency,
+  formatNumber,
+  getMessages,
+  type Locale,
+  type Messages,
+} from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
 import { api } from "@/trpc/server";
 
@@ -50,9 +56,137 @@ function HeroStat({
   return href ? <Link href={href}>{content}</Link> : content;
 }
 
-export default async function DashboardPage() {
-  const locale = await getCurrentLocale();
-  const m = getMessages(locale);
+function getDashboardCopy(locale: Locale, pendingAssignments = 0, vacantProperties = 0) {
+  return locale === "hu"
+    ? {
+        title: "Portfólió áttekintés",
+        subtitle:
+          "A Stitch ROI Analytics irány alapján ez most a portfólió egészségét, számlázási kontextust és azonnali teendőket emeli ki.",
+        yield: "Portfólió hozam",
+        annualCashflow: "Éves cashflow",
+        profiles: "Kiállító profilok",
+        topPerformer: "Legjobb hozam",
+        topPerformerEmpty: "Adj meg vételárat és bérleti díjat legalább egy ingatlanhoz.",
+        attention: "Figyelmet kér",
+        attentionEmpty: "Nincs kritikus hiányosság. A portfólió jelenleg rendezett.",
+        recentLabel: "Portfólió nézet",
+        vacantDetail: `${vacantProperties} üres ingatlan · ${pendingAssignments} profil nélkül`,
+        assignedProfile: "Kiállító",
+        noProfile: "Nincs profil",
+        activeTenant: "Aktív bérlő",
+        vacant: "Jelenleg üres",
+        monthly: "havi bevétel",
+        roi: "ROI",
+        breakEven: "Megtérülés",
+        years: "év",
+        assignProfileHint: "Adj hozzá kiállító profilt az ingatlanhoz a számlázáshoz.",
+        vacantHint: "Ehhez az ingatlanhoz még nincs aktív bérlő.",
+        loading: "A portfólió blokkjai betöltés alatt vannak.",
+      }
+    : {
+        title: "Portfolio overview",
+        subtitle:
+          "Based on the Stitch ROI Analytics direction, this dashboard now prioritizes portfolio health, billing context and immediate actions.",
+        yield: "Portfolio yield",
+        annualCashflow: "Annual cashflow",
+        profiles: "Issuer profiles",
+        topPerformer: "Top performer",
+        topPerformerEmpty: "Add purchase price and rent to at least one property.",
+        attention: "Needs attention",
+        attentionEmpty: "No critical gaps right now. The portfolio is in good shape.",
+        recentLabel: "Portfolio view",
+        vacantDetail: `${vacantProperties} vacant properties · ${pendingAssignments} without profile`,
+        assignedProfile: "Issuer",
+        noProfile: "No profile",
+        activeTenant: "Active tenant",
+        vacant: "Currently vacant",
+        monthly: "monthly revenue",
+        roi: "ROI",
+        breakEven: "Break-even",
+        years: "years",
+        assignProfileHint: "Assign an issuer profile before billing from this property.",
+        vacantHint: "This property does not have an active tenant yet.",
+        loading: "Portfolio modules are loading.",
+      };
+}
+
+function DashboardSkeleton({
+  locale,
+  m,
+}: {
+  locale: Locale;
+  m: Messages;
+}) {
+  const copy = getDashboardCopy(locale);
+
+  return (
+    <>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        {[
+          m.dashboardPage.totalProperties,
+          m.dashboardPage.activeTenants,
+          m.dashboardPage.totalMeters,
+          m.dashboardPage.monthlyRevenue,
+          copy.profiles,
+        ].map((label) => (
+          <div
+            key={label}
+            className="rounded-[24px] bg-background/80 p-5 ring-1 ring-border/50"
+          >
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {label}
+            </p>
+            <div className="mt-4 h-10 w-24 animate-pulse rounded bg-muted" />
+            <div className="mt-2 h-4 w-28 animate-pulse rounded bg-muted" />
+          </div>
+        ))}
+      </section>
+
+      <div className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
+        <section className="rounded-[28px] bg-card/90 p-5 shadow-sm ring-1 ring-border/60 sm:p-6">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">{m.dashboardPage.recentProperties}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{copy.loading}</p>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50"
+              >
+                <div className="h-5 w-32 animate-pulse rounded bg-muted" />
+                <div className="mt-2 h-4 w-48 animate-pulse rounded bg-muted" />
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="h-12 animate-pulse rounded bg-muted" />
+                  <div className="h-12 animate-pulse rounded bg-muted" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="grid gap-4">
+          <div className="rounded-[28px] bg-card/90 p-5 shadow-sm ring-1 ring-border/60">
+            <div className="h-5 w-40 animate-pulse rounded bg-muted" />
+            <div className="mt-4 h-24 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="rounded-[28px] bg-card/90 p-5 shadow-sm ring-1 ring-border/60">
+            <div className="h-5 w-40 animate-pulse rounded bg-muted" />
+            <div className="mt-4 h-24 animate-pulse rounded bg-muted" />
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
+
+async function DashboardContent({
+  locale,
+  m,
+}: {
+  locale: Locale;
+  m: Messages;
+}) {
   const [user, properties, landlordProfileCount] = await Promise.all([
     api.user.me(),
     api.property.list(),
@@ -99,89 +233,10 @@ export default async function DashboardPage() {
     properties.find((property) => property.tenancies.length === 0) ??
     null;
 
-  const copy =
-    locale === "hu"
-      ? {
-          subtitle:
-            "A Stitch ROI Analytics irány alapján ez most a portfólió egészségét, számlázási kontextust és azonnali teendőket emeli ki.",
-          yield: "Portfólió hozam",
-          annualCashflow: "Éves cashflow",
-          profiles: "Kiállító profilok",
-          topPerformer: "Legjobb hozam",
-          topPerformerEmpty: "Adj meg vételárat és bérleti díjat legalább egy ingatlanhoz.",
-          attention: "Figyelmet kér",
-          attentionEmpty: "Nincs kritikus hiányosság. A portfólió jelenleg rendezett.",
-          recentLabel: "Portfólió nézet",
-          vacantDetail: `${vacantProperties} üres ingatlan · ${pendingAssignments} profil nélkül`,
-          assignedProfile: "Kiállító",
-          noProfile: "Nincs profil",
-          activeTenant: "Aktív bérlő",
-          vacant: "Jelenleg üres",
-          monthly: "havi bevétel",
-          roi: "ROI",
-          breakEven: "Megtérülés",
-          years: "év",
-          assignProfileHint: "Adj hozzá kiállító profilt az ingatlanhoz a számlázáshoz.",
-          vacantHint: "Ehhez az ingatlanhoz még nincs aktív bérlő.",
-        }
-      : {
-          subtitle:
-            "Based on the Stitch ROI Analytics direction, this dashboard now prioritizes portfolio health, billing context and immediate actions.",
-          yield: "Portfolio yield",
-          annualCashflow: "Annual cashflow",
-          profiles: "Issuer profiles",
-          topPerformer: "Top performer",
-          topPerformerEmpty: "Add purchase price and rent to at least one property.",
-          attention: "Needs attention",
-          attentionEmpty: "No critical gaps right now. The portfolio is in good shape.",
-          recentLabel: "Portfolio view",
-          vacantDetail: `${vacantProperties} vacant properties · ${pendingAssignments} without profile`,
-          assignedProfile: "Issuer",
-          noProfile: "No profile",
-          activeTenant: "Active tenant",
-          vacant: "Currently vacant",
-          monthly: "monthly revenue",
-          roi: "ROI",
-          breakEven: "Break-even",
-          years: "years",
-          assignProfileHint: "Assign an issuer profile before billing from this property.",
-          vacantHint: "This property does not have an active tenant yet.",
-        };
+  const copy = getDashboardCopy(locale, pendingAssignments, vacantProperties);
 
   return (
-    <div className="space-y-8 pb-10">
-      <section className="rounded-[32px] bg-gradient-to-br from-background via-card to-secondary/40 p-5 shadow-sm ring-1 ring-border/60 sm:p-7">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-          <div className="max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusChip tone="success">{copy.recentLabel}</StatusChip>
-              <StatusChip tone={pendingAssignments > 0 || vacantProperties > 0 ? "warning" : "neutral"}>
-                {copy.vacantDetail}
-              </StatusChip>
-            </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-              {m.dashboardPage.greeting}, {user.firstName ?? user.email}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm text-muted-foreground">{copy.subtitle}</p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:w-[520px]">
-            <HeroStat
-              label={copy.yield}
-              value={`${portfolioYield}%`}
-              detail={formatCurrency(portfolioInvestment, locale)}
-              href="/roi"
-            />
-            <HeroStat
-              label={copy.annualCashflow}
-              value={formatCurrency(annualRevenue, locale)}
-              detail={`${formatCurrency(monthlyRevenue, locale)} ${copy.monthly}`}
-              href="/roi"
-            />
-          </div>
-        </div>
-      </section>
-
+    <>
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <HeroStat
           label={m.dashboardPage.totalProperties}
@@ -219,7 +274,15 @@ export default async function DashboardPage() {
         <section className="rounded-[28px] bg-card/90 p-5 shadow-sm ring-1 ring-border/60 sm:p-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">{m.dashboardPage.recentProperties}</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusChip tone="success">{copy.recentLabel}</StatusChip>
+                <StatusChip tone={pendingAssignments > 0 || vacantProperties > 0 ? "warning" : "neutral"}>
+                  {copy.vacantDetail}
+                </StatusChip>
+              </div>
+              <h2 className="mt-4 text-lg font-semibold tracking-tight">
+                {m.dashboardPage.greeting}, {user.firstName ?? user.email}
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">{m.dashboardPage.welcome}</p>
             </div>
             <Link
@@ -228,6 +291,21 @@ export default async function DashboardPage() {
             >
               {m.common.properties}
             </Link>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <HeroStat
+              label={copy.yield}
+              value={`${portfolioYield}%`}
+              detail={formatCurrency(portfolioInvestment, locale)}
+              href="/roi"
+            />
+            <HeroStat
+              label={copy.annualCashflow}
+              value={formatCurrency(annualRevenue, locale)}
+              detail={`${formatCurrency(monthlyRevenue, locale)} ${copy.monthly}`}
+              href="/roi"
+            />
           </div>
 
           {properties.length === 0 ? (
@@ -291,77 +369,101 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <div className="space-y-8">
-          <section className="rounded-[28px] bg-card/90 p-5 shadow-sm ring-1 ring-border/60 sm:p-6">
-            <h2 className="text-lg font-semibold tracking-tight">{copy.topPerformer}</h2>
+        <div className="grid gap-4">
+          <section className="rounded-[28px] bg-card/90 p-5 shadow-sm ring-1 ring-border/60">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {copy.topPerformer}
+            </p>
             {topPerformer ? (
-              <Link
-                href={`/properties/${topPerformer.id}`}
-                className="mt-5 block rounded-[24px] bg-background/80 p-5 ring-1 ring-border/50 transition hover:bg-secondary/40"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xl font-semibold tracking-tight">{topPerformer.name}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {topPerformer.address ?? m.common.noAddress}
-                    </p>
-                  </div>
-                  <StatusChip tone="success">{copy.roi}</StatusChip>
+              <div className="mt-4 space-y-3">
+                <div>
+                  <h3 className="text-xl font-semibold tracking-tight">{topPerformer.name}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{topPerformer.address ?? m.common.noAddress}</p>
                 </div>
-
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{copy.roi}</p>
-                    <p className="mt-2 text-2xl font-semibold">{topPerformer.roi.toFixed(1)}%</p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{copy.breakEven}</p>
-                    <p className="mt-2 text-2xl font-semibold">
-                      {topPerformer.breakEvenYears?.toFixed(1) ?? "—"} {copy.years}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                      {m.roiPage.annualRevenue}
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold">
-                      {formatCurrency(topPerformer.annualRent, locale)}
-                    </p>
-                  </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <HeroStat
+                    label={copy.roi}
+                    value={`${topPerformer.roi.toFixed(1)}%`}
+                    detail={formatCurrency(topPerformer.annualRent, locale)}
+                    href={`/properties/${topPerformer.id}`}
+                  />
+                  <HeroStat
+                    label={copy.breakEven}
+                    value={
+                      topPerformer.breakEvenYears
+                        ? `${topPerformer.breakEvenYears.toFixed(1)} ${copy.years}`
+                        : "—"
+                    }
+                    detail={topPerformer.landlordProfile?.displayName ?? copy.noProfile}
+                    href="/roi"
+                  />
                 </div>
-              </Link>
+              </div>
             ) : (
               <p className="mt-4 text-sm text-muted-foreground">{copy.topPerformerEmpty}</p>
             )}
           </section>
 
-          <section className="rounded-[28px] bg-card/90 p-5 shadow-sm ring-1 ring-border/60 sm:p-6">
-            <h2 className="text-lg font-semibold tracking-tight">{copy.attention}</h2>
+          <section className="rounded-[28px] bg-card/90 p-5 shadow-sm ring-1 ring-border/60">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {copy.attention}
+            </p>
             {attentionProperty ? (
-              <Link
-                href={`/properties/${attentionProperty.id}`}
-                className="mt-5 block rounded-[24px] bg-background/80 p-5 ring-1 ring-border/50 transition hover:bg-secondary/40"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xl font-semibold tracking-tight">{attentionProperty.name}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {attentionProperty.address ?? m.common.noAddress}
-                    </p>
-                  </div>
-                  <StatusChip tone="warning">{copy.attention}</StatusChip>
+              <div className="mt-4 space-y-3">
+                <div>
+                  <h3 className="text-xl font-semibold tracking-tight">{attentionProperty.name}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {attentionProperty.landlordProfile ? copy.vacantHint : copy.assignProfileHint}
+                  </p>
                 </div>
-
-                <p className="mt-5 text-sm text-muted-foreground">
-                  {!attentionProperty.landlordProfile ? copy.assignProfileHint : copy.vacantHint}
-                </p>
-              </Link>
+                <div className="flex flex-wrap gap-2">
+                  <StatusChip tone={attentionProperty.landlordProfile ? "warning" : "neutral"}>
+                    {attentionProperty.landlordProfile
+                      ? `${copy.vacantDetail}`
+                      : copy.noProfile}
+                  </StatusChip>
+                  <Link
+                    href={`/properties/${attentionProperty.id}`}
+                    className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    {m.common.property}
+                  </Link>
+                </div>
+              </div>
             ) : (
               <p className="mt-4 text-sm text-muted-foreground">{copy.attentionEmpty}</p>
             )}
           </section>
         </div>
       </div>
+    </>
+  );
+}
+
+export default async function DashboardPage() {
+  const locale = await getCurrentLocale();
+  const copy = getDashboardCopy(locale);
+  const m = getMessages(locale);
+
+  return (
+    <div className="space-y-8 pb-10">
+      <section className="rounded-[32px] bg-gradient-to-br from-background via-card to-secondary/40 p-5 shadow-sm ring-1 ring-border/60 sm:p-7">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusChip tone="success">{copy.recentLabel}</StatusChip>
+          </div>
+          <div className="max-w-3xl">
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              {copy.title}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm text-muted-foreground">{copy.subtitle}</p>
+          </div>
+        </div>
+      </section>
+
+      <Suspense fallback={<DashboardSkeleton locale={locale} m={m} />}>
+        <DashboardContent locale={locale} m={m} />
+      </Suspense>
     </div>
   );
 }

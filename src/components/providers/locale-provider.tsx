@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import {
   getMessages,
@@ -9,6 +9,8 @@ import {
   type Messages,
   toIntlLocale,
 } from "@/lib/i18n/messages";
+
+const LOCALE_COOKIE_NAME = "rezsi-locale";
 
 type LocaleContextValue = {
   locale: Locale;
@@ -28,6 +30,10 @@ export function LocaleProvider({
   children: React.ReactNode;
 }) {
   const [locale, setLocale] = useState<Locale>(initialLocale);
+
+  useEffect(() => {
+    document.cookie = `${LOCALE_COOKIE_NAME}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }, [locale]);
 
   const value = useMemo<LocaleContextValue>(
     () => ({
