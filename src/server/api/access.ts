@@ -2,14 +2,17 @@ import { TRPCError } from "@trpc/server";
 import { and, eq } from "drizzle-orm";
 
 import {
+  landlordProfiles,
   properties,
   tariffGroups,
   tenancies,
 } from "@/server/db/schema";
+import type { db } from "@/server/db";
+import type { users } from "@/server/db/schema";
 
 type AuthedContext = {
-  db: typeof import("@/server/db").db;
-  dbUser: typeof import("@/server/db/schema").users.$inferSelect;
+  db: typeof db;
+  dbUser: typeof users.$inferSelect;
 };
 
 export async function requireLandlordPropertyAccess(
@@ -52,6 +55,27 @@ export async function requireTariffGroupAccess(
   }
 
   return tariffGroup;
+}
+
+export async function requireLandlordProfileAccess(
+  ctx: AuthedContext,
+  landlordProfileId: number,
+) {
+  const profile = await ctx.db.query.landlordProfiles.findFirst({
+    where: and(
+      eq(landlordProfiles.id, landlordProfileId),
+      eq(landlordProfiles.ownerUserId, ctx.dbUser.id),
+    ),
+  });
+
+  if (!profile) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Landlord profile access denied",
+    });
+  }
+
+  return profile;
 }
 
 export async function getTenantActiveTenancy(ctx: AuthedContext) {

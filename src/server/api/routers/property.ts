@@ -4,8 +4,10 @@ import { eq, and } from "drizzle-orm";
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import {
   requireLandlordPropertyAccess,
+  requireLandlordProfileAccess,
   requireTariffGroupAccess,
 } from "@/server/api/access";
+import { ensureDefaultLandlordProfile } from "@/server/landlord-profiles/service";
 import { properties } from "@/server/db/schema";
 
 export const propertyRouter = createTRPCRouter({
@@ -23,6 +25,7 @@ export const propertyRouter = createTRPCRouter({
         meterInfo: true,
         tariffGroup: true,
         building: true,
+        landlordProfile: true,
       },
       orderBy: (p, { asc }) => [asc(p.name)],
     });
@@ -65,6 +68,7 @@ export const propertyRouter = createTRPCRouter({
           propertyTaxes: true,
           tariffGroup: { with: { tariffs: true } },
           building: true,
+          landlordProfile: true,
           chatMessages: {
             orderBy: (c, { desc }) => [desc(c.createdAt)],
             limit: 50,
@@ -91,6 +95,7 @@ export const propertyRouter = createTRPCRouter({
         billingVatCode: z.enum(["TAM", "AAM", "27"]).optional(),
         billingMode: z.enum(["advance", "arrears"]).optional(),
         billingDueDay: z.number().int().min(1).max(31).optional(),
+        landlordProfileId: z.number().optional(),
         purchasePrice: z.number().optional(),
         monthlyRent: z.number().optional(),
         tariffGroupId: z.number().optional(),
@@ -98,8 +103,14 @@ export const propertyRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      let landlordProfileId = input.landlordProfileId;
       if (input.tariffGroupId) {
         await requireTariffGroupAccess(ctx, input.tariffGroupId);
+      }
+      if (landlordProfileId) {
+        await requireLandlordProfileAccess(ctx, landlordProfileId);
+      } else {
+        landlordProfileId = (await ensureDefaultLandlordProfile(ctx.db, ctx.dbUser))?.id;
       }
       if (input.buildingPropertyId) {
         await requireLandlordPropertyAccess(ctx, input.buildingPropertyId);
@@ -110,6 +121,7 @@ export const propertyRouter = createTRPCRouter({
         .values({
           landlordId: ctx.dbUser.id,
           ...input,
+          landlordProfileId,
         })
         .returning();
       return property;
@@ -134,6 +146,7 @@ export const propertyRouter = createTRPCRouter({
         billingVatCode: z.enum(["TAM", "AAM", "27"]).optional(),
         billingMode: z.enum(["advance", "arrears"]).optional(),
         billingDueDay: z.number().int().min(1).max(31).optional(),
+        landlordProfileId: z.number().optional(),
         purchasePrice: z.number().optional(),
         monthlyRent: z.number().optional(),
         tariffGroupId: z.number().optional(),
@@ -146,6 +159,9 @@ export const propertyRouter = createTRPCRouter({
       await requireLandlordPropertyAccess(ctx, id);
       if (data.tariffGroupId) {
         await requireTariffGroupAccess(ctx, data.tariffGroupId);
+      }
+      if (data.landlordProfileId) {
+        await requireLandlordProfileAccess(ctx, data.landlordProfileId);
       }
       if (data.buildingPropertyId) {
         await requireLandlordPropertyAccess(ctx, data.buildingPropertyId);

@@ -74,6 +74,12 @@ export const billingModeEnum = pgEnum("rezsi_billing_mode", [
   "arrears",
 ]);
 
+export const landlordProfileTypeEnum = pgEnum("rezsi_landlord_profile_type", [
+  "individual",
+  "company",
+  "co_ownership",
+]);
+
 export const readingSourceEnum = pgEnum("rezsi_reading_source", [
   "manual",
   "tenant",
@@ -231,6 +237,9 @@ export const properties = createTable(
     collectorId: d
       .integer()
       .references(() => users.id, { onDelete: "set null" }),
+    landlordProfileId: d
+      .integer()
+      .references(() => landlordProfiles.id, { onDelete: "set null" }),
     name: d.varchar({ length: 100 }).notNull(),
     propertyType: propertyTypeEnum().notNull().default("lakas"),
     address: d.text(),
@@ -261,6 +270,38 @@ export const properties = createTable(
   (t) => [
     index("property_landlord_id_idx").on(t.landlordId),
     index("property_building_id_idx").on(t.buildingPropertyId),
+  ],
+);
+
+export const landlordProfiles = createTable(
+  "landlord_profile",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    ownerUserId: d
+      .integer()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    displayName: d.varchar({ length: 255 }).notNull(),
+    profileType: landlordProfileTypeEnum().notNull().default("individual"),
+    billingName: d.varchar({ length: 255 }).notNull(),
+    billingEmail: d.varchar({ length: 255 }),
+    billingAddress: d.text(),
+    taxNumber: d.varchar({ length: 50 }),
+    agentKey: d.text(),
+    eInvoice: d.boolean().notNull().default(true),
+    defaultDueDays: d.integer().notNull().default(5),
+    defaultVatCode: d.varchar({ length: 20 }).notNull().default("TAM"),
+    isDefault: d.boolean().notNull().default(false),
+    isActive: d.boolean().notNull().default(true),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("landlord_profile_owner_user_id_idx").on(t.ownerUserId),
+    index("landlord_profile_default_idx").on(t.ownerUserId, t.isDefault),
   ],
 );
 
@@ -497,6 +538,9 @@ export const invoices = createTable(
       .integer()
       .notNull()
       .references(() => properties.id, { onDelete: "cascade" }),
+    sellerProfileId: d.integer().references(() => landlordProfiles.id, {
+      onDelete: "set null",
+    }),
     tenantId: d.integer().references(() => users.id, { onDelete: "set null" }),
     status: invoiceStatusEnum().notNull().default("draft"),
     issueDate: d.date().notNull(),
@@ -510,6 +554,12 @@ export const invoices = createTable(
     provider: d.varchar({ length: 50 }).notNull().default("szamlazz_hu"),
     providerInvoiceId: d.varchar({ length: 255 }),
     pdfUrl: d.text(),
+    sellerDisplayName: d.varchar({ length: 255 }),
+    sellerName: d.varchar({ length: 255 }),
+    sellerEmail: d.varchar({ length: 255 }),
+    sellerAddress: d.text(),
+    sellerTaxNumber: d.varchar({ length: 50 }),
+    sellerProfileType: landlordProfileTypeEnum().default("individual"),
     buyerName: d.varchar({ length: 255 }).notNull(),
     buyerEmail: d.varchar({ length: 255 }),
     buyerAddress: d.text(),
@@ -955,6 +1005,7 @@ export const appSettings = createTable("app_setting", (d) => ({
 export const usersRelations = relations(users, ({ many }) => ({
   subscriptions: many(subscriptions),
   ownedProperties: many(properties, { relationName: "landlord" }),
+  landlordProfiles: many(landlordProfiles),
   tenancies: many(tenancies),
   tenantInvitations: many(tenantInvitations, { relationName: "invitedTenant" }),
   sentTenantInvitations: many(tenantInvitations, { relationName: "landlordInviter" }),
@@ -971,6 +1022,18 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const landlordProfilesRelations = relations(
+  landlordProfiles,
+  ({ one, many }) => ({
+    owner: one(users, {
+      fields: [landlordProfiles.ownerUserId],
+      references: [users.id],
+    }),
+    properties: many(properties),
+    invoices: many(invoices),
+  }),
+);
 
 export const tariffGroupsRelations = relations(
   tariffGroups,
@@ -989,6 +1052,10 @@ export const propertiesRelations = relations(properties, ({ one, many }) => ({
     fields: [properties.landlordId],
     references: [users.id],
     relationName: "landlord",
+  }),
+  landlordProfile: one(landlordProfiles, {
+    fields: [properties.landlordProfileId],
+    references: [landlordProfiles.id],
   }),
   building: one(properties, {
     fields: [properties.buildingPropertyId],
@@ -1103,6 +1170,10 @@ export const invoicesRelations = relations(invoices, ({ one, many }) => ({
     fields: [invoices.landlordId],
     references: [users.id],
     relationName: "landlordInvoices",
+  }),
+  sellerProfile: one(landlordProfiles, {
+    fields: [invoices.sellerProfileId],
+    references: [landlordProfiles.id],
   }),
   property: one(properties, {
     fields: [invoices.propertyId],

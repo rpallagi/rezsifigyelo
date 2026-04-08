@@ -39,6 +39,11 @@ export default async function PropertyDetailPage({
       {property.address && (
         <p className="mt-2 text-muted-foreground">{property.address}</p>
       )}
+      {property.landlordProfile && (
+        <div className="mt-3 inline-flex rounded-full border border-border bg-secondary/50 px-3 py-1 text-xs text-muted-foreground">
+          Számlázó profil: <span className="ml-1 font-medium text-foreground">{property.landlordProfile.displayName}</span>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -169,6 +174,17 @@ export default async function PropertyDetailPage({
               ? `${property.monthlyRent.toLocaleString("hu-HU")} Ft`
               : "—"}
           </p>
+        </div>
+        <div className="rounded-lg border border-border p-4">
+          <h3 className="text-sm text-muted-foreground">Kiállító profil</h3>
+          <p className="mt-1 font-semibold">
+            {property.landlordProfile?.displayName ?? "—"}
+          </p>
+          {property.landlordProfile?.taxNumber && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {property.landlordProfile.taxNumber}
+            </p>
+          )}
         </div>
       </div>
 

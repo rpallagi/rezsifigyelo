@@ -24,9 +24,11 @@ export default function NewPropertyPage() {
   const [billingVatCode, setBillingVatCode] = useState<"TAM" | "AAM" | "27">("TAM");
   const [billingMode, setBillingMode] = useState<"advance" | "arrears">("advance");
   const [billingDueDay, setBillingDueDay] = useState("5");
+  const [landlordProfileId, setLandlordProfileId] = useState("");
   const [monthlyRent, setMonthlyRent] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [notes, setNotes] = useState("");
+  const { data: landlordProfiles } = api.landlordProfile.list.useQuery();
 
   const createProperty = api.property.create.useMutation({
     onSuccess: (property) => {
@@ -53,6 +55,7 @@ export default function NewPropertyPage() {
       billingVatCode,
       billingMode,
       billingDueDay: Number(billingDueDay || 5),
+      landlordProfileId: landlordProfileId ? Number(landlordProfileId) : undefined,
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
       notes: notes || undefined,
@@ -163,7 +166,29 @@ export default function NewPropertyPage() {
         </fieldset>
 
         <fieldset className="rounded-lg border border-border p-4">
-          <legend className="px-2 text-sm font-medium">Számlázási profil</legend>
+          <legend className="px-2 text-sm font-medium">Bérbeadói profil</legend>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Ez határozza meg, melyik kiállító entitás alatt fog futni a számlázás ennél az ingatlannál.
+          </p>
+          <div>
+            <label className="block text-xs text-muted-foreground">Kiállító profil</label>
+            <select
+              value={landlordProfileId}
+              onChange={(e) => setLandlordProfileId(e.target.value)}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">Alapértelmezett profil</option>
+              {landlordProfiles?.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+        </fieldset>
+
+        <fieldset className="rounded-lg border border-border p-4">
+          <legend className="px-2 text-sm font-medium">Vevő / számlacímzett alapadatok</legend>
           <p className="mb-4 text-xs text-muted-foreground">
             A billing oldal ezt a profilt használja elsődleges vevőadatként. Ha üres,
             fallbackként az aktív bérlőt vagy a kapcsolattartót használja.

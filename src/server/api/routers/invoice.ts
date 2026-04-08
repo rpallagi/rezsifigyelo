@@ -3,19 +3,66 @@ import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { z } from "zod";
 
 import { landlordProcedure, createTRPCRouter } from "@/server/api/trpc";
-import { requireLandlordPropertyAccess } from "@/server/api/access";
-import { getInvoiceSettings, saveInvoiceSettings } from "@/server/billing/settings";
+import {
+  requireLandlordProfileAccess,
+  requireLandlordPropertyAccess,
+} from "@/server/api/access";
 import { createInvoiceWithSzamlazz } from "@/server/billing/szamlazz";
 import type { db } from "@/server/db";
 import {
   commonFees,
   invoiceItems,
   invoices,
+  landlordProfiles,
   meterReadings,
   properties,
   tenancies,
 } from "@/server/db/schema";
 import type { users } from "@/server/db/schema";
+import { ensureDefaultLandlordProfile } from "@/server/landlord-profiles/service";
+
+type PreviewSellerProfile = typeof landlordProfiles.$inferSelect;
+type PreviewActiveTenancy =
+  | (typeof tenancies.$inferSelect & {
+      tenant: typeof users.$inferSelect;
+    })
+  | null;
+type PreviewProperty = typeof properties.$inferSelect & {
+  commonFees: Array<typeof commonFees.$inferSelect>;
+  tenancies: Array<
+    typeof tenancies.$inferSelect & {
+      tenant: typeof users.$inferSelect;
+    }
+  >;
+  landlordProfile: PreviewSellerProfile | null;
+};
+type PreviewItem = {
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPriceHuf: number;
+  netAmountHuf: number;
+  vatRate: string;
+  vatAmountHuf: number;
+  grossAmountHuf: number;
+  utilityType?: typeof meterReadings.$inferSelect.utilityType;
+  sourceType: string;
+  sourceId?: number;
+};
+type InvoicePreviewData = {
+  property: PreviewProperty;
+  activeTenancy: PreviewActiveTenancy;
+  sellerProfile: PreviewSellerProfile;
+  issueDate: string;
+  dueDate: string;
+  paymentMethod: "stripe" | "cash" | "transfer";
+  note?: string;
+  items: PreviewItem[];
+  netTotalHuf: number;
+  vatTotalHuf: number;
+  grossTotalHuf: number;
+  vatCode: string;
+};
 
 function mapPaymentMethodToProvider(
   paymentMethod: "stripe" | "cash" | "transfer",
@@ -77,8 +124,8 @@ function computeDefaultDueDate(issueDateIso: string, dueDay: number) {
 }
 
 function resolveBuyer(
-  property: Awaited<ReturnType<typeof buildInvoicePreview>>["property"],
-  activeTenancy: Awaited<ReturnType<typeof buildInvoicePreview>>["activeTenancy"],
+  property: PreviewProperty,
+  activeTenancy: PreviewActiveTenancy,
 ) {
   const billingName = property.billingName?.trim() ?? "";
   const billingEmail = property.billingEmail?.trim() ?? "";
@@ -145,8 +192,21 @@ function resolveBuyer(
   };
 }
 
+function resolveSellerProfile(
+  property: PreviewProperty,
+): PreviewSellerProfile {
+  if (!property.landlordProfile) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Ehhez az ingatlanhoz még nincs bérbeadói profil rendelve",
+    });
+  }
+
+  return property.landlordProfile;
+}
+
 function buildInvoiceReadiness(params: {
-  activeTenancy: Awaited<ReturnType<typeof buildInvoicePreview>>["activeTenancy"];
+  activeTenancy: PreviewActiveTenancy;
   buyer: ReturnType<typeof resolveBuyer>;
   agentKeyConfigured: boolean;
   itemCount: number;
@@ -209,10 +269,9 @@ async function buildInvoicePreview(
     headers: Headers;
   },
   input: z.infer<typeof previewInputSchema>,
-) {
+): Promise<InvoicePreviewData> {
   await requireLandlordPropertyAccess(ctx, input.propertyId);
 
-  const settings = await getInvoiceSettings(ctx.db, ctx.dbUser.id);
   const property = await ctx.db.query.properties.findFirst({
     where: and(
       eq(properties.id, input.propertyId),
@@ -227,6 +286,7 @@ async function buildInvoicePreview(
       commonFees: {
         where: eq(commonFees.isActive, true),
       },
+      landlordProfile: true,
     },
   });
 
@@ -247,20 +307,9 @@ async function buildInvoicePreview(
 
   const activeTenancy = property.tenancies[0] ?? null;
   const invoiceVatCode = property.billingVatCode?.trim() || "TAM";
+  const sellerProfile = resolveSellerProfile(property);
 
-  const items: Array<{
-    description: string;
-    quantity: number;
-    unit: string;
-    unitPriceHuf: number;
-    netAmountHuf: number;
-    vatRate: string;
-    vatAmountHuf: number;
-    grossAmountHuf: number;
-    utilityType?: typeof meterReadings.$inferSelect.utilityType;
-    sourceType: string;
-    sourceId?: number;
-  }> = [];
+  const items: PreviewItem[] = [];
 
   if (input.includeRent && property.monthlyRent && property.monthlyRent > 0) {
     const amounts = applyVat(property.monthlyRent, invoiceVatCode);
@@ -348,13 +397,13 @@ async function buildInvoicePreview(
   return {
     property,
     activeTenancy,
-    settings,
+    sellerProfile,
     issueDate: input.issueDate ?? input.periodFrom,
     dueDate:
       input.dueDate ??
       computeDefaultDueDate(
         input.issueDate ?? input.periodFrom,
-        property.billingDueDay || settings.defaultDueDays,
+        property.billingDueDay || sellerProfile.defaultDueDays,
       ),
     paymentMethod: input.paymentMethod,
     note: input.note,
@@ -367,24 +416,63 @@ async function buildInvoicePreview(
 }
 
 export const invoiceRouter = createTRPCRouter({
-  getSettings: landlordProcedure.query(async ({ ctx }) => {
-    const settings = await getInvoiceSettings(ctx.db, ctx.dbUser.id);
-    return {
-      ...settings,
-      configured: settings.agentKey.length > 10,
-    };
-  }),
+  getSettings: landlordProcedure
+    .input(
+      z
+        .object({
+          profileId: z.number().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const profile =
+        input?.profileId != null
+          ? await requireLandlordProfileAccess(ctx, input.profileId)
+          : await ensureDefaultLandlordProfile(ctx.db, ctx.dbUser);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Nincs elérhető bérbeadói profil",
+        });
+      }
+
+      return {
+        profileId: profile.id,
+        profileName: profile.displayName,
+        agentKey: profile.agentKey ?? "",
+        eInvoice: profile.eInvoice,
+        defaultDueDays: profile.defaultDueDays,
+        configured: (profile.agentKey ?? "").length > 10,
+      };
+    }),
 
   saveSettings: landlordProcedure
     .input(
       z.object({
+        profileId: z.number(),
         agentKey: z.string().min(1),
         eInvoice: z.boolean().default(true),
         defaultDueDays: z.number().int().min(0).max(90).default(8),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await saveInvoiceSettings(ctx.db, ctx.dbUser.id, input);
+      await requireLandlordProfileAccess(ctx, input.profileId);
+
+      await ctx.db
+        .update(landlordProfiles)
+        .set({
+          agentKey: input.agentKey,
+          eInvoice: input.eInvoice,
+          defaultDueDays: input.defaultDueDays,
+        })
+        .where(
+          and(
+            eq(landlordProfiles.id, input.profileId),
+            eq(landlordProfiles.ownerUserId, ctx.dbUser.id),
+          ),
+        );
+
       return { success: true };
     }),
 
@@ -404,10 +492,11 @@ export const invoiceRouter = createTRPCRouter({
   preview: landlordProcedure.input(previewInputSchema).query(async ({ ctx, input }) => {
     const preview = await buildInvoicePreview(ctx, input);
     const buyer = resolveBuyer(preview.property, preview.activeTenancy);
+    const sellerProfile = preview.sellerProfile;
     const readiness = buildInvoiceReadiness({
       activeTenancy: preview.activeTenancy,
       buyer,
-      agentKeyConfigured: preview.settings.agentKey.length > 10,
+      agentKeyConfigured: !!sellerProfile.agentKey && sellerProfile.agentKey.length > 10,
       itemCount: preview.items.length,
     });
 
@@ -416,6 +505,7 @@ export const invoiceRouter = createTRPCRouter({
         id: preview.property.id,
         name: preview.property.name,
         address: preview.property.address,
+        landlordProfileId: preview.property.landlordProfileId,
       },
       tenant: preview.activeTenancy?.tenant
         ? {
@@ -434,6 +524,16 @@ export const invoiceRouter = createTRPCRouter({
         buyerType: buyer.buyerType,
         source: buyer.source,
       },
+      sellerProfile: {
+        id: sellerProfile.id,
+        displayName: sellerProfile.displayName,
+        billingName: sellerProfile.billingName,
+        billingEmail: sellerProfile.billingEmail,
+        billingAddress: sellerProfile.billingAddress,
+        taxNumber: sellerProfile.taxNumber,
+        profileType: sellerProfile.profileType,
+        configured: !!sellerProfile.agentKey && sellerProfile.agentKey.length > 10,
+      },
       billingDefaults: {
         vatCode: preview.vatCode,
         billingMode: preview.property.billingMode,
@@ -445,7 +545,7 @@ export const invoiceRouter = createTRPCRouter({
       netTotalHuf: preview.netTotalHuf,
       vatTotalHuf: preview.vatTotalHuf,
       grossTotalHuf: preview.grossTotalHuf,
-      providerReady: preview.settings.agentKey.length > 10,
+      providerReady: !!sellerProfile.agentKey && sellerProfile.agentKey.length > 10,
       warnings: readiness.warnings,
       blockers: readiness.blockers,
       canSendToProvider: readiness.canSendToProvider,
@@ -461,10 +561,11 @@ export const invoiceRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const preview = await buildInvoicePreview(ctx, input);
       const buyer = resolveBuyer(preview.property, preview.activeTenancy);
+      const sellerProfile = preview.sellerProfile;
       const readiness = buildInvoiceReadiness({
         activeTenancy: preview.activeTenancy,
         buyer,
-        agentKeyConfigured: preview.settings.agentKey.length > 10,
+        agentKeyConfigured: !!sellerProfile.agentKey && sellerProfile.agentKey.length > 10,
         itemCount: preview.items.length,
       });
 
@@ -487,6 +588,7 @@ export const invoiceRouter = createTRPCRouter({
         .values({
           landlordId: ctx.dbUser.id,
           propertyId: preview.property.id,
+          sellerProfileId: sellerProfile.id,
           tenantId: preview.activeTenancy?.tenant.id ?? null,
           status: "draft",
           issueDate: preview.issueDate,
@@ -501,6 +603,12 @@ export const invoiceRouter = createTRPCRouter({
           buyerTaxNumber: buyerTaxNumber ?? null,
           buyerType,
           vatCode: preview.vatCode,
+          sellerDisplayName: sellerProfile.displayName,
+          sellerName: sellerProfile.billingName,
+          sellerEmail: sellerProfile.billingEmail ?? null,
+          sellerAddress: sellerProfile.billingAddress ?? null,
+          sellerTaxNumber: sellerProfile.taxNumber ?? null,
+          sellerProfileType: sellerProfile.profileType,
           note: input.note,
           netTotalHuf: preview.netTotalHuf,
           vatTotalHuf: preview.vatTotalHuf,
@@ -543,8 +651,8 @@ export const invoiceRouter = createTRPCRouter({
         }
 
         const providerResult = await createInvoiceWithSzamlazz({
-          agentKey: preview.settings.agentKey,
-          eInvoice: preview.settings.eInvoice,
+          agentKey: sellerProfile.agentKey ?? "",
+          eInvoice: sellerProfile.eInvoice,
           externalId,
           issueDate: preview.issueDate,
           fulfillmentDate: input.periodTo,

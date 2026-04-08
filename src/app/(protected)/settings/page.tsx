@@ -110,6 +110,15 @@ export default function SettingsPage() {
         <h2 className="text-lg font-semibold">{messages.settingsPage.integrations}</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <Link
+            href="/settings/landlord-profiles"
+            className="rounded-lg border border-border p-4 hover:bg-secondary/50"
+          >
+            <h3 className="font-medium">{messages.settingsPage.landlordProfiles}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {messages.settingsPage.landlordProfilesDescription}
+            </p>
+          </Link>
+          <Link
             href="/settings/home-assistant"
             className="rounded-lg border border-border p-4 hover:bg-secondary/50"
           >

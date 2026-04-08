@@ -8,6 +8,7 @@ import { db } from "@/server/db";
 import { users } from "@/server/db/schema";
 import { isAdmin } from "@/lib/auth/admin";
 import { normalizeEmailAddress } from "@/server/api/access";
+import { ensureDefaultLandlordProfile } from "@/server/landlord-profiles/service";
 import { activatePendingTenantInvitations } from "@/server/tenancy/invitations";
 
 export const createTRPCContext = async (opts: { headers: Headers }) => {
@@ -137,6 +138,8 @@ const ensureLandlordMiddleware = t.middleware(async ({ ctx, next }) => {
   if (dbUser?.role !== "landlord") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Landlord access required" });
   }
+
+  await ensureDefaultLandlordProfile(ctx.db, dbUser);
   return next();
 });
 

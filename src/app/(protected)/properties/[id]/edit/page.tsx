@@ -32,6 +32,7 @@ export default function EditPropertyPage() {
   const [billingVatCode, setBillingVatCode] = useState<"TAM" | "AAM" | "27">("TAM");
   const [billingMode, setBillingMode] = useState<"advance" | "arrears">("advance");
   const [billingDueDay, setBillingDueDay] = useState("5");
+  const [landlordProfileId, setLandlordProfileId] = useState("");
   const [monthlyRent, setMonthlyRent] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [notes, setNotes] = useState("");
@@ -39,6 +40,7 @@ export default function EditPropertyPage() {
   const [buildingPropertyId, setBuildingPropertyId] = useState<string>("");
 
   const { data: allProperties } = api.property.list.useQuery();
+  const { data: landlordProfiles } = api.landlordProfile.list.useQuery();
 
   useEffect(() => {
     if (property) {
@@ -56,6 +58,7 @@ export default function EditPropertyPage() {
       setBillingVatCode((property.billingVatCode as "TAM" | "AAM" | "27") ?? "TAM");
       setBillingMode(property.billingMode ?? "advance");
       setBillingDueDay(String(property.billingDueDay ?? 5));
+      setLandlordProfileId(property.landlordProfileId?.toString() ?? "");
       setMonthlyRent(property.monthlyRent?.toString() ?? "");
       setPurchasePrice(property.purchasePrice?.toString() ?? "");
       setNotes(property.notes ?? "");
@@ -88,6 +91,7 @@ export default function EditPropertyPage() {
       billingVatCode,
       billingMode,
       billingDueDay: Number(billingDueDay || 5),
+      landlordProfileId: landlordProfileId ? Number(landlordProfileId) : undefined,
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
       notes: notes || undefined,
@@ -190,7 +194,29 @@ export default function EditPropertyPage() {
         </fieldset>
 
         <fieldset className="rounded-lg border border-border p-4">
-          <legend className="px-2 text-sm font-medium">Számlázási profil</legend>
+          <legend className="px-2 text-sm font-medium">Bérbeadói profil</legend>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Ez a profil lesz egyértelműen jelezve a számlázási felületen, és ebből az entitásból történik a számlázás.
+          </p>
+          <div>
+            <label className="block text-xs text-muted-foreground">Kiállító profil</label>
+            <select
+              value={landlordProfileId}
+              onChange={(e) => setLandlordProfileId(e.target.value)}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">Alapértelmezett profil</option>
+              {landlordProfiles?.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+        </fieldset>
+
+        <fieldset className="rounded-lg border border-border p-4">
+          <legend className="px-2 text-sm font-medium">Vevő / számlacímzett alapadatok</legend>
           <p className="mb-4 text-xs text-muted-foreground">
             Az itt mentett adatokból készül a vevő profil a számlázásnál. Mivel nálad
             előre számlázás a fő flow, ezt ez az ingatlan fogja alapértelmezetten használni.

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import { useLocale } from "@/components/providers/locale-provider";
@@ -19,12 +20,14 @@ function today() {
 export function BillingClient() {
   const { messages, intlLocale } = useLocale();
   const { data: properties } = api.property.list.useQuery();
-  const { data: invoiceSettings } = api.invoice.getSettings.useQuery();
+  const { data: landlordProfiles } = api.landlordProfile.list.useQuery();
   const { data: invoices } = api.invoice.list.useQuery();
+  const defaultProfile = landlordProfiles?.find((profile) => profile.isDefault) ?? null;
 
   const [agentKeyOverride, setAgentKeyOverride] = useState<string | null>(null);
   const [defaultDueDaysOverride, setDefaultDueDaysOverride] = useState<string | null>(null);
   const [eInvoiceOverride, setEInvoiceOverride] = useState<boolean | null>(null);
+  const [selectedProfileId, setSelectedProfileId] = useState<number | undefined>();
   const [propertyId, setPropertyId] = useState<number | undefined>();
   const [periodFrom, setPeriodFrom] = useState(startOfMonth());
   const [periodTo, setPeriodTo] = useState(today());
@@ -33,10 +36,18 @@ export function BillingClient() {
   const [includeReadings, setIncludeReadings] = useState(true);
   const [sendToProvider, setSendToProvider] = useState(true);
   const [note, setNote] = useState("");
+  const selectedProperty =
+    properties?.find((property) => property.id === propertyId) ?? null;
+  const effectiveSelectedProfileId =
+    selectedProperty?.landlordProfile?.id ?? selectedProfileId ?? defaultProfile?.id;
+
+  const { data: invoiceSettings } = api.invoice.getSettings.useQuery(
+    effectiveSelectedProfileId ? { profileId: effectiveSelectedProfileId } : undefined,
+  );
 
   const agentKey = agentKeyOverride ?? invoiceSettings?.agentKey ?? "";
   const defaultDueDays =
-    defaultDueDaysOverride ?? String(invoiceSettings?.defaultDueDays ?? 8);
+    defaultDueDaysOverride ?? String(invoiceSettings?.defaultDueDays ?? 5);
   const eInvoice = eInvoiceOverride ?? invoiceSettings?.eInvoice ?? true;
 
   const saveSettings = api.invoice.saveSettings.useMutation();
@@ -74,7 +85,9 @@ export function BillingClient() {
   });
 
   const selectedPropertyName =
-    properties?.find((property) => property.id === propertyId)?.name ?? null;
+    selectedProperty?.name ?? null;
+  const selectedProfile =
+    landlordProfiles?.find((profile) => profile.id === effectiveSelectedProfileId) ?? null;
 
   const buyerSourceLabel = (() => {
     switch (preview.data?.buyer.source) {
@@ -103,6 +116,54 @@ export function BillingClient() {
         <p className="mt-2 text-sm text-muted-foreground">
           {messages.billingPage.providerInfo}
         </p>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto]">
+          <div>
+            <label className="block text-sm font-medium">
+              {messages.billingPage.landlordProfileLabel}
+            </label>
+            <select
+              value={effectiveSelectedProfileId ?? ""}
+              onChange={(e) =>
+                {
+                  setSelectedProfileId(e.target.value ? Number(e.target.value) : undefined);
+                  setAgentKeyOverride(null);
+                  setDefaultDueDaysOverride(null);
+                  setEInvoiceOverride(null);
+                }
+              }
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">{messages.billingPage.chooseLandlordProfile}</option>
+              {landlordProfiles?.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <Link
+              href="/settings/landlord-profiles"
+              className="rounded-xl border border-border px-4 py-3 text-sm hover:bg-secondary"
+            >
+              {messages.billingPage.manageLandlordProfiles}
+            </Link>
+          </div>
+        </div>
+
+        {selectedProfile && (
+          <div className="mt-4 rounded-2xl border border-border bg-secondary/30 p-4 text-sm">
+            <p className="font-medium">{selectedProfile.displayName}</p>
+            <p className="mt-1 text-muted-foreground">
+              {selectedProfile.billingName}
+              {selectedProfile.taxNumber ? ` · ${selectedProfile.taxNumber}` : ""}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              {selectedProfile.billingAddress ?? messages.common.noAddress}
+            </p>
+          </div>
+        )}
 
         <div className="mt-5 grid gap-4 md:grid-cols-[1fr_180px]">
           <div>
@@ -144,13 +205,15 @@ export function BillingClient() {
           <button
             type="button"
             onClick={() =>
+              effectiveSelectedProfileId &&
               saveSettings.mutate({
+                profileId: effectiveSelectedProfileId,
                 agentKey,
                 defaultDueDays: Number(defaultDueDays || 8),
                 eInvoice,
               })
             }
-            disabled={!agentKey || saveSettings.isPending}
+            disabled={!effectiveSelectedProfileId || !agentKey || saveSettings.isPending}
             className="rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {saveSettings.isPending
@@ -183,7 +246,18 @@ export function BillingClient() {
             </label>
             <select
               value={propertyId ?? ""}
-              onChange={(e) => setPropertyId(e.target.value ? Number(e.target.value) : undefined)}
+              onChange={(e) => {
+                const nextPropertyId = e.target.value ? Number(e.target.value) : undefined;
+                const nextProperty =
+                  properties?.find((property) => property.id === nextPropertyId) ?? null;
+                setPropertyId(nextPropertyId);
+                if (nextProperty?.landlordProfile?.id) {
+                  setSelectedProfileId(nextProperty.landlordProfile.id);
+                }
+                setAgentKeyOverride(null);
+                setDefaultDueDaysOverride(null);
+                setEInvoiceOverride(null);
+              }}
               className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">{messages.billingPage.chooseProperty}</option>
@@ -200,6 +274,14 @@ export function BillingClient() {
             </label>
             <div className="mt-1 rounded-xl border border-border bg-secondary/40 px-3 py-3 text-sm">
               {selectedPropertyName ?? messages.common.none}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium">
+              {messages.billingPage.activeSellerProfile}
+            </label>
+            <div className="mt-1 rounded-xl border border-border bg-secondary/40 px-3 py-3 text-sm">
+              {selectedProperty?.landlordProfile?.displayName ?? messages.common.none}
             </div>
           </div>
         </div>
@@ -285,7 +367,7 @@ export function BillingClient() {
             </p>
           ) : (
             <div className="mt-4 space-y-3">
-              <div className="grid gap-3 rounded-xl border border-border bg-secondary/30 p-4 md:grid-cols-2">
+              <div className="grid gap-3 rounded-xl border border-border bg-secondary/30 p-4 md:grid-cols-3">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {messages.billingPage.readinessTitle}
@@ -317,6 +399,36 @@ export function BillingClient() {
                       {messages.billingPage.dueDayLabel}:
                     </span>{" "}
                     {preview.data.billingDefaults.billingDueDay}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {messages.billingPage.sellerSectionTitle}
+                  </p>
+                  <p className="mt-2 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.sellerProfileNameLabel}:
+                    </span>{" "}
+                    {preview.data.sellerProfile.displayName}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.sellerNameLabel}:
+                    </span>{" "}
+                    {preview.data.sellerProfile.billingName}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.sellerTaxNumberLabel}:
+                    </span>{" "}
+                    {preview.data.sellerProfile.taxNumber ?? messages.common.none}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.sellerAddressLabel}:
+                    </span>{" "}
+                    {preview.data.sellerProfile.billingAddress ?? messages.common.noAddress}
                   </p>
                 </div>
 
