@@ -25,30 +25,90 @@ function mapPaymentMethodToProvider(
   return "átutalás";
 }
 
-function addDays(dateIso: string, days: number) {
-  const date = new Date(dateIso);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().split("T")[0]!;
-}
-
 function roundAmount(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function parseVatRate(vatCode: string) {
+  const normalized = vatCode.trim().toUpperCase();
+  if (normalized === "TAM" || normalized === "AAM") {
+    return {
+      code: normalized,
+      percentage: 0,
+    };
+  }
+
+  const percentage = Number(normalized);
+  if (Number.isFinite(percentage) && percentage >= 0) {
+    return {
+      code: normalized,
+      percentage,
+    };
+  }
+
+  return {
+    code: "TAM",
+    percentage: 0,
+  };
+}
+
+function applyVat(amountHuf: number, vatCode: string) {
+  const vat = parseVatRate(vatCode);
+  const netAmountHuf = roundAmount(amountHuf);
+  const vatAmountHuf = roundAmount(netAmountHuf * (vat.percentage / 100));
+
+  return {
+    vatCode: vat.code,
+    netAmountHuf,
+    vatAmountHuf,
+    grossAmountHuf: roundAmount(netAmountHuf + vatAmountHuf),
+  };
+}
+
+function computeDefaultDueDate(issueDateIso: string, dueDay: number) {
+  const issueDate = new Date(issueDateIso);
+  const year = issueDate.getUTCFullYear();
+  const month = issueDate.getUTCMonth();
+  const normalizedDueDay = Math.min(Math.max(dueDay, 1), 31);
+  const lastDayOfMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const targetDay = Math.min(normalizedDueDay, lastDayOfMonth);
+
+  return new Date(Date.UTC(year, month, targetDay)).toISOString().split("T")[0]!;
 }
 
 function resolveBuyer(
   property: Awaited<ReturnType<typeof buildInvoicePreview>>["property"],
   activeTenancy: Awaited<ReturnType<typeof buildInvoicePreview>>["activeTenancy"],
 ) {
+  const billingName = property.billingName?.trim() ?? "";
+  const billingEmail = property.billingEmail?.trim() ?? "";
+  const billingAddress = property.billingAddress?.trim() ?? "";
+  const billingTaxNumber = property.billingTaxNumber?.trim() ?? "";
   const tenantDisplayName =
     `${activeTenancy?.tenant.firstName ?? ""} ${activeTenancy?.tenant.lastName ?? ""}`.trim();
   const propertyContactName = property.contactName?.trim() ?? "";
   const propertyName = property.name.trim();
+  const resolvedBillingAddress =
+    billingAddress.length > 0 ? billingAddress : (property.address ?? null);
+
+  if (billingName.length > 0) {
+    return {
+      name: billingName,
+      email: billingEmail || null,
+      address: resolvedBillingAddress,
+      taxNumber: billingTaxNumber || null,
+      buyerType: property.billingBuyerType,
+      source: "billing_profile" as const,
+    };
+  }
 
   if (tenantDisplayName.length > 0) {
     return {
       name: tenantDisplayName,
       email: activeTenancy?.tenant.email ?? null,
       address: property.address ?? null,
+      taxNumber: null,
+      buyerType: "individual" as const,
       source: "tenant" as const,
     };
   }
@@ -58,6 +118,8 @@ function resolveBuyer(
       name: activeTenancy.tenant.email,
       email: activeTenancy.tenant.email,
       address: property.address ?? null,
+      taxNumber: null,
+      buyerType: "individual" as const,
       source: "tenant_email" as const,
     };
   }
@@ -66,7 +128,9 @@ function resolveBuyer(
     return {
       name: propertyContactName,
       email: property.contactEmail ?? null,
-      address: property.address ?? null,
+      address: resolvedBillingAddress,
+      taxNumber: billingTaxNumber || null,
+      buyerType: property.billingBuyerType,
       source: "property_contact" as const,
     };
   }
@@ -74,7 +138,9 @@ function resolveBuyer(
   return {
     name: propertyName,
     email: property.contactEmail ?? null,
-    address: property.address ?? null,
+    address: resolvedBillingAddress,
+    taxNumber: billingTaxNumber || null,
+    buyerType: property.billingBuyerType,
     source: "property_name" as const,
   };
 }
@@ -98,6 +164,10 @@ function buildInvoiceReadiness(params: {
     warnings.push(
       "Nincs vevő email megadva. A számla létrejöhet, de emailben nem lesz kiküldve.",
     );
+  }
+
+  if (params.buyer.buyerType === "company" && !params.buyer.taxNumber) {
+    blockers.push("Céges vevőhöz add meg az adószámot is.");
   }
 
   if (!params.agentKeyConfigured) {
@@ -176,6 +246,7 @@ async function buildInvoicePreview(
     : [];
 
   const activeTenancy = property.tenancies[0] ?? null;
+  const invoiceVatCode = property.billingVatCode?.trim() || "TAM";
 
   const items: Array<{
     description: string;
@@ -183,7 +254,7 @@ async function buildInvoicePreview(
     unit: string;
     unitPriceHuf: number;
     netAmountHuf: number;
-    vatRate: number;
+    vatRate: string;
     vatAmountHuf: number;
     grossAmountHuf: number;
     utilityType?: typeof meterReadings.$inferSelect.utilityType;
@@ -192,21 +263,23 @@ async function buildInvoicePreview(
   }> = [];
 
   if (input.includeRent && property.monthlyRent && property.monthlyRent > 0) {
+    const amounts = applyVat(property.monthlyRent, invoiceVatCode);
     items.push({
       description: `Bérleti díj (${input.periodFrom} - ${input.periodTo})`,
       quantity: 1,
       unit: "hó",
       unitPriceHuf: property.monthlyRent,
-      netAmountHuf: property.monthlyRent,
-      vatRate: 0,
-      vatAmountHuf: 0,
-      grossAmountHuf: property.monthlyRent,
+      netAmountHuf: amounts.netAmountHuf,
+      vatRate: amounts.vatCode,
+      vatAmountHuf: amounts.vatAmountHuf,
+      grossAmountHuf: amounts.grossAmountHuf,
       sourceType: "rent",
     });
   }
 
   if (input.includeCommonFees) {
     for (const fee of property.commonFees) {
+      const amounts = applyVat(fee.monthlyAmount, invoiceVatCode);
       items.push({
         description: fee.recipient
           ? `Közös költség - ${fee.recipient}`
@@ -214,10 +287,10 @@ async function buildInvoicePreview(
         quantity: 1,
         unit: fee.frequency === "quarterly" ? "negyedév" : "hó",
         unitPriceHuf: fee.monthlyAmount,
-        netAmountHuf: fee.monthlyAmount,
-        vatRate: 0,
-        vatAmountHuf: 0,
-        grossAmountHuf: fee.monthlyAmount,
+        netAmountHuf: amounts.netAmountHuf,
+        vatRate: amounts.vatCode,
+        vatAmountHuf: amounts.vatAmountHuf,
+        grossAmountHuf: amounts.grossAmountHuf,
         sourceType: "common_fee",
         sourceId: fee.id,
       });
@@ -247,15 +320,16 @@ async function buildInvoicePreview(
   }
 
   for (const entry of groupedReadings.values()) {
+    const amounts = applyVat(roundAmount(entry.grossAmountHuf), invoiceVatCode);
     items.push({
       description: entry.description,
       quantity: 1,
       unit: "időszak",
       unitPriceHuf: roundAmount(entry.grossAmountHuf),
-      netAmountHuf: roundAmount(entry.grossAmountHuf),
-      vatRate: 0,
-      vatAmountHuf: 0,
-      grossAmountHuf: roundAmount(entry.grossAmountHuf),
+      netAmountHuf: amounts.netAmountHuf,
+      vatRate: amounts.vatCode,
+      vatAmountHuf: amounts.vatAmountHuf,
+      grossAmountHuf: amounts.grossAmountHuf,
       utilityType: entry.utilityType as typeof meterReadings.$inferSelect.utilityType,
       sourceType: "reading_cost",
     });
@@ -275,14 +349,20 @@ async function buildInvoicePreview(
     property,
     activeTenancy,
     settings,
-    issueDate: input.issueDate ?? input.periodTo,
-    dueDate: input.dueDate ?? addDays(input.periodTo, settings.defaultDueDays),
+    issueDate: input.issueDate ?? input.periodFrom,
+    dueDate:
+      input.dueDate ??
+      computeDefaultDueDate(
+        input.issueDate ?? input.periodFrom,
+        property.billingDueDay || settings.defaultDueDays,
+      ),
     paymentMethod: input.paymentMethod,
     note: input.note,
     items,
     netTotalHuf,
     vatTotalHuf,
     grossTotalHuf,
+    vatCode: invoiceVatCode,
   };
 }
 
@@ -350,7 +430,14 @@ export const invoiceRouter = createTRPCRouter({
         name: buyer.name,
         email: buyer.email,
         address: buyer.address,
+        taxNumber: buyer.taxNumber,
+        buyerType: buyer.buyerType,
         source: buyer.source,
+      },
+      billingDefaults: {
+        vatCode: preview.vatCode,
+        billingMode: preview.property.billingMode,
+        billingDueDay: preview.property.billingDueDay,
       },
       issueDate: preview.issueDate,
       dueDate: preview.dueDate,
@@ -391,6 +478,8 @@ export const invoiceRouter = createTRPCRouter({
       const buyerName = buyer.name;
       const buyerEmail = buyer.email;
       const buyerAddress = buyer.address;
+      const buyerTaxNumber = buyer.taxNumber;
+      const buyerType = buyer.buyerType;
       const externalId = `rezsi-${preview.property.id}-${Date.now()}`;
 
       const [invoice] = await ctx.db
@@ -409,6 +498,9 @@ export const invoiceRouter = createTRPCRouter({
           buyerName,
           buyerEmail,
           buyerAddress: buyerAddress ?? null,
+          buyerTaxNumber: buyerTaxNumber ?? null,
+          buyerType,
+          vatCode: preview.vatCode,
           note: input.note,
           netTotalHuf: preview.netTotalHuf,
           vatTotalHuf: preview.vatTotalHuf,
@@ -431,7 +523,8 @@ export const invoiceRouter = createTRPCRouter({
           unit: item.unit,
           unitPriceHuf: item.unitPriceHuf,
           netAmountHuf: item.netAmountHuf,
-          vatRate: item.vatRate,
+          vatRate: parseVatRate(item.vatRate).percentage,
+          vatCode: item.vatRate,
           vatAmountHuf: item.vatAmountHuf,
           grossAmountHuf: item.grossAmountHuf,
           utilityType: item.utilityType,
@@ -462,6 +555,8 @@ export const invoiceRouter = createTRPCRouter({
             name: buyerName,
             email: buyerEmail,
             rawAddress: buyerAddress ?? "",
+            taxNumber: buyerTaxNumber,
+            buyerType,
           },
           items: preview.items,
         });

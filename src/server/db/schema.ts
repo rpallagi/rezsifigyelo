@@ -64,6 +64,16 @@ export const paymentMethodEnum = pgEnum("rezsi_payment_method", [
   "transfer",
 ]);
 
+export const invoiceBuyerTypeEnum = pgEnum("rezsi_invoice_buyer_type", [
+  "individual",
+  "company",
+]);
+
+export const billingModeEnum = pgEnum("rezsi_billing_mode", [
+  "advance",
+  "arrears",
+]);
+
 export const readingSourceEnum = pgEnum("rezsi_reading_source", [
   "manual",
   "tenant",
@@ -228,6 +238,14 @@ export const properties = createTable(
     contactName: d.varchar({ length: 100 }),
     contactPhone: d.varchar({ length: 30 }),
     contactEmail: d.varchar({ length: 120 }),
+    billingName: d.varchar({ length: 255 }),
+    billingEmail: d.varchar({ length: 255 }),
+    billingAddress: d.text(),
+    billingTaxNumber: d.varchar({ length: 50 }),
+    billingBuyerType: invoiceBuyerTypeEnum().notNull().default("individual"),
+    billingVatCode: d.varchar({ length: 20 }).notNull().default("TAM"),
+    billingMode: billingModeEnum().notNull().default("advance"),
+    billingDueDay: d.integer().notNull().default(5),
     // ROI
     purchasePrice: d.doublePrecision(),
     monthlyRent: d.doublePrecision(),
@@ -495,6 +513,9 @@ export const invoices = createTable(
     buyerName: d.varchar({ length: 255 }).notNull(),
     buyerEmail: d.varchar({ length: 255 }),
     buyerAddress: d.text(),
+    buyerTaxNumber: d.varchar({ length: 50 }),
+    buyerType: invoiceBuyerTypeEnum().notNull().default("individual"),
+    vatCode: d.varchar({ length: 20 }).notNull().default("TAM"),
     note: d.text(),
     netTotalHuf: d.doublePrecision().notNull().default(0),
     vatTotalHuf: d.doublePrecision().notNull().default(0),
@@ -528,6 +549,7 @@ export const invoiceItems = createTable(
     unitPriceHuf: d.doublePrecision().notNull(),
     netAmountHuf: d.doublePrecision().notNull().default(0),
     vatRate: d.doublePrecision().notNull().default(0),
+    vatCode: d.varchar({ length: 20 }).notNull().default("TAM"),
     vatAmountHuf: d.doublePrecision().notNull().default(0),
     grossAmountHuf: d.doublePrecision().notNull().default(0),
     utilityType: utilityTypeEnum(),

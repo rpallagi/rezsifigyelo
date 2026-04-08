@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
@@ -21,6 +22,16 @@ export default function EditPropertyPage() {
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+  const [billingName, setBillingName] = useState("");
+  const [billingEmail, setBillingEmail] = useState("");
+  const [billingAddress, setBillingAddress] = useState("");
+  const [billingTaxNumber, setBillingTaxNumber] = useState("");
+  const [billingBuyerType, setBillingBuyerType] = useState<"individual" | "company">(
+    "individual",
+  );
+  const [billingVatCode, setBillingVatCode] = useState<"TAM" | "AAM" | "27">("TAM");
+  const [billingMode, setBillingMode] = useState<"advance" | "arrears">("advance");
+  const [billingDueDay, setBillingDueDay] = useState("5");
   const [monthlyRent, setMonthlyRent] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [notes, setNotes] = useState("");
@@ -28,9 +39,6 @@ export default function EditPropertyPage() {
   const [buildingPropertyId, setBuildingPropertyId] = useState<string>("");
 
   const { data: allProperties } = api.property.list.useQuery();
-  const buildings = allProperties?.filter(
-    (p) => (p.propertyType === "lakas" || p.propertyType === "uzlet") === false && p.id !== propertyId,
-  );
 
   useEffect(() => {
     if (property) {
@@ -40,6 +48,14 @@ export default function EditPropertyPage() {
       setContactName(property.contactName ?? "");
       setContactPhone(property.contactPhone ?? "");
       setContactEmail(property.contactEmail ?? "");
+      setBillingName(property.billingName ?? "");
+      setBillingEmail(property.billingEmail ?? "");
+      setBillingAddress(property.billingAddress ?? "");
+      setBillingTaxNumber(property.billingTaxNumber ?? "");
+      setBillingBuyerType(property.billingBuyerType ?? "individual");
+      setBillingVatCode((property.billingVatCode as "TAM" | "AAM" | "27") ?? "TAM");
+      setBillingMode(property.billingMode ?? "advance");
+      setBillingDueDay(String(property.billingDueDay ?? 5));
       setMonthlyRent(property.monthlyRent?.toString() ?? "");
       setPurchasePrice(property.purchasePrice?.toString() ?? "");
       setNotes(property.notes ?? "");
@@ -64,6 +80,14 @@ export default function EditPropertyPage() {
       contactName: contactName || undefined,
       contactPhone: contactPhone || undefined,
       contactEmail: contactEmail || undefined,
+      billingName: billingName || undefined,
+      billingEmail: billingEmail || undefined,
+      billingAddress: billingAddress || undefined,
+      billingTaxNumber: billingTaxNumber || undefined,
+      billingBuyerType,
+      billingVatCode,
+      billingMode,
+      billingDueDay: Number(billingDueDay || 5),
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
       notes: notes || undefined,
@@ -166,6 +190,101 @@ export default function EditPropertyPage() {
         </fieldset>
 
         <fieldset className="rounded-lg border border-border p-4">
+          <legend className="px-2 text-sm font-medium">Számlázási profil</legend>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Az itt mentett adatokból készül a vevő profil a számlázásnál. Mivel nálad
+            előre számlázás a fő flow, ezt ez az ingatlan fogja alapértelmezetten használni.
+          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-xs text-muted-foreground">Vevő neve</label>
+              <input
+                type="text"
+                value={billingName}
+                onChange={(e) => setBillingName(e.target.value)}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground">Vevő email</label>
+              <input
+                type="email"
+                value={billingEmail}
+                onChange={(e) => setBillingEmail(e.target.value)}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs text-muted-foreground">Számlázási cím</label>
+              <input
+                type="text"
+                value={billingAddress}
+                onChange={(e) => setBillingAddress(e.target.value)}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground">Vevő típusa</label>
+              <select
+                value={billingBuyerType}
+                onChange={(e) =>
+                  setBillingBuyerType(e.target.value as "individual" | "company")
+                }
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="individual">Magánszemély</option>
+                <option value="company">Cég</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground">
+                Adószám {billingBuyerType === "company" ? "*" : ""}
+              </label>
+              <input
+                type="text"
+                value={billingTaxNumber}
+                onChange={(e) => setBillingTaxNumber(e.target.value)}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground">ÁFA / adózási kód</label>
+              <select
+                value={billingVatCode}
+                onChange={(e) => setBillingVatCode(e.target.value as "TAM" | "AAM" | "27")}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="TAM">TAM</option>
+                <option value="AAM">AAM</option>
+                <option value="27">27% ÁFA</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground">Számlázás módja</label>
+              <select
+                value={billingMode}
+                onChange={(e) => setBillingMode(e.target.value as "advance" | "arrears")}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="advance">Előre számlázás</option>
+                <option value="arrears">Utólagos számlázás</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground">Fizetési határnap</label>
+              <input
+                type="number"
+                min="1"
+                max="31"
+                value={billingDueDay}
+                onChange={(e) => setBillingDueDay(e.target.value)}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset className="rounded-lg border border-border p-4">
           <legend className="px-2 text-sm font-medium">Pénzügyi adatok</legend>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -215,9 +334,11 @@ export default function EditPropertyPage() {
         <div>
           <label className="block text-sm font-medium">Ingatlan fotó</label>
           {property?.avatarUrl && (
-            <img
+            <Image
               src={property.avatarUrl}
               alt={property.name}
+              width={96}
+              height={96}
               className="mt-2 h-24 w-24 rounded-lg object-cover"
             />
           )}
@@ -232,9 +353,14 @@ export default function EditPropertyPage() {
                 const formData = new FormData();
                 formData.append("file", file);
                 const res = await fetch("/api/upload", { method: "POST", body: formData });
-                const data = await res.json();
-                if (data.url) {
-                  updateProperty.mutate({ id: propertyId, avatarUrl: data.url });
+                const payload: unknown = await res.json();
+                if (
+                  payload &&
+                  typeof payload === "object" &&
+                  "url" in payload &&
+                  typeof payload.url === "string"
+                ) {
+                  updateProperty.mutate({ id: propertyId, avatarUrl: payload.url });
                 }
               } finally {
                 setAvatarUploading(false);

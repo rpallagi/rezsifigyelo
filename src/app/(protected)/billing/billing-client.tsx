@@ -82,6 +82,8 @@ export function BillingClient() {
         return messages.billingPage.buyerSourceTenant;
       case "tenant_email":
         return messages.billingPage.buyerSourceTenantEmail;
+      case "billing_profile":
+        return messages.billingPage.buyerSourceBillingProfile;
       case "property_contact":
         return messages.billingPage.buyerSourcePropertyContact;
       case "property_name":
@@ -302,6 +304,20 @@ export function BillingClient() {
                     </span>{" "}
                     {preview.data.tenant?.name ?? messages.common.noTenant}
                   </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.billingModeLabel}:
+                    </span>{" "}
+                    {preview.data.billingDefaults.billingMode === "advance"
+                      ? messages.billingPage.billingModeAdvance
+                      : messages.billingPage.billingModeArrears}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.dueDayLabel}:
+                    </span>{" "}
+                    {preview.data.billingDefaults.billingDueDay}
+                  </p>
                 </div>
 
                 <div>
@@ -328,9 +344,29 @@ export function BillingClient() {
                   </p>
                   <p className="mt-1 text-sm">
                     <span className="font-medium">
+                      {messages.billingPage.buyerTypeLabel}:
+                    </span>{" "}
+                    {preview.data.buyer.buyerType === "company"
+                      ? messages.billingPage.buyerTypeCompany
+                      : messages.billingPage.buyerTypeIndividual}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.buyerTaxNumberLabel}:
+                    </span>{" "}
+                    {preview.data.buyer.taxNumber ?? messages.common.none}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
                       {messages.billingPage.buyerAddressLabel}:
                     </span>{" "}
                     {preview.data.buyer.address ?? messages.common.noAddress}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.vatCodeLabel}:
+                    </span>{" "}
+                    {preview.data.billingDefaults.vatCode}
                   </p>
                 </div>
               </div>

@@ -10,6 +10,8 @@ export type InvoiceBuyer = {
   name: string;
   email?: string | null;
   rawAddress: string;
+  taxNumber?: string | null;
+  buyerType: "individual" | "company";
 };
 
 export type ProviderInvoiceItem = {
@@ -18,7 +20,7 @@ export type ProviderInvoiceItem = {
   unit: string;
   unitPriceHuf: number;
   netAmountHuf: number;
-  vatRate: number;
+  vatRate: string;
   vatAmountHuf: number;
   grossAmountHuf: number;
 };
@@ -124,6 +126,9 @@ async function uploadPdfToBlob(base64Pdf: string, invoiceNumber: string) {
 
 function buildInvoiceXml(request: SzamlazzRequest) {
   const buyerAddress = parseBuyerAddress(request.buyer.rawAddress);
+  const buyerTaxNumber = request.buyer.taxNumber?.trim() ?? "";
+  const buyerTaxSubject =
+    request.buyer.buyerType === "company" && buyerTaxNumber.length > 0 ? "1" : "-1";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <xmlszamla xmlns="http://www.szamlazz.hu/xmlszamla" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.szamlazz.hu/xmlszamla https://www.szamlazz.hu/szamla/docs/xsds/agent/xmlszamla.xsd">
@@ -153,7 +158,8 @@ function buildInvoiceXml(request: SzamlazzRequest) {
     <cim>${escapeXml(buyerAddress.addressLine)}</cim>
     <email>${escapeXml(request.buyer.email ?? "")}</email>
     <sendEmail>${request.buyer.email ? "true" : "false"}</sendEmail>
-    <adoalany>-1</adoalany>
+    <adoalany>${buyerTaxSubject}</adoalany>
+    ${buyerTaxNumber ? `<adoszam>${escapeXml(buyerTaxNumber)}</adoszam>` : ""}
   </vevo>
   <tetelek>
     ${request.items
@@ -180,7 +186,7 @@ export async function createInvoiceWithSzamlazz(
 ): Promise<SzamlazzResult> {
   const xml = buildInvoiceXml(request);
   const formData = new FormData();
-  formData.append("action-szamla_agent_xml", new Blob([xml], { type: "text/xml" }));
+  formData.append("action-xmlagentxmlfile", new Blob([xml], { type: "text/xml" }));
 
   const response = await fetch("https://www.szamlazz.hu/szamla/", {
     method: "POST",
