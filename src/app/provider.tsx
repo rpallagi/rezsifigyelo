@@ -1,7 +1,8 @@
 "use client";
 
 import { ClerkProvider } from "@clerk/nextjs";
-import { enUS, huHU } from "@clerk/localizations";
+import { enUS } from "@clerk/localizations/en-US";
+import { huHU } from "@clerk/localizations/hu-HU";
 import { ThemeProvider } from "next-themes";
 
 import { LocaleProvider } from "@/components/providers/locale-provider";

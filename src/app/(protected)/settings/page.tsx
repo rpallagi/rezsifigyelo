@@ -284,7 +284,7 @@ export default function SettingsPage() {
       {/* Clerk Profile */}
       <section className="rounded-lg border border-border p-6">
         <h2 className="mb-4 text-lg font-semibold">{messages.settingsPage.profile}</h2>
-        <UserProfile />
+        <UserProfile routing="hash" />
       </section>
     </div>
   );

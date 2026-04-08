@@ -11,37 +11,7 @@ import Link from "next/link";
 export default async function AllPaymentsPage() {
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
-  const properties = await api.property.list();
-
-  const allPayments: {
-    id: number;
-    propertyName: string;
-    propertyId: number;
-    amountHuf: number;
-    paymentDate: string;
-    paymentMethod: string | null;
-    notes: string | null;
-  }[] = [];
-
-  for (const prop of properties) {
-    const payments = await api.payment.list({ propertyId: prop.id });
-    for (const p of payments) {
-      allPayments.push({
-        id: p.id,
-        propertyName: prop.name,
-        propertyId: prop.id,
-        amountHuf: p.amountHuf,
-        paymentDate: p.paymentDate,
-        paymentMethod: p.paymentMethod,
-        notes: p.notes,
-      });
-    }
-  }
-
-  allPayments.sort(
-    (a, b) =>
-      new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime(),
-  );
+  const allPayments = await api.payment.listAll();
 
   const totalAmount = allPayments.reduce((acc, p) => acc + p.amountHuf, 0);
 

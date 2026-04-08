@@ -1,12 +1,34 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import { requireLandlordPropertyAccess } from "@/server/api/access";
-import { payments } from "@/server/db/schema";
+import { payments, properties } from "@/server/db/schema";
 
 export const paymentRouter = createTRPCRouter({
+  listAll: landlordProcedure.query(async ({ ctx }) => {
+    return ctx.db
+      .select({
+        id: payments.id,
+        propertyId: payments.propertyId,
+        propertyName: properties.name,
+        amountHuf: payments.amountHuf,
+        paymentDate: payments.paymentDate,
+        paymentMethod: payments.paymentMethod,
+        notes: payments.notes,
+      })
+      .from(payments)
+      .innerJoin(properties, eq(payments.propertyId, properties.id))
+      .where(
+        and(
+          eq(properties.landlordId, ctx.dbUser.id),
+          eq(properties.archived, false),
+        ),
+      )
+      .orderBy(desc(payments.paymentDate), desc(payments.id));
+  }),
+
   list: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {
