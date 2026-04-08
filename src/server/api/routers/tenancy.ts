@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { clerkClient } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
 
 import {
   createTRPCRouter,
@@ -138,6 +139,8 @@ export const tenancyRouter = createTRPCRouter({
           .returning();
         await createMoveInChecklist(ctx.db, input.propertyId, tenant.id);
 
+        revalidatePath("/properties");
+        revalidatePath(`/properties/${input.propertyId}`);
         return { success: true, message: "Beköltözés elindítva", tenancy };
       }
 
@@ -177,6 +180,8 @@ export const tenancyRouter = createTRPCRouter({
         });
       }
 
+      revalidatePath("/properties");
+      revalidatePath(`/properties/${input.propertyId}`);
       return { success: true, message: "Bérlő felvéve", tenancy };
     }),
 
@@ -245,6 +250,8 @@ export const tenancyRouter = createTRPCRouter({
         });
       }
 
+      revalidatePath("/properties");
+      revalidatePath(`/properties/${tenancy.propertyId}`);
       return { success: true };
     }),
 

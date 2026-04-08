@@ -138,8 +138,8 @@ export default function MoveInWizardPage() {
 
   const moveIn = api.tenancy.moveIn.useMutation({
     onSuccess: () => {
-      router.push(`/properties/${propertyId}`);
       router.refresh();
+      router.push(`/properties/${propertyId}`);
     },
   });
 
