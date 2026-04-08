@@ -1,6 +1,5 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
 import {
   BarChart3,
   Building2,
@@ -15,6 +14,7 @@ import {
   Users,
   Waves,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -50,6 +50,14 @@ const iconMap: Record<string, LucideIcon> = {
   billing: Receipt,
   settings: Settings,
 };
+
+const LazyUserButton = dynamic(
+  () => import("./user-button-shell").then((mod) => mod.UserButtonShell),
+  {
+    ssr: false,
+    loading: () => <div className="h-8 w-8 rounded-full bg-muted" />,
+  },
+);
 
 function isActive(pathname: string, href: string) {
   if (href === "/dashboard") {
@@ -135,7 +143,7 @@ export function ProtectedNavigation({
               <p className="text-sm font-medium">Profil</p>
               <p className="mt-1 text-xs text-muted-foreground">Clerk account</p>
             </div>
-            <UserButton />
+            <LazyUserButton />
           </div>
         </div>
       </aside>
@@ -145,7 +153,7 @@ export function ProtectedNavigation({
           <Link href="/dashboard" className="text-base font-semibold tracking-tight">
             {appName}
           </Link>
-          <UserButton />
+          <LazyUserButton />
         </div>
         <nav className="flex gap-2 overflow-x-auto px-4 pb-3">
           {sections.flatMap((section) => section.items).map((item) => {
