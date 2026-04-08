@@ -455,6 +455,48 @@ export default async function PropertyDetailPage({
         </SectionCard>
       )}
 
+      {property.handoverChecklists.filter((c) => c.checklistType === "move_out" && c.status === "pending").length > 0 && (
+        <SectionCard
+          title="Kiköltözési teendők"
+          subtitle="Ezeket érdemes elvégezni a kiköltözés kapcsán."
+        >
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {property.handoverChecklists
+              .filter((c) => c.checklistType === "move_out")
+              .map((item) => {
+                const done = item.status === "completed";
+                const stepConfig: Record<string, { label: string; href: string }> = {
+                  final_readings: { label: "Záró mérőállások", href: `/properties/${property.id}/readings/new` },
+                  condition_assessment: { label: "Állapotfelvétel", href: `/properties/${property.id}/documents/new` },
+                  deposit_settlement: { label: "Kaució elszámolás", href: `/properties/${property.id}/move-out` },
+                  key_return: { label: "Kulcsvisszavétel", href: `/properties/${property.id}/edit` },
+                };
+                const config = stepConfig[item.step] ?? { label: item.step, href: "#" };
+                return (
+                  <Link
+                    key={item.id}
+                    href={config.href}
+                    className={`rounded-[22px] p-4 ring-1 transition hover:bg-secondary/50 ${
+                      done
+                        ? "bg-emerald-50/50 ring-emerald-200/60 dark:bg-emerald-950/20 dark:ring-emerald-800/40"
+                        : "bg-background/80 ring-border/50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`text-lg ${done ? "text-emerald-600" : "text-muted-foreground"}`}>
+                        {done ? "✓" : "○"}
+                      </span>
+                      <span className={`text-sm font-medium ${done ? "text-emerald-700 line-through dark:text-emerald-300" : ""}`}>
+                        {config.label}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+          </div>
+        </SectionCard>
+      )}
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label="Bérlő" value={tenantLabel} detail={buyerEmail ?? "Nincs számlázási email"} tone={activeTenancy ? "success" : pendingInvitation ? "warning" : "neutral"} />
         <StatCard label="Mérők" value={`${property.meterInfo.length} db`} detail={`${property.smartMeters.length} okosmérő kapcsolva`} />
