@@ -76,7 +76,7 @@ export function ProtectedNavigation({
 
   return (
     <>
-      <aside className="hidden w-72 shrink-0 border-r border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,249,251,0.98))] px-4 py-5 dark:bg-[linear-gradient(180deg,rgba(10,14,19,0.96),rgba(16,22,28,0.98))] lg:flex lg:flex-col">
+      <aside className="hidden w-72 shrink-0 border-r border-border/70 bg-sidebar px-4 py-5 lg:flex lg:flex-col">
         <div className="rounded-[28px] bg-card/90 p-4 shadow-sm ring-1 ring-border/60">
           <Link href="/dashboard" className="block">
             <p className="text-xl font-semibold tracking-tight">{appName}</p>

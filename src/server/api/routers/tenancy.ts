@@ -67,21 +67,22 @@ export const tenancyRouter = createTRPCRouter({
     });
   }),
 
-  // Move-in: create tenancy + checklist
+  // Move-in: create tenancy + optionally invite
   moveIn: landlordProcedure
     .input(
       z.object({
         propertyId: z.number(),
-        tenantEmail: z.string().email(),
+        tenantEmail: z.string().email().optional(),
         tenantName: z.string().optional(),
+        tenantPhone: z.string().optional(),
         moveInDate: z.string(),
         depositAmount: z.number().optional(),
+        sendInvitation: z.boolean().default(false),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       await requireLandlordPropertyAccess(ctx, input.propertyId);
 
-      const tenantEmail = normalizeEmailAddress(input.tenantEmail);
       const existingActiveTenancy = await ctx.db.query.tenancies.findFirst({
         where: and(
           eq(tenancies.propertyId, input.propertyId),
@@ -95,25 +96,67 @@ export const tenancyRouter = createTRPCRouter({
         });
       }
 
-      const tenant = await ctx.db.query.users.findFirst({
-        where: eq(users.email, tenantEmail),
-      });
-      if (!tenant) {
-        const existingInvitation = await ctx.db.query.tenantInvitations.findFirst({
-          where: and(
-            eq(tenantInvitations.propertyId, input.propertyId),
-            eq(tenantInvitations.tenantEmail, tenantEmail),
-            eq(tenantInvitations.status, "pending"),
-          ),
+      if (!input.tenantEmail && !input.tenantName) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Legalább a bérlő nevét vagy email címét add meg",
         });
+      }
 
-        if (existingInvitation) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "Ehhez az emailhez már létezik függő meghívó",
-          });
+      const tenantEmail = input.tenantEmail
+        ? normalizeEmailAddress(input.tenantEmail)
+        : undefined;
+
+      // Check if tenant already exists as a user
+      const tenant = tenantEmail
+        ? await ctx.db.query.users.findFirst({
+            where: eq(users.email, tenantEmail),
+          })
+        : undefined;
+
+      // If tenant exists as user, link directly
+      if (tenant) {
+        if (tenant.role !== "tenant") {
+          await ctx.db
+            .update(users)
+            .set({ role: "tenant" })
+            .where(eq(users.id, tenant.id));
         }
 
+        const [tenancy] = await ctx.db
+          .insert(tenancies)
+          .values({
+            propertyId: input.propertyId,
+            tenantId: tenant.id,
+            tenantName: input.tenantName ?? (`${tenant.firstName ?? ""} ${tenant.lastName ?? ""}`.trim() || null),
+            tenantEmail,
+            tenantPhone: input.tenantPhone,
+            moveInDate: input.moveInDate,
+            depositAmount: input.depositAmount,
+            active: true,
+          })
+          .returning();
+        await createMoveInChecklist(ctx.db, input.propertyId, tenant.id);
+
+        return { success: true, message: "Beköltözés elindítva", tenancy };
+      }
+
+      // Create offline tenancy (no user account needed)
+      const [tenancy] = await ctx.db
+        .insert(tenancies)
+        .values({
+          propertyId: input.propertyId,
+          tenantName: input.tenantName,
+          tenantEmail,
+          tenantPhone: input.tenantPhone,
+          moveInDate: input.moveInDate,
+          depositAmount: input.depositAmount,
+          active: true,
+        })
+        .returning();
+
+      // Optionally send invitation
+      if (input.sendInvitation && tenantEmail) {
         const client = await clerkClient();
         const invitation = await client.invitations.createInvitation({
           emailAddress: tenantEmail,
@@ -122,47 +165,19 @@ export const tenancyRouter = createTRPCRouter({
           redirectUrl: `${getBaseUrl(ctx.headers)}/sign-up`,
         });
 
-        const [pendingInvitation] = await ctx.db
-          .insert(tenantInvitations)
-          .values({
-            landlordId: ctx.dbUser.id,
-            propertyId: input.propertyId,
-            tenantEmail,
-            tenantName: input.tenantName,
-            moveInDate: input.moveInDate,
-            depositAmount: input.depositAmount,
-            clerkInvitationId: invitation.id,
-            status: "pending",
-          })
-          .returning();
-
-        return {
-          success: true,
-          message: "Meghívó elküldve, a tenancy a regisztráció után aktiválódik",
-          invitation: pendingInvitation,
-        };
-      }
-
-      if (tenant.role !== "tenant") {
-        await ctx.db
-          .update(users)
-          .set({ role: "tenant" })
-          .where(eq(users.id, tenant.id));
-      }
-
-      const [tenancy] = await ctx.db
-        .insert(tenancies)
-        .values({
+        await ctx.db.insert(tenantInvitations).values({
+          landlordId: ctx.dbUser.id,
           propertyId: input.propertyId,
-          tenantId: tenant.id,
+          tenantEmail,
+          tenantName: input.tenantName,
           moveInDate: input.moveInDate,
           depositAmount: input.depositAmount,
-          active: true,
-        })
-        .returning();
-      await createMoveInChecklist(ctx.db, input.propertyId, tenant.id);
+          clerkInvitationId: invitation.id,
+          status: "pending",
+        });
+      }
 
-      return { success: true, message: "Beköltözés elindítva", tenancy };
+      return { success: true, message: "Bérlő felvéve", tenancy };
     }),
 
   // Move-out: end tenancy + archive + checklist
@@ -192,8 +207,10 @@ export const tenancyRouter = createTRPCRouter({
       await ctx.db.insert(tenantHistory).values({
         propertyId: tenancy.propertyId,
         tenantId: tenancy.tenantId,
-        tenantName: `${tenancy.tenant.firstName ?? ""} ${tenancy.tenant.lastName ?? ""}`.trim() || null,
-        tenantEmail: tenancy.tenant.email,
+        tenantName: tenancy.tenant
+          ? (`${tenancy.tenant.firstName ?? ""} ${tenancy.tenant.lastName ?? ""}`.trim() || null)
+          : tenancy.tenantName ?? null,
+        tenantEmail: tenancy.tenant?.email ?? tenancy.tenantEmail ?? "",
         moveInDate: tenancy.moveInDate,
         moveOutDate: input.moveOutDate,
         depositAmount: tenancy.depositAmount,

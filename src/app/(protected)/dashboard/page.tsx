@@ -354,7 +354,7 @@ async function DashboardContent({
                   <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span className="rounded-full bg-secondary px-2.5 py-1">
                       {property.tenancies[0]
-                        ? `${copy.activeTenant}: ${property.tenancies[0].tenant.firstName ?? property.tenancies[0].tenant.email}`
+                        ? `${copy.activeTenant}: ${property.tenancies[0].tenant?.firstName ?? property.tenancies[0].tenantName ?? property.tenancies[0].tenant?.email ?? property.tenancies[0].tenantEmail ?? ""}`
                         : copy.vacant}
                     </span>
                     {property.landlordProfile && (

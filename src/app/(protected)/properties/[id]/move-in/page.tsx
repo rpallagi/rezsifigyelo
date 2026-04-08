@@ -131,8 +131,10 @@ export default function MoveInWizardPage() {
 
   const [tenantEmail, setTenantEmail] = useState("");
   const [tenantName, setTenantName] = useState("");
+  const [tenantPhone, setTenantPhone] = useState("");
   const [moveInDate, setMoveInDate] = useState(new Date().toISOString().split("T")[0]!);
   const [depositAmount, setDepositAmount] = useState("");
+  const [sendInvitation, setSendInvitation] = useState(false);
 
   const moveIn = api.tenancy.moveIn.useMutation({
     onSuccess: () => {
@@ -144,10 +146,12 @@ export default function MoveInWizardPage() {
   const handleFinish = () => {
     moveIn.mutate({
       propertyId,
-      tenantEmail,
+      tenantEmail: tenantEmail || undefined,
       tenantName: tenantName || undefined,
+      tenantPhone: tenantPhone || undefined,
       moveInDate,
       depositAmount: depositAmount ? Number(depositAmount) : undefined,
+      sendInvitation,
     });
   };
 
@@ -277,16 +281,32 @@ export default function MoveInWizardPage() {
                   Ki fog beköltözni?
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Az email kötelező. Erre megy a meghívó és innen indul a tenant
-                  onboarding.
+                  Add meg a bérlő adatait. Az email opcionális — ha később
+                  regisztrál az appba, automatikusan összekapcsoljuk.
                 </p>
               </div>
 
               <div className="grid gap-5 md:grid-cols-2">
                 <Field
-                  label="Bérlő email"
+                  label="Bérlő neve"
                   required
-                  hint="A bérlő erre az emailre kap meghívót."
+                >
+                  <div className="relative">
+                    <Home className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={tenantName}
+                      onChange={(e) => setTenantName(e.target.value)}
+                      placeholder="Teljes név"
+                      required
+                      className={`${inputClassName()} pl-11`}
+                    />
+                  </div>
+                </Field>
+
+                <Field
+                  label="Bérlő email"
+                  hint="Ha megadod, később meghívhatod az appba."
                 >
                   <div className="relative">
                     <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -295,20 +315,19 @@ export default function MoveInWizardPage() {
                       value={tenantEmail}
                       onChange={(e) => setTenantEmail(e.target.value)}
                       placeholder="berlo@email.com"
-                      required
                       className={`${inputClassName()} pl-11`}
                     />
                   </div>
                 </Field>
 
-                <Field label="Bérlő neve">
+                <Field label="Telefonszám">
                   <div className="relative">
-                    <Home className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
-                      type="text"
-                      value={tenantName}
-                      onChange={(e) => setTenantName(e.target.value)}
-                      placeholder="Teljes név"
+                      type="tel"
+                      value={tenantPhone}
+                      onChange={(e) => setTenantPhone(e.target.value)}
+                      placeholder="+36 30 123 4567"
                       className={`${inputClassName()} pl-11`}
                     />
                   </div>
@@ -339,6 +358,23 @@ export default function MoveInWizardPage() {
                   </div>
                 </Field>
               </div>
+
+              {tenantEmail && (
+                <label className="mt-2 flex items-center gap-3 rounded-2xl bg-background/80 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={sendInvitation}
+                    onChange={(e) => setSendInvitation(e.target.checked)}
+                    className="h-4 w-4 rounded border-border accent-primary"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">Meghívó küldése az appba</p>
+                    <p className="text-xs text-muted-foreground">
+                      A bérlő emailben kap regisztrációs linket és hozzáférést az ingatlanhoz.
+                    </p>
+                  </div>
+                </label>
+              )}
             </div>
           ) : null}
 
@@ -491,8 +527,14 @@ export default function MoveInWizardPage() {
                   </p>
                   <p>
                     <span className="font-medium text-muted-foreground">Email:</span>{" "}
-                    {tenantEmail || "Nincs email megadva"}
+                    {tenantEmail || "Nincs megadva"}
                   </p>
+                  {tenantPhone && (
+                    <p>
+                      <span className="font-medium text-muted-foreground">Telefon:</span>{" "}
+                      {tenantPhone}
+                    </p>
+                  )}
                   <p>
                     <span className="font-medium text-muted-foreground">Beköltözés:</span>{" "}
                     {moveInDate}
@@ -500,6 +542,10 @@ export default function MoveInWizardPage() {
                   <p>
                     <span className="font-medium text-muted-foreground">Kaució:</span>{" "}
                     {depositAmount ? `${Number(depositAmount).toLocaleString("hu-HU")} Ft` : "Nincs megadva"}
+                  </p>
+                  <p>
+                    <span className="font-medium text-muted-foreground">App meghívó:</span>{" "}
+                    {sendInvitation && tenantEmail ? "Igen, küldés" : "Nem"}
                   </p>
                 </div>
               </div>
@@ -520,7 +566,7 @@ export default function MoveInWizardPage() {
               <button
                 type="button"
                 onClick={() => setStep(step + 1)}
-                disabled={step === 0 && !tenantEmail}
+                disabled={step === 0 && !tenantName}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Tovább

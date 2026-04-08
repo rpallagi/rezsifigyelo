@@ -1,11 +1,11 @@
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { type WebhookEvent } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 import { env } from "@/env";
 import { db } from "@/server/db";
-import { users } from "@/server/db/schema";
+import { users, tenancies } from "@/server/db/schema";
 import { stripe } from "@/server/stripe";
 import { normalizeEmailAddress } from "@/server/api/access";
 
@@ -71,6 +71,33 @@ export async function POST(req: Request) {
           imageUrl: image_url ?? null,
         },
       });
+
+    // Auto-link: if there are tenancies with this email but no userId, link them
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.clerkId, id),
+    });
+    if (dbUser) {
+      const unlinkedTenancies = await db.query.tenancies.findMany({
+        where: and(
+          eq(tenancies.tenantEmail, primaryEmail),
+          eq(tenancies.active, true),
+        ),
+      });
+      for (const t of unlinkedTenancies) {
+        if (!t.tenantId) {
+          await db
+            .update(tenancies)
+            .set({ tenantId: dbUser.id })
+            .where(eq(tenancies.id, t.id));
+          // Set role to tenant
+          await db
+            .update(users)
+            .set({ role: "tenant" })
+            .where(eq(users.id, dbUser.id));
+          console.log(`[Clerk Webhook] Auto-linked tenancy ${t.id} to user ${dbUser.id}`);
+        }
+      }
+    }
 
     console.log(`[Clerk Webhook] Created user ${id} with Stripe customer ${stripeCustomer.id}`);
   }

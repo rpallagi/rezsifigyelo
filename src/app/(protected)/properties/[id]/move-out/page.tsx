@@ -55,7 +55,7 @@ export default function MoveOutWizardPage() {
     <div className="mx-auto max-w-lg">
       <h1 className="text-2xl font-bold">Kiköltözés</h1>
       <p className="mt-2 text-muted-foreground">
-        Bérlő: {activeTenancy.tenant.firstName ?? activeTenancy.tenant.email}
+        Bérlő: {activeTenancy.tenant?.firstName ?? activeTenancy.tenantName ?? activeTenancy.tenant?.email ?? activeTenancy.tenantEmail ?? ""}
       </p>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-5">

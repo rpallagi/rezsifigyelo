@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { auth } from "@clerk/nextjs/server";
+import { writeFile, mkdir } from "node:fs/promises";
+import path from "node:path";
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -25,12 +27,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "File too large (max 10MB)" }, { status: 400 });
   }
 
-  const blob = await put(`${folder}/${Date.now()}-${file.name}`, file, {
-    access: "public",
-  });
+  // Use Vercel Blob in production, local filesystem in dev
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const blob = await put(`${folder}/${Date.now()}-${file.name}`, file, {
+      access: "public",
+    });
+
+    return NextResponse.json({
+      url: blob.url,
+      filename: file.name,
+      size: file.size,
+      type: file.type,
+    });
+  }
+
+  // Local dev fallback: save to public/uploads/
+  const uploadsDir = path.join(process.cwd(), "public", "uploads", folder);
+  await mkdir(uploadsDir, { recursive: true });
+
+  const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  const filePath = path.join(uploadsDir, safeName);
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await writeFile(filePath, buffer);
 
   return NextResponse.json({
-    url: blob.url,
+    url: `/uploads/${folder}/${safeName}`,
     filename: file.name,
     size: file.size,
     type: file.type,

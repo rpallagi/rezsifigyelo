@@ -58,12 +58,12 @@ export default async function PropertiesPage() {
               href={`/properties/${property.id}`}
               className="group overflow-hidden rounded-[28px] border border-border/60 bg-card/95 shadow-[0_18px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_24px_50px_rgba(15,23,42,0.10)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.24)]"
             >
-              <div className="relative aspect-[4/3] overflow-hidden">
+              <div className="relative h-[180px] overflow-hidden">
                 {property.avatarUrl ? (
                   <img
                     src={property.avatarUrl}
                     alt={property.name}
-                    className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                    className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                   />
                 ) : (
                   <div
@@ -113,7 +113,7 @@ export default async function PropertiesPage() {
                   </p>
                   <p className="mt-1 text-sm font-medium">
                     {property.tenancies.length > 0
-                      ? `${m.propertiesPage.tenantPrefix}: ${property.tenancies[0]?.tenant.firstName ?? property.tenancies[0]?.tenant.email}`
+                      ? `${m.propertiesPage.tenantPrefix}: ${property.tenancies[0]?.tenant?.firstName ?? property.tenancies[0]?.tenantName ?? property.tenancies[0]?.tenant?.email ?? property.tenancies[0]?.tenantEmail ?? ""}`
                       : m.common.noTenant}
                   </p>
                 </div>

@@ -111,10 +111,11 @@ export default async function TenantsPage() {
               {allTenancies.map((t) => (
                 <tr key={t.id} className="border-b">
                   <td className="py-3">
-                    {t.tenant.firstName} {t.tenant.lastName}
+                    {t.tenant?.firstName ?? ""} {t.tenant?.lastName ?? ""}
+                    {!t.tenant && t.tenantName ? t.tenantName : ""}
                   </td>
                   <td className="py-3 text-muted-foreground">
-                    {t.tenant.email}
+                    {t.tenant?.email ?? t.tenantEmail ?? ""}
                   </td>
                   <td className="py-3">{t.propertyName}</td>
                   <td className="py-3">

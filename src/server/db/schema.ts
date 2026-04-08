@@ -317,10 +317,10 @@ export const tenancies = createTable(
       .integer()
       .notNull()
       .references(() => properties.id, { onDelete: "cascade" }),
-    tenantId: d
-      .integer()
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    tenantId: d.integer().references(() => users.id, { onDelete: "set null" }),
+    tenantName: d.varchar({ length: 200 }),
+    tenantEmail: d.varchar({ length: 255 }),
+    tenantPhone: d.varchar({ length: 50 }),
     moveInDate: d.date(),
     moveOutDate: d.date(),
     depositAmount: d.doublePrecision(),

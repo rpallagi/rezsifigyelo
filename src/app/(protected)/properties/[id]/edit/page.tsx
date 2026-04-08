@@ -379,13 +379,39 @@ export default function EditPropertyPage() {
             type="file"
             accept="image/*"
             onChange={async (e) => {
+              const input = e.currentTarget;
               const file = e.target.files?.[0];
               if (!file) return;
               setAvatarUploading(true);
               setAvatarError("");
               try {
+                // Resize image client-side before upload
+                const resized = await new Promise<Blob>((resolve, reject) => {
+                  const img = new window.Image();
+                  img.onload = () => {
+                    const MAX = 1200;
+                    let { width, height } = img;
+                    if (width > MAX || height > MAX) {
+                      const scale = MAX / Math.max(width, height);
+                      width = Math.round(width * scale);
+                      height = Math.round(height * scale);
+                    }
+                    const canvas = document.createElement("canvas");
+                    canvas.width = width;
+                    canvas.height = height;
+                    canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob(
+                      (blob) => (blob ? resolve(blob) : reject(new Error("Resize failed"))),
+                      "image/jpeg",
+                      0.85,
+                    );
+                  };
+                  img.onerror = () => reject(new Error("Kép betöltése sikertelen"));
+                  img.src = URL.createObjectURL(file);
+                });
+
                 const formData = new FormData();
-                formData.append("file", file);
+                formData.append("file", new File([resized], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" }));
                 formData.append("folder", "property-avatars");
 
                 const res = await fetch("/api/upload", { method: "POST", body: formData });
@@ -420,7 +446,7 @@ export default function EditPropertyPage() {
                 );
               } finally {
                 setAvatarUploading(false);
-                e.currentTarget.value = "";
+                input.value = "";
               }
             }}
             className="mt-2 text-sm"

@@ -24,14 +24,14 @@ import { ensureDefaultLandlordProfile } from "@/server/landlord-profiles/service
 type PreviewSellerProfile = typeof landlordProfiles.$inferSelect;
 type PreviewActiveTenancy =
   | (typeof tenancies.$inferSelect & {
-      tenant: typeof users.$inferSelect;
+      tenant: typeof users.$inferSelect | null;
     })
   | null;
 type PreviewProperty = typeof properties.$inferSelect & {
   commonFees: Array<typeof commonFees.$inferSelect>;
   tenancies: Array<
     typeof tenancies.$inferSelect & {
-      tenant: typeof users.$inferSelect;
+      tenant: typeof users.$inferSelect | null;
     }
   >;
   landlordProfile: PreviewSellerProfile | null;
@@ -132,7 +132,7 @@ function resolveBuyer(
   const billingAddress = property.billingAddress?.trim() ?? "";
   const billingTaxNumber = property.billingTaxNumber?.trim() ?? "";
   const tenantDisplayName =
-    `${activeTenancy?.tenant.firstName ?? ""} ${activeTenancy?.tenant.lastName ?? ""}`.trim();
+    `${activeTenancy?.tenant?.firstName ?? ""} ${activeTenancy?.tenant?.lastName ?? ""}`.trim();
   const propertyContactName = property.contactName?.trim() ?? "";
   const propertyName = property.name.trim();
   const resolvedBillingAddress =
@@ -152,7 +152,7 @@ function resolveBuyer(
   if (tenantDisplayName.length > 0) {
     return {
       name: tenantDisplayName,
-      email: activeTenancy?.tenant.email ?? null,
+      email: activeTenancy?.tenant?.email ?? null,
       address: property.address ?? null,
       taxNumber: null,
       buyerType: "individual" as const,
@@ -160,7 +160,7 @@ function resolveBuyer(
     };
   }
 
-  if (activeTenancy?.tenant.email) {
+  if (activeTenancy?.tenant?.email) {
     return {
       name: activeTenancy.tenant.email,
       email: activeTenancy.tenant.email,
@@ -589,7 +589,7 @@ export const invoiceRouter = createTRPCRouter({
           landlordId: ctx.dbUser.id,
           propertyId: preview.property.id,
           sellerProfileId: sellerProfile.id,
-          tenantId: preview.activeTenancy?.tenant.id ?? null,
+          tenantId: preview.activeTenancy?.tenant?.id ?? null,
           status: "draft",
           issueDate: preview.issueDate,
           dueDate: preview.dueDate,

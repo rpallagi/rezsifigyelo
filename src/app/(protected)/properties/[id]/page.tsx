@@ -16,6 +16,7 @@ function formatTenantName(
         lastName: string | null;
         email: string;
       }
+    | null
     | undefined,
 ) {
   if (!tenant) return "Nincs";
@@ -150,17 +151,20 @@ export default async function PropertyDetailPage({
   const latestPayment = property.payments[0];
   const latestInvoice = property.invoices[0];
   const tenantLabel = activeTenancy
-    ? formatTenantName(activeTenancy.tenant)
+    ? formatTenantName(activeTenancy.tenant) !== "Nincs"
+      ? formatTenantName(activeTenancy.tenant)
+      : activeTenancy.tenantName ?? activeTenancy.tenantEmail ?? "Nincs aktív bérlő"
     : pendingInvitation
       ? pendingInvitation.tenantName ?? pendingInvitation.tenantEmail
       : "Nincs aktív bérlő";
   const buyerName =
     property.billingName ??
     (activeTenancy ? formatTenantName(activeTenancy.tenant) : null) ??
+    activeTenancy?.tenantName ??
     property.contactName ??
     property.name;
   const buyerEmail =
-    property.billingEmail ?? activeTenancy?.tenant.email ?? property.contactEmail ?? null;
+    property.billingEmail ?? activeTenancy?.tenant?.email ?? activeTenancy?.tenantEmail ?? property.contactEmail ?? null;
   const unpaidTaxSeasons = property.propertyTaxes.reduce((count, tax) => {
     return count + (tax.springPaid ? 0 : 1) + (tax.autumnPaid ? 0 : 1);
   }, 0);
@@ -213,27 +217,59 @@ export default async function PropertyDetailPage({
 
   return (
     <div className="space-y-8 pb-10">
-      <section className="rounded-[32px] bg-gradient-to-br from-background via-card to-secondary/40 p-5 shadow-sm ring-1 ring-border/60 sm:p-7">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-          <div className="max-w-3xl">
+      <section className="overflow-hidden rounded-[32px] shadow-sm ring-1 ring-border/60">
+        {/* Property hero image / gradient */}
+        <div className="relative h-[200px] w-full sm:h-[280px]">
+          {property.avatarUrl ? (
+            <img
+              src={property.avatarUrl}
+              alt={property.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div
+              className="h-full w-full"
+              style={{
+                background:
+                  property.propertyType === "lakas"
+                    ? "linear-gradient(135deg, rgba(70,72,212,0.92), rgba(96,99,238,0.75)), radial-gradient(circle at top right, rgba(255,255,255,0.28), transparent 42%)"
+                    : property.propertyType === "uzlet"
+                      ? "linear-gradient(135deg, rgba(0,108,73,0.92), rgba(108,248,187,0.68)), radial-gradient(circle at top right, rgba(255,255,255,0.22), transparent 40%)"
+                      : property.propertyType === "telek"
+                        ? "linear-gradient(135deg, rgba(131,81,0,0.9), rgba(255,185,95,0.72)), radial-gradient(circle at top right, rgba(255,255,255,0.24), transparent 40%)"
+                        : "linear-gradient(135deg, rgba(25,28,30,0.9), rgba(118,117,134,0.72)), radial-gradient(circle at top right, rgba(255,255,255,0.24), transparent 42%)",
+              }}
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
+          <Link
+            href={`/properties/${property.id}/edit`}
+            className="group/photo absolute right-4 top-4 flex items-center gap-2 rounded-full bg-black/40 px-3 py-2 text-xs font-medium text-white/80 backdrop-blur-sm transition hover:bg-black/60 hover:text-white"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+            <span className="hidden sm:inline">{property.avatarUrl ? "Fotó módosítása" : "Fotó feltöltése"}</span>
+          </Link>
+          <div className="absolute inset-x-0 bottom-0 p-5 sm:p-7">
             <Link
               href="/properties"
-              className="inline-flex text-sm text-muted-foreground transition hover:text-foreground"
+              className="inline-flex text-sm text-white/80 transition hover:text-white"
             >
               ← Vissza az ingatlanokhoz
             </Link>
-
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-white backdrop-blur-sm">
                 {propertyTypeLabel(property.propertyType)}
               </span>
               <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                className={`rounded-full px-3 py-1 text-xs font-medium backdrop-blur-sm ${
                   activeTenancy
-                    ? statusTone("success")
+                    ? "bg-emerald-500/25 text-emerald-100"
                     : pendingInvitation
-                      ? statusTone("warning")
-                      : statusTone("neutral")
+                      ? "bg-amber-500/25 text-amber-100"
+                      : "bg-white/20 text-white"
                 }`}
               >
                 {activeTenancy
@@ -243,28 +279,33 @@ export default async function PropertyDetailPage({
                     : "Szabad ingatlan"}
               </span>
               {property.landlordProfile && (
-                <span className="rounded-full bg-background/80 px-3 py-1 text-xs font-medium text-foreground ring-1 ring-border/50">
+                <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
                   Kiállító: {property.landlordProfile.displayName}
                 </span>
               )}
             </div>
-
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
               {property.name}
             </h1>
             {property.address && (
-              <p className="mt-3 max-w-2xl text-base text-muted-foreground">
+              <p className="mt-2 max-w-2xl text-base text-white/75">
                 {property.address}
               </p>
             )}
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-background via-card to-secondary/40 p-5 sm:p-7">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-3xl">
             {property.notes && (
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                 {property.notes}
               </p>
             )}
 
             {pendingInvitation && (
-              <div className="mt-5 rounded-2xl bg-amber-50 px-4 py-4 text-sm text-amber-900 ring-1 ring-amber-300/60 dark:bg-amber-950/30 dark:text-amber-200 dark:ring-amber-700/50">
+              <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-4 text-sm text-amber-900 ring-1 ring-amber-300/60 dark:bg-amber-950/30 dark:text-amber-200 dark:ring-amber-700/50">
                 Meghívó elküldve:{" "}
                 <span className="font-medium">
                   {pendingInvitation.tenantName ?? pendingInvitation.tenantEmail}
@@ -326,6 +367,7 @@ export default async function PropertyDetailPage({
               </div>
             </div>
           </div>
+        </div>
         </div>
       </section>
 
