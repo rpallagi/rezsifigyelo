@@ -59,6 +59,13 @@ export function BillingClient() {
 
   const createInvoice = api.invoice.create.useMutation({
     onSuccess: async () => {
+      setNote("");
+      await Promise.all([
+        utils.invoice.list.invalidate(),
+        utils.invoice.preview.invalidate(),
+      ]);
+    },
+    onError: async () => {
       await Promise.all([
         utils.invoice.list.invalidate(),
         utils.invoice.preview.invalidate(),
@@ -314,6 +321,11 @@ export function BillingClient() {
               {createInvoice.data.synced
                 ? messages.billingPage.createdAndSynced
                 : messages.billingPage.createdDraft}
+            </p>
+          )}
+          {createInvoice.error && (
+            <p className="mt-3 text-sm text-destructive">
+              {createInvoice.error.message}
             </p>
           )}
         </div>

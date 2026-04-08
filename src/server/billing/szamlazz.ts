@@ -59,26 +59,44 @@ function roundCurrency(value: number) {
 
 function parseBuyerAddress(rawAddress: string): BuyerAddress {
   const cleaned = rawAddress.trim();
-  const match = /^(\d{4})\s+([^,]+),\s*(.+)$/.exec(cleaned);
+  const commaFormatMatch = /^(\d{4})\s+([^,]+),\s*(.+)$/.exec(cleaned);
 
-  if (!match) {
-    throw new Error(
-      "A Számlázz.hu számlához az ingatlannál ilyen cím kell: 1234 Város, Utca 1.",
-    );
+  if (commaFormatMatch) {
+    const postalCode = commaFormatMatch[1];
+    const city = commaFormatMatch[2];
+    const addressLine = commaFormatMatch[3];
+    if (!postalCode || !city || !addressLine) {
+      throw new Error("A megadott cím nem elég részletes a számlázáshoz.");
+    }
+
+    return {
+      postalCode,
+      city: city.trim(),
+      addressLine: addressLine.trim(),
+    };
   }
 
-  const postalCode = match[1];
-  const city = match[2];
-  const addressLine = match[3];
-  if (!postalCode || !city || !addressLine) {
-    throw new Error("A megadott cím nem elég részletes a számlázáshoz.");
+  // Fallback for common Hungarian format without comma, e.g.:
+  // "1222 Budapest Portyázó út 32"
+  const compactFormatMatch = /^(\d{4})\s+(\S+)\s+(.+)$/.exec(cleaned);
+  if (compactFormatMatch) {
+    const postalCode = compactFormatMatch[1];
+    const city = compactFormatMatch[2];
+    const addressLine = compactFormatMatch[3];
+    if (!postalCode || !city || !addressLine) {
+      throw new Error("A megadott cím nem elég részletes a számlázáshoz.");
+    }
+
+    return {
+      postalCode,
+      city: city.trim(),
+      addressLine: addressLine.trim(),
+    };
   }
 
-  return {
-    postalCode,
-    city: city.trim(),
-    addressLine: addressLine.trim(),
-  };
+  throw new Error(
+    "A Számlázz.hu számlához az ingatlannál ilyen cím kell: 1234 Város, Utca 1.",
+  );
 }
 
 function extractHeader(headers: Headers, key: string) {
