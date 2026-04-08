@@ -199,8 +199,8 @@ export default async function PropertyDetailPage({
           label: "+ Bérlő hozzáadása",
           detail: pendingInvitation
             ? "Függő meghívó mellett is folytatható a beköltözési folyamat."
-            : "Meghívó küldése és tenancy indítása.",
-          primary: false,
+            : "Bérlő felvétele és beköltözés indítása.",
+          primary: true,
         },
   ];
   const secondaryActions = [
