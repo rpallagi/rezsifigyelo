@@ -562,26 +562,38 @@ export default function MoveInWizardPage() {
               {step === 0 ? "Mégse" : "Vissza"}
             </button>
 
-            {step < steps.length - 1 ? (
-              <button
-                type="button"
-                onClick={() => setStep(step + 1)}
-                disabled={step === 0 && !tenantName}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Tovább
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleFinish}
-                disabled={moveIn.isPending || !tenantEmail}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {moveIn.isPending ? "Indítás..." : "Beköltözés indítása"}
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {step > 0 && step < steps.length - 1 && (
+                <button
+                  type="button"
+                  onClick={handleFinish}
+                  disabled={moveIn.isPending || !tenantName}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border px-4 py-3 text-sm font-medium transition hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {moveIn.isPending ? "Mentés..." : "Kihagyás és mentés"}
+                </button>
+              )}
+              {step < steps.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setStep(step + 1)}
+                  disabled={step === 0 && !tenantName}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Tovább
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleFinish}
+                  disabled={moveIn.isPending || !tenantName}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {moveIn.isPending ? "Indítás..." : "Beköltözés indítása"}
+                </button>
+              )}
+            </div>
           </div>
         </SurfaceCard>
 
