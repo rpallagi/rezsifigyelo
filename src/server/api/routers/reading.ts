@@ -11,6 +11,26 @@ import { requirePropertyAccess } from "@/server/api/access";
 import { meterReadings, properties, tariffs } from "@/server/db/schema";
 
 export const readingRouter = createTRPCRouter({
+  listAll: landlordProcedure.query(async ({ ctx }) => {
+    return ctx.db
+      .select({
+        id: meterReadings.id,
+        propertyId: meterReadings.propertyId,
+        propertyName: properties.name,
+        utilityType: meterReadings.utilityType,
+        value: meterReadings.value,
+        consumption: meterReadings.consumption,
+        costHuf: meterReadings.costHuf,
+        readingDate: meterReadings.readingDate,
+        source: meterReadings.source,
+      })
+      .from(meterReadings)
+      .innerJoin(properties, eq(meterReadings.propertyId, properties.id))
+      .where(eq(properties.landlordId, ctx.dbUser.id))
+      .orderBy(desc(meterReadings.readingDate))
+      .limit(200);
+  }),
+
   list: protectedProcedure
     .input(
       z.object({

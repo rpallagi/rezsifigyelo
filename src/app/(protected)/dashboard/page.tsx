@@ -53,9 +53,11 @@ function HeroStat({
 export default async function DashboardPage() {
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
-  const user = await api.user.me();
-  const properties = await api.property.list();
-  const landlordProfiles = await api.landlordProfile.list();
+  const [user, properties, landlordProfiles] = await Promise.all([
+    api.user.me(),
+    api.property.list(),
+    api.landlordProfile.list(),
+  ]);
 
   const totalProperties = properties.length;
   const activeTenants = properties.reduce(

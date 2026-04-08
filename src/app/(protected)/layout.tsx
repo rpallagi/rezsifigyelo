@@ -1,6 +1,7 @@
 import { getCurrentLocale } from "@/lib/i18n/server";
 import { getMessages } from "@/lib/i18n/messages";
 import { ProtectedNavigation } from "@/components/layout/protected-navigation";
+import { api, HydrateClient } from "@/trpc/server";
 
 export default async function ProtectedLayout({
   children,
@@ -9,6 +10,8 @@ export default async function ProtectedLayout({
 }) {
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
+  void api.user.me.prefetch();
+  void api.property.list.prefetch();
   const managementLinks = [
     {
       href: "/dashboard",
@@ -85,18 +88,20 @@ export default async function ProtectedLayout({
   ];
 
   return (
-    <div className="min-h-screen lg:flex">
-      <ProtectedNavigation
-        appName={m.common.appName}
-        sections={sections}
-        createPropertyLabel={m.dashboardPage.createProperty}
-      />
+    <HydrateClient>
+      <div className="min-h-screen lg:flex">
+        <ProtectedNavigation
+          appName={m.common.appName}
+          sections={sections}
+          createPropertyLabel={m.dashboardPage.createProperty}
+        />
 
-      <div className="flex min-h-screen flex-1 flex-col">
-        <main className="flex-1 overflow-auto p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8 lg:pb-8">
-          {children}
-        </main>
+        <div className="flex min-h-screen flex-1 flex-col">
+          <main className="flex-1 overflow-auto p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8 lg:pb-8">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </HydrateClient>
   );
 }

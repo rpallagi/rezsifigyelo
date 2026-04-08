@@ -12,47 +12,7 @@ const utilityLabels: Record<string, string> = {
 };
 
 export default async function AllReadingsPage() {
-  const properties = await api.property.list();
-
-  // Collect recent readings from all properties
-  const allReadings: {
-    id: number;
-    propertyName: string;
-    propertyId: number;
-    utilityType: string;
-    value: number;
-    consumption: number | null;
-    costHuf: number | null;
-    readingDate: string;
-    source: string;
-  }[] = [];
-
-  // We need to fetch readings per property
-  for (const prop of properties) {
-    const readings = await api.reading.list({
-      propertyId: prop.id,
-      limit: 20,
-    });
-    for (const r of readings) {
-      allReadings.push({
-        id: r.id,
-        propertyName: prop.name,
-        propertyId: prop.id,
-        utilityType: r.utilityType,
-        value: r.value,
-        consumption: r.consumption,
-        costHuf: r.costHuf,
-        readingDate: r.readingDate,
-        source: r.source,
-      });
-    }
-  }
-
-  // Sort by date desc
-  allReadings.sort(
-    (a, b) =>
-      new Date(b.readingDate).getTime() - new Date(a.readingDate).getTime(),
-  );
+  const allReadings = await api.reading.listAll();
 
   return (
     <div>

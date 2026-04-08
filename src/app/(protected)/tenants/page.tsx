@@ -6,8 +6,10 @@ import Link from "next/link";
 export default async function TenantsPage() {
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
-  const properties = await api.property.list();
-  const pendingInvitations = await api.tenancy.pendingInvitations();
+  const [properties, pendingInvitations] = await Promise.all([
+    api.property.list(),
+    api.tenancy.pendingInvitations(),
+  ]);
 
   const allTenancies = properties.flatMap((p) =>
     p.tenancies.map((t) => ({ ...t, propertyName: p.name })),
