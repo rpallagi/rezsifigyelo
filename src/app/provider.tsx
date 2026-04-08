@@ -2,7 +2,6 @@
 
 import { ClerkProvider } from "@clerk/nextjs";
 import { enUS, huHU } from "@clerk/localizations";
-import { ui } from "@clerk/ui";
 import { ThemeProvider } from "next-themes";
 
 import { LocaleProvider } from "@/components/providers/locale-provider";
@@ -19,7 +18,6 @@ export function AuthProvider({
     <ClerkProvider
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
-      ui={ui}
       appearance={{}}
       localization={initialLocale === "en" ? enUS : huHU}
     >
