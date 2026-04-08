@@ -79,14 +79,14 @@ export default function TodosPage() {
       <h1 className="text-2xl font-bold">Feladatok</h1>
 
       {/* Checklist teendők ingatlanokból */}
-      {properties && properties.some((p) => p.handoverChecklists.length > 0) && (
+      {properties?.some((p) => p.handoverChecklists?.length > 0) && (
         <div className="mt-6 rounded-xl border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-700/60 dark:bg-amber-950/20">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
             Ingatlan teendők
           </h2>
           <div className="mt-3 space-y-2">
-            {properties
-              .filter((p) => p.handoverChecklists.length > 0)
+            {(properties ?? [])
+              .filter((p) => (p.handoverChecklists?.length ?? 0) > 0)
               .flatMap((p) =>
                 p.handoverChecklists.map((c) => (
                   <Link
