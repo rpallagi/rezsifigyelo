@@ -2,6 +2,7 @@ import { api } from "@/trpc/server";
 import { getMessages } from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
 import Link from "next/link";
+import { InvitationActions } from "./invitation-actions";
 
 export default async function TenantsPage() {
   const locale = await getCurrentLocale();
@@ -82,9 +83,12 @@ export default async function TenantsPage() {
                       {invitation.property.name}
                     </p>
                   </div>
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
-                    Meghívó elküldve
-                  </span>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
+                      Meghívó elküldve
+                    </span>
+                    <InvitationActions invitationId={invitation.id} />
+                  </div>
                 </div>
               </div>
             ))}

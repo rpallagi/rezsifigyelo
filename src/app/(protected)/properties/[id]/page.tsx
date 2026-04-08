@@ -340,6 +340,18 @@ export default async function PropertyDetailPage({
                   <span className="font-medium">Határnap:</span>{" "}
                   {property.billingDueDay ?? property.landlordProfile?.defaultDueDays ?? "—"}
                 </p>
+                {property.landlordProfile?.taxNumber && (
+                  <p>
+                    <span className="font-medium">Kiállító adószám:</span>{" "}
+                    {property.landlordProfile.taxNumber}
+                  </p>
+                )}
+                {property.billingTaxNumber && (
+                  <p>
+                    <span className="font-medium">Bérlő adószám:</span>{" "}
+                    {property.billingTaxNumber}
+                  </p>
+                )}
               </div>
             </div>
 

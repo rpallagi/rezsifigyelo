@@ -255,6 +255,51 @@ export const tenancyRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  // Revoke a pending invitation
+  revokeInvitation: landlordProcedure
+    .input(z.object({ invitationId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const invitation = await ctx.db.query.tenantInvitations.findFirst({
+        where: and(
+          eq(tenantInvitations.id, input.invitationId),
+          eq(tenantInvitations.landlordId, ctx.dbUser.id),
+        ),
+      });
+      if (!invitation) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Meghívó nem található" });
+      }
+      await ctx.db
+        .update(tenantInvitations)
+        .set({ status: "revoked" })
+        .where(eq(tenantInvitations.id, input.invitationId));
+      revalidatePath("/tenants");
+      return { success: true };
+    }),
+
+  // Resend invitation
+  resendInvitation: landlordProcedure
+    .input(z.object({ invitationId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const invitation = await ctx.db.query.tenantInvitations.findFirst({
+        where: and(
+          eq(tenantInvitations.id, input.invitationId),
+          eq(tenantInvitations.landlordId, ctx.dbUser.id),
+          eq(tenantInvitations.status, "pending"),
+        ),
+      });
+      if (!invitation) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Meghívó nem található" });
+      }
+      const client = await clerkClient();
+      await client.invitations.createInvitation({
+        emailAddress: invitation.tenantEmail,
+        ignoreExisting: true,
+        notify: true,
+        redirectUrl: `${getBaseUrl(ctx.headers)}/sign-up`,
+      });
+      return { success: true };
+    }),
+
   // Get tenant history for a property
   history: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
