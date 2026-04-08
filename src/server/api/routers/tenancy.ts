@@ -31,6 +31,19 @@ function getBaseUrl(headers: Headers) {
 }
 
 export const tenancyRouter = createTRPCRouter({
+  pendingInvitations: landlordProcedure.query(async ({ ctx }) => {
+    return ctx.db.query.tenantInvitations.findMany({
+      where: and(
+        eq(tenantInvitations.landlordId, ctx.dbUser.id),
+        eq(tenantInvitations.status, "pending"),
+      ),
+      with: {
+        property: true,
+      },
+      orderBy: [desc(tenantInvitations.invitedAt)],
+    });
+  }),
+
   list: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {

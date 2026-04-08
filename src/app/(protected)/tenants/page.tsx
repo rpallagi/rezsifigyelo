@@ -7,6 +7,7 @@ export default async function TenantsPage() {
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
   const properties = await api.property.list();
+  const pendingInvitations = await api.tenancy.pendingInvitations();
 
   const allTenancies = properties.flatMap((p) =>
     p.tenancies.map((t) => ({ ...t, propertyName: p.name })),
@@ -52,6 +53,37 @@ export default async function TenantsPage() {
                 >
                   Bérlő hozzáadása
                 </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pendingInvitations.length > 0 && (
+        <div className="mt-6 rounded-xl border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-700/60 dark:bg-amber-950/20">
+          <h2 className="text-lg font-semibold">Függő bérlő meghívók</h2>
+          <div className="mt-4 space-y-3">
+            {pendingInvitations.map((invitation) => (
+              <div
+                key={invitation.id}
+                className="rounded-lg border border-amber-300/60 bg-background p-4"
+              >
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium">
+                      {invitation.tenantName ?? invitation.tenantEmail}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {invitation.tenantEmail}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {invitation.property.name}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
+                    Meghívó elküldve
+                  </span>
+                </div>
               </div>
             ))}
           </div>

@@ -66,6 +66,7 @@ export const propertyRouter = createTRPCRouter({
           wifiNetworks: true,
           commonFees: { with: { paymentsTracking: true } },
           propertyTaxes: true,
+          tenantInvitations: true,
           tariffGroup: { with: { tariffs: true } },
           building: true,
           landlordProfile: true,

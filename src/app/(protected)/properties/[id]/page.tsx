@@ -20,6 +20,9 @@ export default async function PropertyDetailPage({
   }
 
   const activeTenancy = property.tenancies.find((t) => t.active);
+  const pendingInvitation = property.tenantInvitations.find(
+    (invitation) => invitation.status === "pending",
+  );
 
   return (
     <div>
@@ -42,6 +45,11 @@ export default async function PropertyDetailPage({
       {property.landlordProfile && (
         <div className="mt-3 inline-flex rounded-full border border-border bg-secondary/50 px-3 py-1 text-xs text-muted-foreground">
           Számlázó profil: <span className="ml-1 font-medium text-foreground">{property.landlordProfile.displayName}</span>
+        </div>
+      )}
+      {pendingInvitation && (
+        <div className="mt-3 rounded-lg border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/20 dark:text-amber-200">
+          Meghívó elküldve: {pendingInvitation.tenantName ?? pendingInvitation.tenantEmail} ({pendingInvitation.tenantEmail})
         </div>
       )}
 
@@ -144,15 +152,22 @@ export default async function PropertyDetailPage({
           <p className="mt-1 font-semibold">
             {activeTenancy
               ? `${activeTenancy.tenant.firstName ?? ""} ${activeTenancy.tenant.lastName ?? activeTenancy.tenant.email}`
-              : "Nincs"}
+              : pendingInvitation
+                ? (pendingInvitation.tenantName ?? pendingInvitation.tenantEmail)
+                : "Nincs"}
           </p>
-          {!activeTenancy && (
+          {!activeTenancy && !pendingInvitation && (
             <Link
               href={`/properties/${property.id}/move-in`}
               className="mt-3 inline-flex rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary"
             >
               Bérlő meghívása
             </Link>
+          )}
+          {pendingInvitation && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Függő meghívó: a tenancy a regisztráció után aktiválódik.
+            </p>
           )}
         </div>
         <div className="rounded-lg border border-border p-4">
