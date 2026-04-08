@@ -1,8 +1,6 @@
-import { UserButton } from "@clerk/nextjs";
-import Link from "next/link";
-
 import { getCurrentLocale } from "@/lib/i18n/server";
 import { getMessages } from "@/lib/i18n/messages";
+import { ProtectedNavigation } from "@/components/layout/protected-navigation";
 
 export default async function ProtectedLayout({
   children,
@@ -12,95 +10,92 @@ export default async function ProtectedLayout({
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
   const managementLinks = [
-    { href: "/dashboard", label: m.common.dashboard },
-    { href: "/properties", label: m.common.properties },
-    { href: "/readings", label: m.common.readings },
-    { href: "/payments", label: m.common.payments },
-    { href: "/tenants", label: m.common.tenants },
-    { href: "/todos", label: m.common.todos },
-    { href: "/messages", label: m.common.messages },
+    {
+      href: "/dashboard",
+      label: m.common.dashboard,
+      icon: "dashboard",
+      description: locale === "hu" ? "Portfólió egészség" : "Portfolio health",
+    },
+    {
+      href: "/properties",
+      label: m.common.properties,
+      icon: "properties",
+      description: locale === "hu" ? "Ingatlanok és egységek" : "Properties and units",
+    },
+    {
+      href: "/readings",
+      label: m.common.readings,
+      icon: "readings",
+      description: locale === "hu" ? "Leolvasások és trendek" : "Readings and trends",
+    },
+    {
+      href: "/payments",
+      label: m.common.payments,
+      icon: "payments",
+      description: locale === "hu" ? "Bejövő pénzmozgás" : "Incoming payments",
+    },
+    {
+      href: "/tenants",
+      label: m.common.tenants,
+      icon: "tenants",
+      description: locale === "hu" ? "Bérlők és meghívók" : "Tenants and invites",
+    },
+    {
+      href: "/todos",
+      label: m.common.todos,
+      icon: "todos",
+      description: locale === "hu" ? "Nyitott feladatok" : "Open tasks",
+    },
+    {
+      href: "/messages",
+      label: m.common.messages,
+      icon: "messages",
+      description: locale === "hu" ? "Kommunikáció" : "Communication",
+    },
   ];
   const analyticsLinks = [
-    { href: "/tariffs", label: m.common.tariffs },
-    { href: "/roi", label: "ROI" },
-    { href: "/billing", label: m.common.billing },
-    { href: "/settings", label: m.common.settings },
+    {
+      href: "/tariffs",
+      label: m.common.tariffs,
+      icon: "tariffs",
+      description: locale === "hu" ? "Tarifák és díjak" : "Tariffs and fees",
+    },
+    {
+      href: "/roi",
+      label: "ROI",
+      icon: "roi",
+      description: locale === "hu" ? "Befektetési analitika" : "Investment analytics",
+    },
+    {
+      href: "/billing",
+      label: m.common.billing,
+      icon: "billing",
+      description: locale === "hu" ? "Számlázás és vevő" : "Invoices and buyers",
+    },
+    {
+      href: "/settings",
+      label: m.common.settings,
+      icon: "settings",
+      description: locale === "hu" ? "Integrációk és profilok" : "Integrations and profiles",
+    },
+  ];
+  const sections = [
+    { title: m.common.management, items: managementLinks },
+    { title: m.common.analytics, items: analyticsLinks },
   ];
 
   return (
     <div className="min-h-screen lg:flex">
-      <aside className="hidden w-64 shrink-0 border-r border-border bg-sidebar p-4 lg:flex lg:flex-col">
-        <div className="mb-6">
-          <Link href="/dashboard" className="text-xl font-bold">
-            {m.common.appName}
-          </Link>
-        </div>
-        <nav className="flex flex-col gap-0.5 text-sm">
-          <span className="mb-1 mt-2 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {m.common.management}
-          </span>
-          {managementLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-md px-3 py-2 hover:bg-sidebar-accent"
-            >
-              {link.label}
-            </Link>
-          ))}
-
-          <span className="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {m.common.analytics}
-          </span>
-          {analyticsLinks.slice(0, 2).map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-md px-3 py-2 hover:bg-sidebar-accent"
-            >
-              {link.label}
-            </Link>
-          ))}
-
-          <div className="my-3 border-t border-border" />
-
-          {analyticsLinks.slice(2).map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-md px-3 py-2 hover:bg-sidebar-accent"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-auto pt-6">
-          <UserButton />
-        </div>
-      </aside>
+      <ProtectedNavigation
+        appName={m.common.appName}
+        sections={sections}
+        createPropertyLabel={m.dashboardPage.createProperty}
+      />
 
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur lg:hidden">
-          <div className="flex items-center justify-between px-4 py-3">
-            <Link href="/dashboard" className="text-base font-semibold">
-              {m.common.appName}
-            </Link>
-            <UserButton />
-          </div>
-          <nav className="flex gap-2 overflow-x-auto px-4 pb-3 text-sm">
-            {[...managementLinks, ...analyticsLinks].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="shrink-0 rounded-full border border-border px-3 py-2 hover:bg-secondary"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </header>
-
-        <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 overflow-auto p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8 lg:pb-8">
+          {children}
+        </main>
       </div>
     </div>
   );
