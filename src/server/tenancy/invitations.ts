@@ -18,12 +18,12 @@ const moveInChecklistSteps = [
 export async function createMoveInChecklist(
   database: typeof db,
   propertyId: number,
-  tenantId: number,
+  tenantId?: number | null,
 ) {
   for (const step of moveInChecklistSteps) {
     await database.insert(handoverChecklists).values({
       propertyId,
-      tenantId,
+      tenantId: tenantId ?? null,
       checklistType: "move_in",
       step,
     });

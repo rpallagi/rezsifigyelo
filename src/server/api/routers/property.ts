@@ -68,6 +68,9 @@ export const propertyRouter = createTRPCRouter({
           commonFees: { with: { paymentsTracking: true } },
           propertyTaxes: true,
           tenantInvitations: true,
+          handoverChecklists: {
+            orderBy: (c, { asc }) => [asc(c.createdAt)],
+          },
           tariffGroup: { with: { tariffs: true } },
           building: true,
           landlordProfile: true,

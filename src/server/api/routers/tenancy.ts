@@ -157,6 +157,7 @@ export const tenancyRouter = createTRPCRouter({
           active: true,
         })
         .returning();
+      await createMoveInChecklist(ctx.db, input.propertyId);
 
       // Optionally send invitation
       if (input.sendInvitation && tenantEmail) {
