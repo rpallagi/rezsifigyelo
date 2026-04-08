@@ -28,7 +28,7 @@ export const readingRouter = createTRPCRouter({
       .innerJoin(properties, eq(meterReadings.propertyId, properties.id))
       .where(eq(properties.landlordId, ctx.dbUser.id))
       .orderBy(desc(meterReadings.readingDate))
-      .limit(200);
+      .limit(200); // cap at 200 most-recent readings for the readings overview page
   }),
 
   list: protectedProcedure

@@ -35,4 +35,3 @@ next-env.d.ts
 
 # drizzle
 drizzle/meta
-package-lock.json
