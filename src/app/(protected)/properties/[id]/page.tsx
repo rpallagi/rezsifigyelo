@@ -345,26 +345,28 @@ export default async function PropertyDetailPage({
 
             <div className="rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50">
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                Bérlő és vevő
+                Bérlő
               </p>
               <p className="mt-4 text-lg font-semibold tracking-tight">{tenantLabel}</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Vevő: {buyerName}
-              </p>
-              <div className="mt-4 space-y-2 text-sm">
-                <p>
-                  <span className="font-medium">Számlázási email:</span>{" "}
-                  {buyerEmail ?? "Nincs megadva"}
+              {activeTenancy && (
+                <div className="mt-4 space-y-2 text-sm">
+                  {buyerEmail && (
+                    <p>
+                      <span className="font-medium">Email:</span> {buyerEmail}
+                    </p>
+                  )}
+                  {activeTenancy.tenantPhone && (
+                    <p>
+                      <span className="font-medium">Telefon:</span> {activeTenancy.tenantPhone}
+                    </p>
+                  )}
+                </div>
+              )}
+              {!activeTenancy && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Adj hozzá bérlőt a beköltözés menüpontban.
                 </p>
-                <p>
-                  <span className="font-medium">Vevő típus:</span>{" "}
-                  {property.billingBuyerType === "company" ? "Cég" : "Magánszemély"}
-                </p>
-                <p>
-                  <span className="font-medium">Adószám:</span>{" "}
-                  {property.billingTaxNumber ?? "Nincs"}
-                </p>
-              </div>
+              )}
             </div>
           </div>
         </div>

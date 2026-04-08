@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import {
@@ -125,6 +126,7 @@ export const propertyRouter = createTRPCRouter({
           landlordProfileId,
         })
         .returning();
+      revalidatePath("/properties");
       return property;
     }),
 
@@ -174,6 +176,8 @@ export const propertyRouter = createTRPCRouter({
         .where(
           and(eq(properties.id, id), eq(properties.landlordId, ctx.dbUser.id)),
         );
+      revalidatePath("/properties");
+      revalidatePath(`/properties/${id}`);
     }),
 
   archive: landlordProcedure

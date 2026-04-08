@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/trpc/react";
 
 export default function NewPropertyPage() {
@@ -16,14 +17,6 @@ export default function NewPropertyPage() {
   const [contactEmail, setContactEmail] = useState("");
   const [billingName, setBillingName] = useState("");
   const [billingEmail, setBillingEmail] = useState("");
-  const [billingAddress, setBillingAddress] = useState("");
-  const [billingTaxNumber, setBillingTaxNumber] = useState("");
-  const [billingBuyerType, setBillingBuyerType] = useState<"individual" | "company">(
-    "individual",
-  );
-  const [billingVatCode, setBillingVatCode] = useState<"TAM" | "AAM" | "27">("TAM");
-  const [billingMode, setBillingMode] = useState<"advance" | "arrears">("advance");
-  const [billingDueDay, setBillingDueDay] = useState("5");
   const [landlordProfileId, setLandlordProfileId] = useState("");
   const [monthlyRent, setMonthlyRent] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
@@ -49,12 +42,6 @@ export default function NewPropertyPage() {
       contactEmail: contactEmail || undefined,
       billingName: billingName || undefined,
       billingEmail: billingEmail || undefined,
-      billingAddress: billingAddress || undefined,
-      billingTaxNumber: billingTaxNumber || undefined,
-      billingBuyerType,
-      billingVatCode,
-      billingMode,
-      billingDueDay: Number(billingDueDay || 5),
       landlordProfileId: landlordProfileId ? Number(landlordProfileId) : undefined,
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
@@ -74,16 +61,87 @@ export default function NewPropertyPage() {
       <h1 className="text-2xl font-bold">Új ingatlan</h1>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+        {/* Landlord profile - FIRST */}
+        <fieldset className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 dark:bg-primary/10">
+          <legend className="px-2 text-sm font-semibold">Ki adja ki? <span className="text-destructive">*</span></legend>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Válaszd ki melyik kiadó entitás (céged, magánszemélyként te, vagy vagyonközösség) állítja ki a számlákat ennél az ingatlannál.
+          </p>
+          {landlordProfiles && landlordProfiles.length > 0 ? (
+            <div className="space-y-2">
+              {landlordProfiles.map((profile) => (
+                <label
+                  key={profile.id}
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition ${
+                    landlordProfileId === String(profile.id)
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/20"
+                      : "border-border hover:bg-secondary/50"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="landlordProfile"
+                    value={profile.id}
+                    checked={landlordProfileId === String(profile.id)}
+                    onChange={(e) => setLandlordProfileId(e.target.value)}
+                    className="accent-primary"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">{profile.displayName}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        profile.profileType === "company"
+                          ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                          : profile.profileType === "co_ownership"
+                            ? "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300"
+                            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      }`}>
+                        {profile.profileType === "company" ? "Cég" : profile.profileType === "co_ownership" ? "Közösség" : "Magán"}
+                      </span>
+                      {profile.isDefault && (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          alapértelmezett
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {profile.billingName}{profile.taxNumber ? ` · ${profile.taxNumber}` : ""}
+                    </p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border bg-background/80 p-4 text-center">
+              <p className="text-sm text-muted-foreground">Még nincs kiadói profilod.</p>
+              <Link
+                href="/settings/landlord-profiles"
+                className="mt-2 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Kiadói profil létrehozása
+              </Link>
+            </div>
+          )}
+          {landlordProfiles && landlordProfiles.length > 0 && (
+            <Link
+              href="/settings/landlord-profiles"
+              className="mt-3 inline-flex text-xs text-muted-foreground hover:text-foreground"
+            >
+              Profilok kezelése →
+            </Link>
+          )}
+        </fieldset>
+
         {/* Name */}
         <div>
           <label className="block text-sm font-medium">
-            Név <span className="text-destructive">*</span>
+            Megnevezés <span className="text-destructive">*</span>
           </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="pl. 1. Lakás, Üzlet, Garázs"
+            placeholder="pl. Portyázó lakás, Astoria üzlet, Garázs"
             required
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
@@ -166,32 +224,9 @@ export default function NewPropertyPage() {
         </fieldset>
 
         <fieldset className="rounded-lg border border-border p-4">
-          <legend className="px-2 text-sm font-medium">Bérbeadói profil</legend>
+          <legend className="px-2 text-sm font-medium">Vevő adatok (opcionális)</legend>
           <p className="mb-4 text-xs text-muted-foreground">
-            Ez határozza meg, melyik kiállító entitás alatt fog futni a számlázás ennél az ingatlannál.
-          </p>
-          <div>
-            <label className="block text-xs text-muted-foreground">Kiállító profil</label>
-            <select
-              value={landlordProfileId}
-              onChange={(e) => setLandlordProfileId(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Alapértelmezett profil</option>
-              {landlordProfiles?.map((profile) => (
-                <option key={profile.id} value={profile.id}>
-                  {profile.displayName}
-                </option>
-              ))}
-            </select>
-          </div>
-        </fieldset>
-
-        <fieldset className="rounded-lg border border-border p-4">
-          <legend className="px-2 text-sm font-medium">Vevő / számlacímzett alapadatok</legend>
-          <p className="mb-4 text-xs text-muted-foreground">
-            A billing oldal ezt a profilt használja elsődleges vevőadatként. Ha üres,
-            fallbackként az aktív bérlőt vagy a kapcsolattartót használja.
+            Ha a bérlő más néven vagy emailre kéri a számlát. Üresen hagyva a bérlő adatait használjuk.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -200,6 +235,7 @@ export default function NewPropertyPage() {
                 type="text"
                 value={billingName}
                 onChange={(e) => setBillingName(e.target.value)}
+                placeholder="Üresen hagyva: bérlő neve"
                 className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
@@ -209,74 +245,7 @@ export default function NewPropertyPage() {
                 type="email"
                 value={billingEmail}
                 onChange={(e) => setBillingEmail(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs text-muted-foreground">Számlázási cím</label>
-              <input
-                type="text"
-                value={billingAddress}
-                onChange={(e) => setBillingAddress(e.target.value)}
-                placeholder="pl. 1222 Budapest, Portyázó út 32"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground">Vevő típusa</label>
-              <select
-                value={billingBuyerType}
-                onChange={(e) =>
-                  setBillingBuyerType(e.target.value as "individual" | "company")
-                }
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="individual">Magánszemély</option>
-                <option value="company">Cég</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground">
-                Adószám {billingBuyerType === "company" ? "*" : ""}
-              </label>
-              <input
-                type="text"
-                value={billingTaxNumber}
-                onChange={(e) => setBillingTaxNumber(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground">ÁFA / adózási kód</label>
-              <select
-                value={billingVatCode}
-                onChange={(e) => setBillingVatCode(e.target.value as "TAM" | "AAM" | "27")}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="TAM">TAM</option>
-                <option value="AAM">AAM</option>
-                <option value="27">27% ÁFA</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground">Számlázás módja</label>
-              <select
-                value={billingMode}
-                onChange={(e) => setBillingMode(e.target.value as "advance" | "arrears")}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="advance">Előre számlázás</option>
-                <option value="arrears">Utólagos számlázás</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground">Fizetési határnap</label>
-              <input
-                type="number"
-                min="1"
-                max="31"
-                value={billingDueDay}
-                onChange={(e) => setBillingDueDay(e.target.value)}
+                placeholder="Üresen hagyva: bérlő email"
                 className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
