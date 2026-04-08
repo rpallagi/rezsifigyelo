@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { useLocale } from "@/components/providers/locale-provider";
 import { api } from "@/trpc/react";
@@ -15,6 +15,54 @@ function startOfMonth() {
 
 function today() {
   return new Date().toISOString().split("T")[0]!;
+}
+
+function StatusChip({
+  children,
+  tone = "neutral",
+}: {
+  children: ReactNode;
+  tone?: "success" | "warning" | "danger" | "neutral";
+}) {
+  const toneClass =
+    tone === "success"
+      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+      : tone === "warning"
+        ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+        : tone === "danger"
+          ? "bg-destructive/10 text-destructive"
+          : "bg-secondary text-foreground";
+
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${toneClass}`}>
+      {children}
+    </span>
+  );
+}
+
+function ContextCard({
+  label,
+  value,
+  detail,
+  badge,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  badge?: ReactNode;
+}) {
+  return (
+    <div className="rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          {label}
+        </p>
+        {badge}
+      </div>
+      <p className="mt-4 text-lg font-semibold tracking-tight">{value}</p>
+      {detail && <p className="mt-2 text-sm text-muted-foreground">{detail}</p>}
+    </div>
+  );
 }
 
 export function BillingClient() {
@@ -106,9 +154,71 @@ export function BillingClient() {
     }
   })();
 
+  const providerConfigured = invoiceSettings?.configured ?? false;
+  const buyerPreviewName =
+    preview.data?.buyer.name ??
+    selectedProperty?.billingName ??
+    selectedProperty?.contactName ??
+    messages.common.none;
+  const readinessTone = preview.data
+    ? preview.data.canSendToProvider
+      ? "success"
+      : "warning"
+    : providerConfigured
+      ? "success"
+      : "neutral";
+
   return (
     <div className="space-y-8">
-      <section className="rounded-2xl border border-border p-4 sm:p-6">
+      <section className="rounded-[32px] bg-gradient-to-br from-background via-card to-secondary/40 p-5 shadow-sm ring-1 ring-border/60 sm:p-7">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-2xl">
+            <h2 className="text-2xl font-semibold tracking-tight">
+              {messages.billingPage.createInvoice}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {messages.billingPage.providerDescription}
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {messages.billingPage.providerInfo}
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:w-[560px] xl:grid-cols-3">
+            <ContextCard
+              label={messages.billingPage.selectedScope}
+              value={selectedPropertyName ?? messages.common.none}
+              detail={selectedProperty?.address ?? messages.billingPage.chooseProperty}
+            />
+            <ContextCard
+              label={messages.billingPage.activeSellerProfile}
+              value={selectedProfile?.displayName ?? messages.common.none}
+              detail={selectedProfile?.billingName ?? messages.billingPage.chooseLandlordProfile}
+              badge={
+                selectedProfile ? (
+                  <StatusChip tone="success">{messages.billingPage.sellerSectionTitle}</StatusChip>
+                ) : undefined
+              }
+            />
+            <ContextCard
+              label={messages.billingPage.readinessTitle}
+              value={
+                preview.data
+                  ? preview.data.canSendToProvider
+                    ? messages.billingPage.readyToSend
+                    : messages.billingPage.notReadyToSend
+                  : providerConfigured
+                    ? messages.billingPage.providerReady
+                    : messages.billingPage.previewPlaceholder
+              }
+              detail={buyerPreviewName}
+              badge={<StatusChip tone={readinessTone}>{messages.billingPage.providerTitle}</StatusChip>}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-[28px] bg-card/90 p-4 shadow-sm ring-1 ring-border/60 sm:p-6">
         <h2 className="text-lg font-semibold">{messages.billingPage.providerTitle}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {messages.billingPage.providerDescription}
@@ -153,14 +263,27 @@ export function BillingClient() {
         </div>
 
         {selectedProfile && (
-          <div className="mt-4 rounded-2xl border border-border bg-secondary/30 p-4 text-sm">
-            <p className="font-medium">{selectedProfile.displayName}</p>
-            <p className="mt-1 text-muted-foreground">
+          <div className="mt-4 rounded-[24px] bg-background/80 p-4 text-sm ring-1 ring-border/50">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold">{selectedProfile.displayName}</p>
+                <p className="mt-1 text-muted-foreground">
+                  {selectedProfile.billingName}
+                  {selectedProfile.taxNumber ? ` · ${selectedProfile.taxNumber}` : ""}
+                </p>
+              </div>
+              <StatusChip tone={providerConfigured ? "success" : "warning"}>
+                {providerConfigured
+                  ? messages.billingPage.providerReady
+                  : messages.billingPage.saveProvider}
+              </StatusChip>
+            </div>
+            <p className="mt-2 text-muted-foreground">
               {selectedProfile.billingName}
-              {selectedProfile.taxNumber ? ` · ${selectedProfile.taxNumber}` : ""}
             </p>
+            <p className="mt-1 text-muted-foreground">{selectedProfile.billingAddress ?? messages.common.noAddress}</p>
             <p className="mt-1 text-muted-foreground">
-              {selectedProfile.billingAddress ?? messages.common.noAddress}
+              {selectedProfile.billingEmail ?? messages.common.none}
             </p>
           </div>
         )}
@@ -201,7 +324,7 @@ export function BillingClient() {
           <span>{messages.billingPage.eInvoice}</span>
         </label>
 
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="mt-5 flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={() =>
@@ -227,7 +350,7 @@ export function BillingClient() {
           )}
         </div>
 
-        <div className="mt-5 rounded-2xl border border-border bg-secondary/30 p-4">
+        <div className="mt-5 rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50">
           <h3 className="text-sm font-medium">{messages.billingPage.providerChecklistTitle}</h3>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
             <li>{messages.billingPage.providerChecklistAgent}</li>
@@ -237,7 +360,7 @@ export function BillingClient() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border p-4 sm:p-6">
+      <section className="rounded-[28px] bg-card/90 p-4 shadow-sm ring-1 ring-border/60 sm:p-6">
         <h2 className="text-lg font-semibold">{messages.billingPage.createInvoice}</h2>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <div>
@@ -286,6 +409,40 @@ export function BillingClient() {
           </div>
         </div>
 
+        <div className="mt-5 grid gap-3 lg:grid-cols-3">
+          <ContextCard
+            label={messages.billingPage.selectedScope}
+            value={selectedPropertyName ?? messages.common.none}
+            detail={selectedProperty?.address ?? messages.billingPage.chooseProperty}
+          />
+          <ContextCard
+            label={messages.billingPage.activeSellerProfile}
+            value={selectedProperty?.landlordProfile?.displayName ?? messages.common.none}
+            detail={
+              selectedProperty?.landlordProfile?.billingName ?? messages.billingPage.chooseLandlordProfile
+            }
+            badge={
+              selectedProperty?.landlordProfile ? (
+                <StatusChip tone="success">{messages.billingPage.sellerSectionTitle}</StatusChip>
+              ) : undefined
+            }
+          />
+          <ContextCard
+            label={messages.billingPage.buyerSectionTitle}
+            value={buyerPreviewName}
+            detail={preview.data?.buyer.email ?? selectedProperty?.billingEmail ?? messages.common.none}
+            badge={
+              preview.data ? (
+                <StatusChip tone={preview.data.buyer.buyerType === "company" ? "warning" : "neutral"}>
+                  {preview.data.buyer.buyerType === "company"
+                    ? messages.billingPage.buyerTypeCompany
+                    : messages.billingPage.buyerTypeIndividual}
+                </StatusChip>
+              ) : undefined
+            }
+          />
+        </div>
+
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div>
             <label className="block text-sm font-medium">{messages.billingPage.periodFrom}</label>
@@ -308,7 +465,7 @@ export function BillingClient() {
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="rounded-xl border border-border p-3 text-sm">
+          <label className="rounded-[20px] bg-background/80 p-3 text-sm ring-1 ring-border/50">
             <input
               type="checkbox"
               checked={includeRent}
@@ -317,7 +474,7 @@ export function BillingClient() {
             />
             {messages.billingPage.includeRent}
           </label>
-          <label className="rounded-xl border border-border p-3 text-sm">
+          <label className="rounded-[20px] bg-background/80 p-3 text-sm ring-1 ring-border/50">
             <input
               type="checkbox"
               checked={includeCommonFees}
@@ -326,7 +483,7 @@ export function BillingClient() {
             />
             {messages.billingPage.includeCommonFees}
           </label>
-          <label className="rounded-xl border border-border p-3 text-sm">
+          <label className="rounded-[20px] bg-background/80 p-3 text-sm ring-1 ring-border/50">
             <input
               type="checkbox"
               checked={includeReadings}
@@ -335,7 +492,7 @@ export function BillingClient() {
             />
             {messages.billingPage.includeReadings}
           </label>
-          <label className="rounded-xl border border-border p-3 text-sm">
+          <label className="rounded-[20px] bg-background/80 p-3 text-sm ring-1 ring-border/50">
             <input
               type="checkbox"
               checked={sendToProvider}
@@ -356,7 +513,7 @@ export function BillingClient() {
           />
         </div>
 
-        <div className="mt-6 rounded-2xl border border-border bg-card p-4">
+        <div className="mt-6 rounded-[24px] bg-background/70 p-4 ring-1 ring-border/50">
           <h3 className="font-medium">{messages.billingPage.preview}</h3>
 
           {preview.error ? (
@@ -367,8 +524,8 @@ export function BillingClient() {
             </p>
           ) : (
             <div className="mt-4 space-y-3">
-              <div className="grid gap-3 rounded-xl border border-border bg-secondary/30 p-4 md:grid-cols-3">
-                <div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-[20px] bg-card p-4 ring-1 ring-border/50">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {messages.billingPage.readinessTitle}
                   </p>
@@ -402,7 +559,7 @@ export function BillingClient() {
                   </p>
                 </div>
 
-                <div>
+                <div className="rounded-[20px] bg-card p-4 ring-1 ring-border/50">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {messages.billingPage.sellerSectionTitle}
                   </p>
@@ -432,7 +589,7 @@ export function BillingClient() {
                   </p>
                 </div>
 
-                <div>
+                <div className="rounded-[20px] bg-card p-4 ring-1 ring-border/50">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {messages.billingPage.buyerSectionTitle}
                   </p>
@@ -483,6 +640,61 @@ export function BillingClient() {
                 </div>
               </div>
 
+              <div className="grid gap-3 md:grid-cols-[1.4fr_0.9fr]">
+                <div className="rounded-[20px] bg-card p-4 ring-1 ring-border/50">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {messages.billingPage.invoiceList}
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {preview.data.items.map((item, index) => (
+                      <div
+                        key={`${item.description}-${index}`}
+                        className="flex flex-col gap-1 rounded-[18px] bg-background/80 p-3 ring-1 ring-border/40 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div>
+                          <p className="font-medium">{item.description}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.quantity} {item.unit}
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold">
+                          {item.grossAmountHuf.toLocaleString(intlLocale)} {messages.common.currencyCode}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[20px] bg-card p-4 ring-1 ring-border/50">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {messages.billingPage.invoiceTotal}
+                  </p>
+                  <p className="mt-4 text-3xl font-semibold tracking-tight">
+                    {preview.data.grossTotalHuf.toLocaleString(intlLocale)} {messages.common.currencyCode}
+                  </p>
+                  <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                    <p>
+                      <span className="font-medium text-foreground">
+                        {messages.billingPage.issueDateLabel}:
+                      </span>{" "}
+                      {new Date(preview.data.issueDate).toLocaleDateString(intlLocale)}
+                    </p>
+                    <p>
+                      <span className="font-medium text-foreground">
+                        {messages.billingPage.dueDateLabel}:
+                      </span>{" "}
+                      {new Date(preview.data.dueDate).toLocaleDateString(intlLocale)}
+                    </p>
+                    <p>
+                      <span className="font-medium text-foreground">
+                        {messages.billingPage.vatCodeLabel}:
+                      </span>{" "}
+                      {preview.data.billingDefaults.vatCode}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {preview.data.blockers.length > 0 && (
                 <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
                   <p className="text-sm font-medium text-destructive">
@@ -509,38 +721,6 @@ export function BillingClient() {
                 </div>
               )}
 
-              {preview.data.items.map((item, index) => (
-                <div
-                  key={`${item.description}-${index}`}
-                  className="flex flex-col gap-1 rounded-xl border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="font-medium">{item.description}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.quantity} {item.unit}
-                    </p>
-                  </div>
-                  <p className="text-sm font-semibold">
-                    {item.grossAmountHuf.toLocaleString(intlLocale)} {messages.common.currencyCode}
-                  </p>
-                </div>
-              ))}
-
-              <div className="rounded-xl bg-secondary/50 p-4 text-sm">
-                <p>
-                  {messages.billingPage.invoiceTotal}:{" "}
-                  <span className="font-semibold">
-                    {preview.data.grossTotalHuf.toLocaleString(intlLocale)} {messages.common.currencyCode}
-                  </span>
-                </p>
-                <p className="mt-1 text-muted-foreground">
-                  {messages.billingPage.issueDateLabel}:{" "}
-                  {new Date(preview.data.issueDate).toLocaleDateString(intlLocale)}
-                  {" · "}
-                  {messages.billingPage.dueDateLabel}:{" "}
-                  {new Date(preview.data.dueDate).toLocaleDateString(intlLocale)}
-                </p>
-              </div>
             </div>
           )}
         </div>
@@ -589,7 +769,7 @@ export function BillingClient() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border p-4 sm:p-6">
+      <section className="rounded-[28px] bg-card/90 p-4 shadow-sm ring-1 ring-border/60 sm:p-6">
         <h2 className="text-lg font-semibold">{messages.billingPage.invoiceList}</h2>
 
         {invoices?.length ? (
@@ -597,7 +777,7 @@ export function BillingClient() {
             {invoices.map((invoice) => (
               <div
                 key={invoice.id}
-                className="rounded-xl border border-border p-4"
+                className="rounded-[22px] bg-background/80 p-4 ring-1 ring-border/50"
               >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
