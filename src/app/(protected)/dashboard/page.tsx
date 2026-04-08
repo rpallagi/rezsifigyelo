@@ -53,10 +53,10 @@ function HeroStat({
 export default async function DashboardPage() {
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
-  const [user, properties, landlordProfiles] = await Promise.all([
+  const [user, properties, landlordProfileCount] = await Promise.all([
     api.user.me(),
     api.property.list(),
-    api.landlordProfile.list(),
+    api.landlordProfile.count(),
   ]);
 
   const totalProperties = properties.length;
@@ -209,7 +209,7 @@ export default async function DashboardPage() {
         />
         <HeroStat
           label={copy.profiles}
-          value={formatNumber(landlordProfiles.length, locale)}
+          value={formatNumber(landlordProfileCount, locale)}
           detail={formatNumber(properties.length - pendingAssignments, locale)}
           href="/settings/landlord-profiles"
         />

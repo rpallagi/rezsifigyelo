@@ -1,7 +1,7 @@
 import { getCurrentLocale } from "@/lib/i18n/server";
 import { getMessages } from "@/lib/i18n/messages";
 import { ProtectedNavigation } from "@/components/layout/protected-navigation";
-import { api, HydrateClient } from "@/trpc/server";
+import { HydrateClient } from "@/trpc/server";
 
 export default async function ProtectedLayout({
   children,
@@ -10,8 +10,6 @@ export default async function ProtectedLayout({
 }) {
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
-  void api.user.me.prefetch();
-  void api.property.list.prefetch();
   const managementLinks = [
     {
       href: "/dashboard",

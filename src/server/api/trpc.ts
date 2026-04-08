@@ -1,6 +1,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
+import { cache } from "react";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
@@ -38,25 +39,9 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
 export const createCallerFactory = t.createCallerFactory;
 export const createTRPCRouter = t.router;
 
-const timingMiddleware = t.middleware(async ({ next, path }) => {
-  const start = Date.now();
-  const result = await next();
-  const end = Date.now();
-
-  if (end - start > 500) {
-    console.log(`[TRPC] ${path} took ${end - start}ms (slow)`);
-  }
-
-  return result;
-});
-
-const ensureUserMiddleware = t.middleware(async ({ ctx, next }) => {
-  if (!ctx.userId) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
-  }
-
-  let dbUser = await ctx.db.query.users.findFirst({
-    where: eq(users.clerkId, ctx.userId),
+const getEnsuredDbUser = cache(async (userId: string) => {
+  let dbUser = await db.query.users.findFirst({
+    where: eq(users.clerkId, userId),
   });
 
   if (!dbUser) {
@@ -71,7 +56,7 @@ const ensureUserMiddleware = t.middleware(async ({ ctx, next }) => {
       )?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress ?? "",
     );
 
-    const [inserted] = await ctx.db
+    const [inserted] = await db
       .insert(users)
       .values({
         clerkId: clerkUser.id,
@@ -101,7 +86,37 @@ const ensureUserMiddleware = t.middleware(async ({ ctx, next }) => {
     });
   }
 
-  dbUser = await activatePendingTenantInvitations(ctx.db, dbUser);
+  return activatePendingTenantInvitations(db, dbUser);
+});
+
+const getAdminAccess = cache(async (userId: string) => isAdmin(userId));
+
+const getLandlordAccess = cache(async (dbUser: typeof users.$inferSelect) => {
+  if (dbUser.role !== "landlord") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Landlord access required" });
+  }
+
+  await ensureDefaultLandlordProfile(db, dbUser);
+  return dbUser;
+});
+
+const timingMiddleware = t.middleware(async ({ next, path }) => {
+  const start = Date.now();
+  const result = await next();
+  const end = Date.now();
+
+  if (end - start > 500) {
+    console.log(`[TRPC] ${path} took ${end - start}ms (slow)`);
+  }
+
+  return result;
+});
+
+const ensureUserMiddleware = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.userId) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  const dbUser = await getEnsuredDbUser(ctx.userId);
 
   return next({ ctx: { userId: ctx.userId, dbUser } });
 });
@@ -117,7 +132,7 @@ const ensureAdminMiddleware = t.middleware(async ({ ctx, next }) => {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
 
-  const admin = await isAdmin(ctx.userId);
+  const admin = await getAdminAccess(ctx.userId);
   if (!admin) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
   }
@@ -135,11 +150,10 @@ export const adminProcedure = t.procedure
  */
 const ensureLandlordMiddleware = t.middleware(async ({ ctx, next }) => {
   const dbUser = (ctx as { dbUser?: typeof users.$inferSelect }).dbUser;
-  if (dbUser?.role !== "landlord") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Landlord access required" });
+  if (!dbUser) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
   }
-
-  await ensureDefaultLandlordProfile(ctx.db, dbUser);
+  await getLandlordAccess(dbUser);
   return next();
 });
 

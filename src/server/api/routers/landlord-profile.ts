@@ -22,8 +22,6 @@ const landlordProfileInput = z.object({
 
 export const landlordProfileRouter = createTRPCRouter({
   list: landlordProcedure.query(async ({ ctx }) => {
-    await ensureDefaultLandlordProfile(ctx.db, ctx.dbUser);
-
     const profiles = await ctx.db.query.landlordProfiles.findMany({
       where: eq(landlordProfiles.ownerUserId, ctx.dbUser.id),
       orderBy: [asc(landlordProfiles.displayName)],
@@ -37,6 +35,15 @@ export const landlordProfileRouter = createTRPCRouter({
       configured: !!profile.agentKey,
       propertyCount: profile.properties.length,
     }));
+  }),
+
+  count: landlordProcedure.query(async ({ ctx }) => {
+    const profiles = await ctx.db.query.landlordProfiles.findMany({
+      where: eq(landlordProfiles.ownerUserId, ctx.dbUser.id),
+      columns: { id: true },
+    });
+
+    return profiles.length;
   }),
 
   getDefault: landlordProcedure.query(async ({ ctx }) => {
