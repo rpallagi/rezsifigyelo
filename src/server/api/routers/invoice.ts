@@ -35,6 +35,90 @@ function roundAmount(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+function resolveBuyer(
+  property: Awaited<ReturnType<typeof buildInvoicePreview>>["property"],
+  activeTenancy: Awaited<ReturnType<typeof buildInvoicePreview>>["activeTenancy"],
+) {
+  const tenantDisplayName =
+    `${activeTenancy?.tenant.firstName ?? ""} ${activeTenancy?.tenant.lastName ?? ""}`.trim();
+  const propertyContactName = property.contactName?.trim() ?? "";
+  const propertyName = property.name.trim();
+
+  if (tenantDisplayName.length > 0) {
+    return {
+      name: tenantDisplayName,
+      email: activeTenancy?.tenant.email ?? null,
+      address: property.address ?? null,
+      source: "tenant" as const,
+    };
+  }
+
+  if (activeTenancy?.tenant.email) {
+    return {
+      name: activeTenancy.tenant.email,
+      email: activeTenancy.tenant.email,
+      address: property.address ?? null,
+      source: "tenant_email" as const,
+    };
+  }
+
+  if (propertyContactName.length > 0) {
+    return {
+      name: propertyContactName,
+      email: property.contactEmail ?? null,
+      address: property.address ?? null,
+      source: "property_contact" as const,
+    };
+  }
+
+  return {
+    name: propertyName,
+    email: property.contactEmail ?? null,
+    address: property.address ?? null,
+    source: "property_name" as const,
+  };
+}
+
+function buildInvoiceReadiness(params: {
+  activeTenancy: Awaited<ReturnType<typeof buildInvoicePreview>>["activeTenancy"];
+  buyer: ReturnType<typeof resolveBuyer>;
+  agentKeyConfigured: boolean;
+  itemCount: number;
+}) {
+  const warnings: string[] = [];
+  const blockers: string[] = [];
+
+  if (!params.activeTenancy) {
+    warnings.push(
+      "Nincs aktív bérlő ennél az ingatlannál. A rendszer a kapcsolattartó vagy az ingatlan nevét használja vevőként.",
+    );
+  }
+
+  if (!params.buyer.email) {
+    warnings.push(
+      "Nincs vevő email megadva. A számla létrejöhet, de emailben nem lesz kiküldve.",
+    );
+  }
+
+  if (!params.agentKeyConfigured) {
+    blockers.push("A Számlázz.hu Agent kulcs még nincs beállítva.");
+  }
+
+  if (!params.buyer.address) {
+    blockers.push("A Számlázz.hu küldéshez teljes ingatlancím szükséges.");
+  }
+
+  if (params.itemCount === 0) {
+    blockers.push("Nincs számlázható tétel a kiválasztott időszakban.");
+  }
+
+  return {
+    warnings,
+    blockers,
+    canSendToProvider: blockers.length === 0,
+  };
+}
+
 const previewInputSchema = z.object({
   propertyId: z.number(),
   periodFrom: z.string(),
@@ -239,6 +323,13 @@ export const invoiceRouter = createTRPCRouter({
 
   preview: landlordProcedure.input(previewInputSchema).query(async ({ ctx, input }) => {
     const preview = await buildInvoicePreview(ctx, input);
+    const buyer = resolveBuyer(preview.property, preview.activeTenancy);
+    const readiness = buildInvoiceReadiness({
+      activeTenancy: preview.activeTenancy,
+      buyer,
+      agentKeyConfigured: preview.settings.agentKey.length > 10,
+      itemCount: preview.items.length,
+    });
 
     return {
       property: {
@@ -255,6 +346,12 @@ export const invoiceRouter = createTRPCRouter({
             email: preview.activeTenancy.tenant.email,
           }
         : null,
+      buyer: {
+        name: buyer.name,
+        email: buyer.email,
+        address: buyer.address,
+        source: buyer.source,
+      },
       issueDate: preview.issueDate,
       dueDate: preview.dueDate,
       items: preview.items,
@@ -262,6 +359,9 @@ export const invoiceRouter = createTRPCRouter({
       vatTotalHuf: preview.vatTotalHuf,
       grossTotalHuf: preview.grossTotalHuf,
       providerReady: preview.settings.agentKey.length > 10,
+      warnings: readiness.warnings,
+      blockers: readiness.blockers,
+      canSendToProvider: readiness.canSendToProvider,
     };
   }),
 
@@ -273,6 +373,13 @@ export const invoiceRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const preview = await buildInvoicePreview(ctx, input);
+      const buyer = resolveBuyer(preview.property, preview.activeTenancy);
+      const readiness = buildInvoiceReadiness({
+        activeTenancy: preview.activeTenancy,
+        buyer,
+        agentKeyConfigured: preview.settings.agentKey.length > 10,
+        itemCount: preview.items.length,
+      });
 
       if (preview.items.length === 0) {
         throw new TRPCError({
@@ -281,20 +388,9 @@ export const invoiceRouter = createTRPCRouter({
         });
       }
 
-      const tenantDisplayName = `${preview.activeTenancy?.tenant.firstName ?? ""} ${preview.activeTenancy?.tenant.lastName ?? ""}`.trim();
-      const buyerName =
-        [
-          tenantDisplayName,
-          preview.activeTenancy?.tenant.email,
-          preview.property.contactName,
-          preview.property.name,
-        ].find((value) => value != null && value.trim().length > 0) ??
-        preview.property.name;
-
-      const buyerEmail =
-        preview.activeTenancy?.tenant.email ?? preview.property.contactEmail ?? null;
-
-      const buyerAddress = preview.property.address;
+      const buyerName = buyer.name;
+      const buyerEmail = buyer.email;
+      const buyerAddress = buyer.address;
       const externalId = `rezsi-${preview.property.id}-${Date.now()}`;
 
       const [invoice] = await ctx.db
@@ -346,17 +442,10 @@ export const invoiceRouter = createTRPCRouter({
       );
 
       if (input.sendToProvider) {
-        if (!preview.settings.agentKey) {
+        if (!readiness.canSendToProvider) {
           throw new TRPCError({
             code: "PRECONDITION_FAILED",
-            message: "A Számlázz.hu agent kulcs még nincs beállítva",
-          });
-        }
-
-        if (!buyerAddress) {
-          throw new TRPCError({
-            code: "PRECONDITION_FAILED",
-            message: "A számlázáshoz az ingatlannál teljes cím szükséges",
+            message: readiness.blockers[0] ?? "A számla még nem küldhető a Számlázz.hu felé",
           });
         }
 
@@ -372,7 +461,7 @@ export const invoiceRouter = createTRPCRouter({
           buyer: {
             name: buyerName,
             email: buyerEmail,
-            rawAddress: buyerAddress,
+            rawAddress: buyerAddress ?? "",
           },
           items: preview.items,
         });

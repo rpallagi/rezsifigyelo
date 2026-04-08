@@ -76,12 +76,30 @@ export function BillingClient() {
   const selectedPropertyName =
     properties?.find((property) => property.id === propertyId)?.name ?? null;
 
+  const buyerSourceLabel = (() => {
+    switch (preview.data?.buyer.source) {
+      case "tenant":
+        return messages.billingPage.buyerSourceTenant;
+      case "tenant_email":
+        return messages.billingPage.buyerSourceTenantEmail;
+      case "property_contact":
+        return messages.billingPage.buyerSourcePropertyContact;
+      case "property_name":
+        return messages.billingPage.buyerSourcePropertyName;
+      default:
+        return messages.common.none;
+    }
+  })();
+
   return (
     <div className="space-y-8">
       <section className="rounded-2xl border border-border p-4 sm:p-6">
         <h2 className="text-lg font-semibold">{messages.billingPage.providerTitle}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {messages.billingPage.providerDescription}
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {messages.billingPage.providerInfo}
         </p>
 
         <div className="mt-5 grid gap-4 md:grid-cols-[1fr_180px]">
@@ -142,6 +160,15 @@ export function BillingClient() {
               {messages.billingPage.providerReady}
             </span>
           )}
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-border bg-secondary/30 p-4">
+          <h3 className="text-sm font-medium">{messages.billingPage.providerChecklistTitle}</h3>
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <li>{messages.billingPage.providerChecklistAgent}</li>
+            <li>{messages.billingPage.providerChecklistBuyer}</li>
+            <li>{messages.billingPage.providerChecklistAddress}</li>
+          </ul>
         </div>
       </section>
 
@@ -256,6 +283,84 @@ export function BillingClient() {
             </p>
           ) : (
             <div className="mt-4 space-y-3">
+              <div className="grid gap-3 rounded-xl border border-border bg-secondary/30 p-4 md:grid-cols-2">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {messages.billingPage.readinessTitle}
+                  </p>
+                  <p className="mt-2 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.providerStatusLabel}:
+                    </span>{" "}
+                    {preview.data.canSendToProvider
+                      ? messages.billingPage.readyToSend
+                      : messages.billingPage.notReadyToSend}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.activeTenantLabel}:
+                    </span>{" "}
+                    {preview.data.tenant?.name ?? messages.common.noTenant}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {messages.billingPage.buyerSectionTitle}
+                  </p>
+                  <p className="mt-2 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.buyerNameLabel}:
+                    </span>{" "}
+                    {preview.data.buyer.name}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.buyerSourceLabel}:
+                    </span>{" "}
+                    {buyerSourceLabel}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.buyerEmailLabel}:
+                    </span>{" "}
+                    {preview.data.buyer.email ?? messages.common.none}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium">
+                      {messages.billingPage.buyerAddressLabel}:
+                    </span>{" "}
+                    {preview.data.buyer.address ?? messages.common.noAddress}
+                  </p>
+                </div>
+              </div>
+
+              {preview.data.blockers.length > 0 && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                  <p className="text-sm font-medium text-destructive">
+                    {messages.billingPage.blockersTitle}
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-destructive">
+                    {preview.data.blockers.map((blocker) => (
+                      <li key={blocker}>{blocker}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {preview.data.warnings.length > 0 && (
+                <div className="rounded-xl border border-amber-300/60 bg-amber-50 p-4 text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
+                  <p className="text-sm font-medium">
+                    {messages.billingPage.warningsTitle}
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm">
+                    {preview.data.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {preview.data.items.map((item, index) => (
                 <div
                   key={`${item.description}-${index}`}
@@ -316,6 +421,11 @@ export function BillingClient() {
               ? messages.billingPage.creating
               : messages.billingPage.createInvoiceAction}
           </button>
+          {sendToProvider && preview.data && !preview.data.canSendToProvider && (
+            <p className="mt-3 text-sm text-destructive">
+              {messages.billingPage.sendBlockedHint}
+            </p>
+          )}
           {createInvoice.data && (
             <p className="mt-3 text-sm text-muted-foreground">
               {createInvoice.data.synced
