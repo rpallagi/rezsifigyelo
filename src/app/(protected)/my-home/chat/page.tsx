@@ -1,17 +1,23 @@
 import { getMessages } from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
+import { api } from "@/trpc/server";
+import { redirect } from "next/navigation";
+import { PropertyChatThread } from "@/components/chat/property-chat-thread";
 
 export default async function TenantChatPage() {
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
+  const activeTenancy = await api.tenancy.myActive();
 
-  // TODO: Get tenant's property and show chat
+  if (!activeTenancy) {
+    redirect("/my-home");
+  }
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold">{m.common.messages}</h1>
-      <p className="mt-4 text-muted-foreground">
-        {m.tenantShell.chatPlaceholder}
-      </p>
-    </div>
+    <PropertyChatThread
+      propertyId={activeTenancy.propertyId}
+      title={`${m.common.messages} - ${activeTenancy.property.name}`}
+      emptyMessage={m.tenantShell.chatPlaceholder}
+    />
   );
 }

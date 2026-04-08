@@ -23,7 +23,7 @@ export default async function PropertyDetailPage({
 
   return (
     <div>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <Link
           href="/properties"
           className="text-sm text-muted-foreground hover:text-foreground"
@@ -41,77 +41,83 @@ export default async function PropertyDetailPage({
       )}
 
       {/* Actions */}
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <Link
           href={`/properties/${property.id}/readings/new`}
-          className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+          className="rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground hover:bg-primary/90"
         >
           + Mérőállás rögzítés
         </Link>
         <Link
           href={`/properties/${property.id}/payments/new`}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+          className="rounded-md border border-border px-4 py-3 text-sm hover:bg-secondary"
         >
           + Befizetés rögzítés
         </Link>
         <Link
+          href={`/billing?propertyId=${property.id}`}
+          className="rounded-md border border-border px-4 py-3 text-sm hover:bg-secondary"
+        >
+          + Számla
+        </Link>
+        <Link
           href={`/properties/${property.id}/meters/new`}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+          className="rounded-md border border-border px-4 py-3 text-sm hover:bg-secondary"
         >
           + Mérőóra
         </Link>
         <Link
           href={`/properties/${property.id}/maintenance/new`}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+          className="rounded-md border border-border px-4 py-3 text-sm hover:bg-secondary"
         >
           + Karbantartás
         </Link>
         <Link
           href={`/properties/${property.id}/wifi/new`}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+          className="rounded-md border border-border px-4 py-3 text-sm hover:bg-secondary"
         >
           + WiFi
         </Link>
         <Link
           href={`/properties/${property.id}/edit`}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+          className="rounded-md border border-border px-4 py-3 text-sm hover:bg-secondary"
         >
           Szerkesztés
         </Link>
         <Link
           href={`/properties/${property.id}/marketing`}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+          className="rounded-md border border-border px-4 py-3 text-sm hover:bg-secondary"
         >
           Marketing
         </Link>
         <Link
           href={`/properties/${property.id}/chat`}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+          className="rounded-md border border-border px-4 py-3 text-sm hover:bg-secondary"
         >
           Chat
         </Link>
         <Link
           href={`/properties/${property.id}/documents/new`}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+          className="rounded-md border border-border px-4 py-3 text-sm hover:bg-secondary"
         >
           + Dokumentum
         </Link>
         <Link
           href={`/properties/${property.id}/common-fees/new`}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+          className="rounded-md border border-border px-4 py-3 text-sm hover:bg-secondary"
         >
           + Közös ktg.
         </Link>
         <Link
           href={`/properties/${property.id}/tax/new`}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+          className="rounded-md border border-border px-4 py-3 text-sm hover:bg-secondary"
         >
           + Adó
         </Link>
         {!activeTenancy && (
           <Link
             href={`/properties/${property.id}/move-in`}
-            className="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
+            className="rounded-md bg-green-600 px-4 py-3 text-sm text-white hover:bg-green-700"
           >
             Beköltözés
           </Link>
@@ -119,7 +125,7 @@ export default async function PropertyDetailPage({
         {activeTenancy && (
           <Link
             href={`/properties/${property.id}/move-out`}
-            className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+            className="rounded-md bg-red-600 px-4 py-3 text-sm text-white hover:bg-red-700"
           >
             Kiköltözés
           </Link>
@@ -202,7 +208,8 @@ export default async function PropertyDetailPage({
             Még nincs mérőállás rögzítve.
           </p>
         ) : (
-          <table className="mt-4 w-full text-sm">
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
                 <th className="pb-2 font-medium">Dátum</th>
@@ -210,6 +217,7 @@ export default async function PropertyDetailPage({
                 <th className="pb-2 font-medium">Állás</th>
                 <th className="pb-2 font-medium">Fogyasztás</th>
                 <th className="pb-2 font-medium">Költség</th>
+                <th className="pb-2 font-medium">Fotó</th>
               </tr>
             </thead>
             <tbody>
@@ -219,17 +227,32 @@ export default async function PropertyDetailPage({
                   <td className="py-2 capitalize">{r.utilityType}</td>
                   <td className="py-2">{r.value}</td>
                   <td className="py-2">
-                    {r.consumption != null ? r.consumption : "—"}
+                    {r.consumption ?? "—"}
                   </td>
                   <td className="py-2">
                     {r.costHuf != null
                       ? `${r.costHuf.toLocaleString("hu-HU")} Ft`
                       : "—"}
                   </td>
+                  <td className="py-2">
+                    {r.photoUrl ? (
+                      <a
+                        href={r.photoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        Fotó
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
 
@@ -241,7 +264,8 @@ export default async function PropertyDetailPage({
             Még nincs befizetés rögzítve.
           </p>
         ) : (
-          <table className="mt-4 w-full text-sm">
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
                 <th className="pb-2 font-medium">Dátum</th>
@@ -264,9 +288,50 @@ export default async function PropertyDetailPage({
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
+
+      {property.invoices.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold">Számlák</h2>
+          <div className="mt-4 space-y-3">
+            {property.invoices.map((invoice) => (
+              <div
+                key={invoice.id}
+                className="rounded-lg border border-border p-4"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-medium">
+                      {invoice.invoiceNumber ?? `#${invoice.id}`}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {invoice.issueDate}
+                    </p>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <p className="font-semibold">
+                      {invoice.grossTotalHuf.toLocaleString("hu-HU")} Ft
+                    </p>
+                    {invoice.pdfUrl && (
+                      <a
+                        href={invoice.pdfUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-sm text-primary hover:underline"
+                      >
+                        PDF
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Maintenance */}
       {property.maintenanceLogs.length > 0 && (

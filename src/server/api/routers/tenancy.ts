@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
+import { clerkClient } from "@clerk/nextjs/server";
 
 import {
   createTRPCRouter,
@@ -15,8 +16,19 @@ import {
   tenancies,
   tenantHistory,
   users,
+  tenantInvitations,
   handoverChecklists,
 } from "@/server/db/schema";
+import { createMoveInChecklist } from "@/server/tenancy/invitations";
+
+function getBaseUrl(headers: Headers) {
+  const origin = headers.get("origin");
+  if (origin) return origin;
+
+  const host = headers.get("x-forwarded-host") ?? headers.get("host");
+  const proto = headers.get("x-forwarded-proto") ?? "https";
+  return host ? `${proto}://${host}` : "http://localhost:3000";
+}
 
 export const tenancyRouter = createTRPCRouter({
   list: landlordProcedure
@@ -74,10 +86,48 @@ export const tenancyRouter = createTRPCRouter({
         where: eq(users.email, tenantEmail),
       });
       if (!tenant) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: "The tenant must sign up before move-in can be started",
+        const existingInvitation = await ctx.db.query.tenantInvitations.findFirst({
+          where: and(
+            eq(tenantInvitations.propertyId, input.propertyId),
+            eq(tenantInvitations.tenantEmail, tenantEmail),
+            eq(tenantInvitations.status, "pending"),
+          ),
         });
+
+        if (existingInvitation) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Ehhez az emailhez már létezik függő meghívó",
+          });
+        }
+
+        const client = await clerkClient();
+        const invitation = await client.invitations.createInvitation({
+          emailAddress: tenantEmail,
+          ignoreExisting: true,
+          notify: true,
+          redirectUrl: `${getBaseUrl(ctx.headers)}/sign-up`,
+        });
+
+        const [pendingInvitation] = await ctx.db
+          .insert(tenantInvitations)
+          .values({
+            landlordId: ctx.dbUser.id,
+            propertyId: input.propertyId,
+            tenantEmail,
+            tenantName: input.tenantName,
+            moveInDate: input.moveInDate,
+            depositAmount: input.depositAmount,
+            clerkInvitationId: invitation.id,
+            status: "pending",
+          })
+          .returning();
+
+        return {
+          success: true,
+          message: "Meghívó elküldve, a tenancy a regisztráció után aktiválódik",
+          invitation: pendingInvitation,
+        };
       }
 
       if (tenant.role !== "tenant") {
@@ -97,23 +147,7 @@ export const tenancyRouter = createTRPCRouter({
           active: true,
         })
         .returning();
-
-      const steps = [
-        "meter_readings",
-        "handover_protocol",
-        "key_handover",
-        "contract_upload",
-      ];
-
-      // Create checklist items
-      for (const step of steps) {
-        await ctx.db.insert(handoverChecklists).values({
-          propertyId: input.propertyId,
-          tenantId: tenant.id,
-          checklistType: "move_in",
-          step,
-        });
-      }
+      await createMoveInChecklist(ctx.db, input.propertyId, tenant.id);
 
       return { success: true, message: "Beköltözés elindítva", tenancy };
     }),

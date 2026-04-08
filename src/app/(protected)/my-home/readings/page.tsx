@@ -13,6 +13,8 @@ export default function TenantReadingsPage() {
   );
   const [ocrLoading, setOcrLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | undefined>();
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { data: activeTenancy, isLoading: tenancyLoading } =
     api.tenancy.myActive.useQuery();
@@ -28,6 +30,26 @@ export default function TenantReadingsPage() {
   const handleOCR = async (file: File) => {
     setOcrLoading(true);
     try {
+      setUploadingPhoto(true);
+      const uploadData = new FormData();
+      uploadData.append("file", file);
+      uploadData.append("folder", "meter-readings");
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadData,
+      });
+      if (uploadRes.ok) {
+        const uploaded: unknown = await uploadRes.json();
+        if (
+          typeof uploaded === "object" &&
+          uploaded !== null &&
+          "url" in uploaded &&
+          typeof uploaded.url === "string"
+        ) {
+          setPhotoUrl(uploaded.url);
+        }
+      }
+
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch("/api/ocr", { method: "POST", body: formData });
@@ -44,6 +66,7 @@ export default function TenantReadingsPage() {
       }
     } finally {
       setOcrLoading(false);
+      setUploadingPhoto(false);
     }
   };
 
@@ -56,6 +79,7 @@ export default function TenantReadingsPage() {
       utilityType: utilityType as "villany",
       value: Number(value),
       readingDate,
+      photoUrl,
       source: "tenant",
     });
   };
@@ -117,14 +141,26 @@ export default function TenantReadingsPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={ocrLoading}
+            disabled={ocrLoading || uploadingPhoto}
             className="rounded-md bg-secondary px-6 py-3 text-sm hover:bg-secondary/80 disabled:opacity-50"
           >
-            {ocrLoading ? messages.tenantShell.processing : messages.tenantShell.takePhoto}
+            {ocrLoading || uploadingPhoto
+              ? messages.tenantShell.processing
+              : messages.tenantShell.takePhoto}
           </button>
           <p className="mt-2 text-xs text-muted-foreground">
             {messages.tenantShell.takePhotoHint}
           </p>
+          {photoUrl && (
+            <a
+              href={photoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-block text-xs text-primary hover:underline"
+            >
+              {messages.tenantShell.photoStored}
+            </a>
+          )}
         </div>
 
         <div>

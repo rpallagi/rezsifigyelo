@@ -8,6 +8,7 @@ import { db } from "@/server/db";
 import { users } from "@/server/db/schema";
 import { isAdmin } from "@/lib/auth/admin";
 import { normalizeEmailAddress } from "@/server/api/access";
+import { activatePendingTenantInvitations } from "@/server/tenancy/invitations";
 
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   const { userId } = await auth();
@@ -98,6 +99,8 @@ const ensureUserMiddleware = t.middleware(async ({ ctx, next }) => {
       message: "Failed to ensure user record",
     });
   }
+
+  dbUser = await activatePendingTenantInvitations(ctx.db, dbUser);
 
   return next({ ctx: { userId: ctx.userId, dbUser } });
 });

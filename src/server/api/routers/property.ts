@@ -47,6 +47,11 @@ export const propertyRouter = createTRPCRouter({
             orderBy: (p, { desc }) => [desc(p.paymentDate)],
             limit: 10,
           },
+          invoices: {
+            orderBy: (i, { desc }) => [desc(i.issueDate)],
+            limit: 10,
+            with: { items: true },
+          },
           maintenanceLogs: {
             orderBy: (m, { desc }) => [desc(m.createdAt)],
             limit: 10,

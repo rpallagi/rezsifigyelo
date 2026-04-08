@@ -10,6 +10,11 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
+  const folderInput = formData.get("folder");
+  const folder =
+    typeof folderInput === "string" && /^[a-z0-9/_-]+$/i.test(folderInput)
+      ? folderInput
+      : "documents";
 
   if (!file) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -20,7 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "File too large (max 10MB)" }, { status: 400 });
   }
 
-  const blob = await put(`documents/${Date.now()}-${file.name}`, file, {
+  const blob = await put(`${folder}/${Date.now()}-${file.name}`, file, {
     access: "public",
   });
 

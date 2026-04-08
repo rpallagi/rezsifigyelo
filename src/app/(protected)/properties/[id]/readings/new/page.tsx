@@ -27,6 +27,8 @@ export default function NewReadingPage() {
   const [notes, setNotes] = useState("");
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState("");
+  const [photoUrl, setPhotoUrl] = useState<string | undefined>();
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createReading = api.reading.record.useMutation({
@@ -41,6 +43,26 @@ export default function NewReadingPage() {
     setOcrError("");
 
     try {
+      setUploadingPhoto(true);
+      const uploadData = new FormData();
+      uploadData.append("file", file);
+      uploadData.append("folder", "meter-readings");
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadData,
+      });
+      if (uploadRes.ok) {
+        const uploaded: unknown = await uploadRes.json();
+        if (
+          typeof uploaded === "object" &&
+          uploaded !== null &&
+          "url" in uploaded &&
+          typeof uploaded.url === "string"
+        ) {
+          setPhotoUrl(uploaded.url);
+        }
+      }
+
       const formData = new FormData();
       formData.append("file", file);
 
@@ -49,18 +71,33 @@ export default function NewReadingPage() {
         body: formData,
       });
 
-      const data = await res.json();
+      const data: unknown = await res.json();
 
-      if (data.success && data.value != null) {
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        "success" in data &&
+        data.success === true &&
+        "value" in data &&
+        typeof data.value === "number"
+      ) {
         setValue(data.value.toString());
         setOcrError("");
+      } else if (
+        typeof data === "object" &&
+        data !== null &&
+        "error" in data &&
+        typeof data.error === "string"
+      ) {
+        setOcrError(data.error);
       } else {
-        setOcrError(data.error ?? "OCR sikertelen");
+        setOcrError("OCR sikertelen");
       }
     } catch {
       setOcrError("Hiba a fotó feldolgozásakor");
     } finally {
       setOcrLoading(false);
+      setUploadingPhoto(false);
     }
   };
 
@@ -71,6 +108,7 @@ export default function NewReadingPage() {
       utilityType: utilityType as "villany",
       value: Number(value),
       readingDate,
+      photoUrl,
       notes: notes || undefined,
     });
   };
@@ -121,11 +159,23 @@ export default function NewReadingPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={ocrLoading}
+            disabled={ocrLoading || uploadingPhoto}
             className="mt-3 rounded-md bg-secondary px-4 py-2 text-sm hover:bg-secondary/80 disabled:opacity-50"
           >
-            {ocrLoading ? "Feldolgozás..." : "Fotó készítés / Feltöltés"}
+            {ocrLoading || uploadingPhoto
+              ? "Feldolgozás..."
+              : "Fotó készítés / Feltöltés"}
           </button>
+          {photoUrl && (
+            <a
+              href={photoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 block text-xs text-primary hover:underline"
+            >
+              Feltöltött fotó megnyitása
+            </a>
+          )}
           {ocrError && (
             <p className="mt-2 text-xs text-destructive">{ocrError}</p>
           )}

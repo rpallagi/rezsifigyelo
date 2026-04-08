@@ -53,6 +53,11 @@ export const invoiceStatusEnum = pgEnum("rezsi_invoice_status", [
   "overdue",
 ]);
 
+export const tenantInvitationStatusEnum = pgEnum(
+  "rezsi_tenant_invitation_status",
+  ["pending", "accepted", "revoked", "expired"],
+);
+
 export const paymentMethodEnum = pgEnum("rezsi_payment_method", [
   "stripe",
   "cash",
@@ -304,6 +309,49 @@ export const tenantHistory = createTable(
 );
 
 // ---------------------------------------------------------------------------
+// Tenant Invitations (meghivasos onboarding)
+// ---------------------------------------------------------------------------
+
+export const tenantInvitations = createTable(
+  "tenant_invitation",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    landlordId: d
+      .integer()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    propertyId: d
+      .integer()
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    tenantEmail: d.varchar({ length: 255 }).notNull(),
+    tenantName: d.varchar({ length: 255 }),
+    moveInDate: d.date(),
+    depositAmount: d.doublePrecision(),
+    clerkInvitationId: d.varchar({ length: 255 }),
+    invitedUserId: d.integer().references(() => users.id, {
+      onDelete: "set null",
+    }),
+    status: tenantInvitationStatusEnum().notNull().default("pending"),
+    invitedAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    acceptedAt: d.timestamp({ withTimezone: true }),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("tenant_invitation_landlord_id_idx").on(t.landlordId),
+    index("tenant_invitation_property_id_idx").on(t.propertyId),
+    index("tenant_invitation_email_idx").on(t.tenantEmail),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Tariffs (díjszabás)
 // ---------------------------------------------------------------------------
 
@@ -413,6 +461,85 @@ export const payments = createTable(
     index("payment_property_id_idx").on(t.propertyId),
     index("payment_date_idx").on(t.paymentDate),
   ],
+);
+
+// ---------------------------------------------------------------------------
+// Invoices (szamlazz.hu sync + local records)
+// ---------------------------------------------------------------------------
+
+export const invoices = createTable(
+  "invoice",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    landlordId: d
+      .integer()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    propertyId: d
+      .integer()
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    tenantId: d.integer().references(() => users.id, { onDelete: "set null" }),
+    status: invoiceStatusEnum().notNull().default("draft"),
+    issueDate: d.date().notNull(),
+    dueDate: d.date(),
+    fulfillmentDate: d.date(),
+    periodFrom: d.date(),
+    periodTo: d.date(),
+    currency: d.varchar({ length: 3 }).notNull().default("HUF"),
+    paymentMethod: paymentMethodEnum().notNull().default("transfer"),
+    invoiceNumber: d.varchar({ length: 100 }),
+    provider: d.varchar({ length: 50 }).notNull().default("szamlazz_hu"),
+    providerInvoiceId: d.varchar({ length: 255 }),
+    pdfUrl: d.text(),
+    buyerName: d.varchar({ length: 255 }).notNull(),
+    buyerEmail: d.varchar({ length: 255 }),
+    buyerAddress: d.text(),
+    note: d.text(),
+    netTotalHuf: d.doublePrecision().notNull().default(0),
+    vatTotalHuf: d.doublePrecision().notNull().default(0),
+    grossTotalHuf: d.doublePrecision().notNull().default(0),
+    emailedToBuyer: d.boolean().notNull().default(false),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("invoice_landlord_id_idx").on(t.landlordId),
+    index("invoice_property_id_idx").on(t.propertyId),
+    index("invoice_status_idx").on(t.status),
+    uniqueIndex("invoice_provider_invoice_id_idx").on(t.providerInvoiceId),
+  ],
+);
+
+export const invoiceItems = createTable(
+  "invoice_item",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    invoiceId: d
+      .integer()
+      .notNull()
+      .references(() => invoices.id, { onDelete: "cascade" }),
+    description: d.varchar({ length: 255 }).notNull(),
+    quantity: d.doublePrecision().notNull().default(1),
+    unit: d.varchar({ length: 20 }).notNull().default("db"),
+    unitPriceHuf: d.doublePrecision().notNull(),
+    netAmountHuf: d.doublePrecision().notNull().default(0),
+    vatRate: d.doublePrecision().notNull().default(0),
+    vatAmountHuf: d.doublePrecision().notNull().default(0),
+    grossAmountHuf: d.doublePrecision().notNull().default(0),
+    utilityType: utilityTypeEnum(),
+    sourceType: d.varchar({ length: 50 }),
+    sourceId: d.integer(),
+    sortOrder: d.integer().notNull().default(0),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  }),
+  (t) => [index("invoice_item_invoice_id_idx").on(t.invoiceId)],
 );
 
 // ---------------------------------------------------------------------------
@@ -807,9 +934,13 @@ export const usersRelations = relations(users, ({ many }) => ({
   subscriptions: many(subscriptions),
   ownedProperties: many(properties, { relationName: "landlord" }),
   tenancies: many(tenancies),
+  tenantInvitations: many(tenantInvitations, { relationName: "invitedTenant" }),
+  sentTenantInvitations: many(tenantInvitations, { relationName: "landlordInviter" }),
   readings: many(meterReadings),
   todos: many(todos),
   sentChatMessages: many(chatMessages),
+  invoices: many(invoices, { relationName: "landlordInvoices" }),
+  tenantInvoices: many(invoices, { relationName: "tenantInvoices" }),
 }));
 
 export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
@@ -851,8 +982,10 @@ export const propertiesRelations = relations(properties, ({ one, many }) => ({
   }),
   tenancies: many(tenancies),
   tenantHistory: many(tenantHistory),
+  tenantInvitations: many(tenantInvitations),
   readings: many(meterReadings),
   payments: many(payments),
+  invoices: many(invoices),
   maintenanceLogs: many(maintenanceLogs),
   todos: many(todos),
   documents: many(documents),
@@ -887,6 +1020,26 @@ export const tenantHistoryRelations = relations(tenantHistory, ({ one }) => ({
   }),
 }));
 
+export const tenantInvitationsRelations = relations(
+  tenantInvitations,
+  ({ one }) => ({
+    landlord: one(users, {
+      fields: [tenantInvitations.landlordId],
+      references: [users.id],
+      relationName: "landlordInviter",
+    }),
+    property: one(properties, {
+      fields: [tenantInvitations.propertyId],
+      references: [properties.id],
+    }),
+    invitedTenant: one(users, {
+      fields: [tenantInvitations.invitedUserId],
+      references: [users.id],
+      relationName: "invitedTenant",
+    }),
+  }),
+);
+
 export const tariffsRelations = relations(tariffs, ({ one }) => ({
   tariffGroup: one(tariffGroups, {
     fields: [tariffs.tariffGroupId],
@@ -920,6 +1073,31 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   property: one(properties, {
     fields: [payments.propertyId],
     references: [properties.id],
+  }),
+}));
+
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
+  landlord: one(users, {
+    fields: [invoices.landlordId],
+    references: [users.id],
+    relationName: "landlordInvoices",
+  }),
+  property: one(properties, {
+    fields: [invoices.propertyId],
+    references: [properties.id],
+  }),
+  tenant: one(users, {
+    fields: [invoices.tenantId],
+    references: [users.id],
+    relationName: "tenantInvoices",
+  }),
+  items: many(invoiceItems),
+}));
+
+export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceItems.invoiceId],
+    references: [invoices.id],
   }),
 }));
 

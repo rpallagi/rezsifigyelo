@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq, and, desc, lt } from "drizzle-orm";
+import { eq, and, desc, lt, lte } from "drizzle-orm";
 
 import {
   createTRPCRouter,
@@ -8,7 +8,7 @@ import {
   protectedProcedure,
 } from "@/server/api/trpc";
 import { requirePropertyAccess } from "@/server/api/access";
-import { meterReadings } from "@/server/db/schema";
+import { meterReadings, properties, tariffs } from "@/server/db/schema";
 
 export const readingRouter = createTRPCRouter({
   list: protectedProcedure
@@ -84,10 +84,30 @@ export const readingRouter = createTRPCRouter({
       const consumption =
         prevValue !== null ? input.value - prevValue : null;
 
-      // Try to find active tariff for cost calculation
-      // (simplified — in full app this goes through tariff group)
-      const costHuf: number | null = null;
-      const tariffId: number | null = null;
+      const property = await ctx.db.query.properties.findFirst({
+        where: eq(properties.id, input.propertyId),
+        columns: {
+          tariffGroupId: true,
+        },
+      });
+
+      let costHuf: number | null = null;
+      let tariffId: number | null = null;
+      if (property?.tariffGroupId && consumption !== null && consumption >= 0) {
+        const activeTariff = await ctx.db.query.tariffs.findFirst({
+          where: and(
+            eq(tariffs.tariffGroupId, property.tariffGroupId),
+            eq(tariffs.utilityType, input.utilityType),
+            lte(tariffs.validFrom, input.readingDate),
+          ),
+          orderBy: [desc(tariffs.validFrom)],
+        });
+
+        if (activeTariff) {
+          tariffId = activeTariff.id;
+          costHuf = consumption * activeTariff.rateHuf;
+        }
+      }
 
       const [reading] = await ctx.db
         .insert(meterReadings)
@@ -106,6 +126,38 @@ export const readingRouter = createTRPCRouter({
           recordedBy: ctx.dbUser.id,
         })
         .returning();
+
+      if (
+        input.utilityType === "viz" &&
+        property?.tariffGroupId &&
+        consumption !== null &&
+        consumption >= 0
+      ) {
+        const sewerTariff = await ctx.db.query.tariffs.findFirst({
+          where: and(
+            eq(tariffs.tariffGroupId, property.tariffGroupId),
+            eq(tariffs.utilityType, "csatorna"),
+            lte(tariffs.validFrom, input.readingDate),
+          ),
+          orderBy: [desc(tariffs.validFrom)],
+        });
+
+        if (sewerTariff) {
+          await ctx.db.insert(meterReadings).values({
+            propertyId: input.propertyId,
+            utilityType: "csatorna",
+            value: input.value,
+            prevValue,
+            consumption,
+            tariffId: sewerTariff.id,
+            costHuf: consumption * sewerTariff.rateHuf,
+            readingDate: input.readingDate,
+            notes: "Automatikusan számolva víz alapján",
+            source: ctx.dbUser.role === "tenant" ? "tenant" : input.source,
+            recordedBy: ctx.dbUser.id,
+          });
+        }
+      }
 
       return reading;
     }),
