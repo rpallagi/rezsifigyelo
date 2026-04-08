@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { api } from "@/trpc/react";
 
 const priorityColors = {
@@ -17,9 +18,37 @@ const statusLabels = {
   done: "Kész",
 };
 
+const checklistLabels: Record<string, string> = {
+  meter_readings: "Kezdő mérőállások rögzítése",
+  contract_upload: "Szerződés feltöltése",
+  handover_protocol: "Átadás-átvételi jegyzőkönyv",
+  key_handover: "Kulcsátadás",
+  final_readings: "Záró mérőállások rögzítése",
+  condition_assessment: "Állapotfelvétel",
+  deposit_settlement: "Kaució elszámolás",
+  key_return: "Kulcsvisszavétel",
+};
+
+function checklistHref(step: string, propertyId: number) {
+  switch (step) {
+    case "meter_readings":
+    case "final_readings":
+      return `/properties/${propertyId}/readings/new`;
+    case "contract_upload":
+    case "handover_protocol":
+    case "condition_assessment":
+      return `/properties/${propertyId}/documents/new`;
+    case "deposit_settlement":
+      return `/properties/${propertyId}/move-out`;
+    default:
+      return `/properties/${propertyId}`;
+  }
+}
+
 export default function TodosPage() {
   const utils = api.useUtils();
   const { data: todos, isLoading } = api.todo.list.useQuery();
+  const { data: properties } = api.property.list.useQuery();
 
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
@@ -48,6 +77,40 @@ export default function TodosPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Feladatok</h1>
+
+      {/* Checklist teendők ingatlanokból */}
+      {properties && properties.some((p) => p.handoverChecklists.length > 0) && (
+        <div className="mt-6 rounded-xl border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-700/60 dark:bg-amber-950/20">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+            Ingatlan teendők
+          </h2>
+          <div className="mt-3 space-y-2">
+            {properties
+              .filter((p) => p.handoverChecklists.length > 0)
+              .flatMap((p) =>
+                p.handoverChecklists.map((c) => (
+                  <Link
+                    key={c.id}
+                    href={checklistHref(c.step, p.id)}
+                    className="flex items-center justify-between rounded-lg border border-amber-200/60 bg-background p-3 transition hover:bg-secondary/50 dark:border-amber-800/40"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {checklistLabels[c.step] ?? c.step}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.name} · {c.checklistType === "move_in" ? "Beköltözés" : "Kiköltözés"}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/60 dark:text-amber-200">
+                      Függő
+                    </span>
+                  </Link>
+                )),
+              )}
+          </div>
+        </div>
+      )}
 
       {/* Quick add */}
       <form onSubmit={handleSubmit} className="mt-6 flex gap-2">

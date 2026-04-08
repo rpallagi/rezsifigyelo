@@ -571,7 +571,7 @@ export default function MoveInWizardPage() {
                     disabled={moveIn.isPending || !tenantName}
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border px-4 py-3 text-sm font-medium transition hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {moveIn.isPending ? "Mentés..." : "Mentés most"}
+                    {moveIn.isPending ? "Mentés..." : "Mentés, folytatom később"}
                   </button>
                   <button
                     type="button"

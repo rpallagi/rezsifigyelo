@@ -86,6 +86,32 @@ export default async function PropertiesPage() {
               </div>
 
               <div className="space-y-4 p-5">
+                {property.handoverChecklists.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                      {property.handoverChecklists.length} nyitott teendő
+                    </span>
+                  </div>
+                )}
+                {property.landlordProfile && (
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                      property.landlordProfile.profileType === "company"
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                        : property.landlordProfile.profileType === "co_ownership"
+                          ? "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300"
+                          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                    }`}>
+                      {property.landlordProfile.profileType === "company"
+                        ? "Cég"
+                        : property.landlordProfile.profileType === "co_ownership"
+                          ? "Közösség"
+                          : "Magán"}
+                      <span className="normal-case tracking-normal">· {property.landlordProfile.displayName}</span>
+                    </span>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-[20px] bg-background/75 px-3 py-3">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">

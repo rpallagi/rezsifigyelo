@@ -27,6 +27,9 @@ export const propertyRouter = createTRPCRouter({
         tariffGroup: true,
         building: true,
         landlordProfile: true,
+        handoverChecklists: {
+          where: (c, { eq }) => eq(c.status, "pending"),
+        },
       },
       orderBy: (p, { asc }) => [asc(p.name)],
     });
