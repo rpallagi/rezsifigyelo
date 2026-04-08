@@ -346,12 +346,6 @@ export default async function PropertyDetailPage({
                     {property.landlordProfile.taxNumber}
                   </p>
                 )}
-                {property.billingTaxNumber && (
-                  <p>
-                    <span className="font-medium">Bérlő adószám:</span>{" "}
-                    {property.billingTaxNumber}
-                  </p>
-                )}
               </div>
             </div>
 
@@ -372,6 +366,14 @@ export default async function PropertyDetailPage({
                       <span className="font-medium">Telefon:</span> {activeTenancy.tenantPhone}
                     </p>
                   )}
+                  <p>
+                    <span className="font-medium">Adószám:</span>{" "}
+                    {property.billingTaxNumber ?? "Nincs megadva"}
+                  </p>
+                  <p>
+                    <span className="font-medium">Típus:</span>{" "}
+                    {property.billingBuyerType === "company" ? "Cég" : "Magánszemély"}
+                  </p>
                 </div>
               )}
               {!activeTenancy && (
