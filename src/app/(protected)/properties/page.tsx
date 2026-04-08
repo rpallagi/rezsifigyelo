@@ -67,7 +67,7 @@ export default async function PropertiesPage() {
                   />
                 ) : (
                   <div
-                    className="h-full w-full"
+                    className="absolute inset-0 h-full w-full"
                     style={{ background: propertyPlaceholder(property.propertyType) }}
                   />
                 )}

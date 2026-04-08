@@ -113,7 +113,7 @@ function PropertyCover({
   imageUrl?: string | null;
 }) {
   if (imageUrl) {
-    return <img src={imageUrl} alt={title} className="h-full w-full object-cover" />;
+    return <img src={imageUrl} alt={title} className="absolute inset-0 h-full w-full object-cover" />;
   }
 
   return (

@@ -224,11 +224,11 @@ export default async function PropertyDetailPage({
             <img
               src={property.avatarUrl}
               alt={property.name}
-              className="h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover"
             />
           ) : (
             <div
-              className="h-full w-full"
+              className="absolute inset-0 h-full w-full"
               style={{
                 background:
                   property.propertyType === "lakas"

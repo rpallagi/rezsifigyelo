@@ -233,10 +233,10 @@ export default function MarketingPage() {
         <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
           <div className="relative aspect-[4/3] overflow-hidden">
             {property?.avatarUrl ? (
-              <img src={property.avatarUrl} alt={property.name} className="h-full w-full object-cover" />
+              <img src={property.avatarUrl} alt={property.name} className="absolute inset-0 h-full w-full object-cover" />
             ) : (
               <div
-                className="h-full w-full"
+                className="absolute inset-0 h-full w-full"
                 style={{ background: propertyPlaceholder(property?.propertyType) }}
               />
             )}
