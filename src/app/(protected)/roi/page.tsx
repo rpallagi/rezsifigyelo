@@ -40,10 +40,10 @@ function StatCard({
   accent: "success" | "warning";
 }) {
   return (
-    <div className="rounded-[28px] bg-card/90 p-6 shadow-sm ring-1 ring-border/60">
+    <div className="rounded-[30px] bg-card/95 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
       <div className="flex items-center justify-between gap-4">
         <div
-          className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+          className={`flex h-11 w-11 items-center justify-center rounded-[18px] ${
             accent === "success"
               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
               : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
@@ -52,7 +52,7 @@ function StatCard({
           <span className="text-xl">{accent === "success" ? "↗" : "⚡"}</span>
         </div>
         <p
-          className={`text-xs font-bold uppercase tracking-[0.22em] ${
+          className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${
             accent === "success" ? "text-emerald-700 dark:text-emerald-300" : "text-amber-800 dark:text-amber-200"
           }`}
         >
@@ -78,10 +78,10 @@ function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[32px] bg-card/90 p-6 shadow-sm ring-1 ring-border/60">
+    <section className="rounded-[32px] bg-card/95 p-6 shadow-[0_24px_50px_rgba(15,23,42,0.05)] dark:shadow-[0_24px_50px_rgba(0,0,0,0.24)]">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-        {subtitle && <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>}
+        {subtitle && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{subtitle}</p>}
       </div>
       <div className="mt-6">{children}</div>
     </section>
@@ -263,9 +263,10 @@ export default async function ROIPage() {
 
   return (
     <div className="space-y-8 pb-10">
-      <section className="rounded-[32px] bg-gradient-to-br from-background via-card to-secondary/40 p-5 shadow-sm ring-1 ring-border/60 sm:p-7">
+      <section className="relative overflow-hidden rounded-[36px] bg-gradient-to-br from-background via-card to-secondary/25 p-5 shadow-[0_24px_60px_rgba(15,23,42,0.06)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.24)] sm:p-7">
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.18),transparent_58%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.12),transparent_58%)]" />
         <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-          <div>
+          <div className="relative z-10">
             <h1 className="text-4xl font-semibold tracking-tight">{m.roiPage.title}</h1>
             <p className="mt-3 text-sm text-muted-foreground">
               {copy.subtitle}
@@ -273,8 +274,25 @@ export default async function ROIPage() {
             <p className="mt-4 text-sm text-muted-foreground">
               {copy.updateLabel}: {new Date().toLocaleDateString(locale === "hu" ? "hu-HU" : "en-US")}
             </p>
+            <div className="mt-5 flex flex-wrap gap-2.5">
+              {bestYield && (
+                <MetricChip tone="success">
+                  {copy.highestYield}: {bestYield.name}
+                </MetricChip>
+              )}
+              {lowestMaintenance && (
+                <MetricChip tone="warning">
+                  {copy.lowestMaintenance}: {lowestMaintenance.name}
+                </MetricChip>
+              )}
+              {fastestBreakEven && (
+                <MetricChip tone="neutral">
+                  {copy.breakEvenStatus}: {fastestBreakEven.name}
+                </MetricChip>
+              )}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="relative z-10 flex flex-wrap gap-3">
             <div className="rounded-2xl bg-background/80 px-4 py-3 text-sm shadow-sm ring-1 ring-border/50">
               {copy.rangeLabel}
             </div>
@@ -302,25 +320,8 @@ export default async function ROIPage() {
         </SectionCard>
       ) : (
         <>
-          <div className="flex flex-wrap gap-4">
-            {bestYield && (
-              <div className="rounded-full bg-card/90 px-4 py-3 shadow-sm ring-1 ring-border/50">
-                <span className="text-sm">
-                  {copy.highestYield}: <span className="font-semibold">{bestYield.name}</span>
-                </span>
-              </div>
-            )}
-            {lowestMaintenance && (
-              <div className="rounded-full bg-card/90 px-4 py-3 shadow-sm ring-1 ring-border/50">
-                <span className="text-sm">
-                  {copy.lowestMaintenance}: <span className="font-semibold">{lowestMaintenance.name}</span>
-                </span>
-              </div>
-            )}
-          </div>
-
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-            <div className="xl:col-span-8 rounded-[32px] bg-gradient-to-br from-primary to-primary-container p-8 text-white shadow-[0_20px_40px_rgba(70,72,212,0.18)]">
+            <div className="xl:col-span-8 rounded-[34px] bg-gradient-to-br from-primary via-primary to-primary-container p-8 text-white shadow-[0_24px_48px_rgba(70,72,212,0.18)]">
               <div className="flex h-full flex-col justify-between gap-8">
                 <div>
                   <p className="text-sm font-medium uppercase tracking-[0.18em] text-white/70">
@@ -378,16 +379,13 @@ export default async function ROIPage() {
           <SectionCard title={copy.yieldBreakdown}>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
               {roiProperties.slice(0, 4).map((property) => {
-                const breakEvenProgress = property.breakEvenYears
-                  ? Math.max(8, Math.min(100, Math.round(100 / property.breakEvenYears)))
-                  : 8;
                 return (
                   <Link
                     key={property.id}
                     href={`/properties/${property.id}`}
-                    className="group rounded-[28px] bg-background/80 p-4 shadow-sm ring-1 ring-border/50 transition hover:-translate-y-1 hover:bg-card"
+                    className="group overflow-hidden rounded-[30px] bg-card/95 p-3 shadow-[0_18px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 dark:shadow-[0_18px_40px_rgba(0,0,0,0.24)]"
                   >
-                    <div className="relative mb-4 h-36 overflow-hidden rounded-[22px]">
+                    <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[24px]">
                       {property.avatarUrl ? (
                         <img
                           src={property.avatarUrl}
@@ -400,62 +398,68 @@ export default async function ROIPage() {
                           style={{ background: placeholderCover(property.propertyType) }}
                         />
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
-                      <div className="absolute right-3 top-3 rounded-lg bg-white/90 px-2 py-1 text-[10px] font-bold uppercase text-slate-900 shadow-sm">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
+                      <div className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-900 shadow-sm">
                         {propertyTypeLabel(property.propertyType)}
+                      </div>
+                      <div className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                            {copy.highestYield}
+                          </p>
+                          <p className="mt-1 text-2xl font-semibold text-white">
+                            {formatPercent(property.roi)}
+                          </p>
+                        </div>
+                        <div className="rounded-full bg-white/12 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur">
+                          {property.breakEvenYears?.toFixed(1) ?? "—"} {locale === "hu" ? "év" : "yr"}
+                        </div>
                       </div>
                     </div>
 
-                    <div>
+                    <div className="px-1">
                       <h3 className="truncate font-semibold tracking-tight">{property.name}</h3>
                       <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                         {property.address ?? m.common.noAddress}
                       </p>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between border-y border-border/50 py-3">
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                          {copy.highestYield}
+                    <div className="mt-4 grid grid-cols-2 gap-2.5">
+                      <div className="rounded-[22px] bg-background/75 px-3 py-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          {copy.netRent}
                         </p>
-                        <p className="mt-1 text-2xl font-semibold text-emerald-600 dark:text-emerald-300">
-                          {formatPercent(property.roi)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                          {m.roiPage.breakEven}
-                        </p>
-                        <p className="mt-1 text-lg font-semibold">
-                          {property.breakEvenYears?.toFixed(1) ?? "—"} {locale === "hu" ? "év" : "yr"}
+                        <p className="mt-1 text-base font-semibold">
+                          {formatCurrency(property.monthlyRent ?? 0, locale)}
                         </p>
                       </div>
-                    </div>
-
-                    <div className="mt-4 space-y-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">{copy.netRent}</span>
-                        <span className="font-medium">{formatCurrency(property.monthlyRent ?? 0, locale)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">{copy.maintenance}</span>
-                        <span className="font-medium text-rose-600 dark:text-rose-300">
+                      <div className="rounded-[22px] bg-background/75 px-3 py-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          {copy.maintenance}
+                        </p>
+                        <p className="mt-1 text-base font-semibold text-rose-600 dark:text-rose-300">
                           {formatCurrency(property.maintenanceEstimate, locale)}
-                        </span>
+                        </p>
                       </div>
                     </div>
 
-                    <div className="mt-5">
-                      <div className="mb-2 flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    <div className="mt-4 rounded-[22px] bg-background/70 px-4 py-3">
+                      <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                         <span>{copy.breakEvenStatus}</span>
                         <span className="text-primary">
                           {property.breakEvenYears?.toFixed(1) ?? "—"} {copy.remaining}
                         </span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary/60">
                         <div
                           className="h-full rounded-full bg-primary"
-                          style={{ width: `${breakEvenProgress}%` }}
+                          style={{
+                            width: `${
+                              property.breakEvenYears
+                                ? Math.max(10, Math.min(100, Math.round(100 / property.breakEvenYears)))
+                                : 10
+                            }%`,
+                          }}
                         />
                       </div>
                     </div>
@@ -522,12 +526,12 @@ export default async function ROIPage() {
                 {alerts.map((alert) => (
                   <div
                     key={alert.title}
-                    className={`rounded-[22px] bg-background/80 p-4 ring-1 ${
+                    className={`rounded-[24px] p-4 ${
                       alert.tone === "danger"
-                        ? "ring-rose-300/60"
+                        ? "bg-rose-50/80 text-rose-950 dark:bg-rose-950/20 dark:text-rose-50"
                         : alert.tone === "success"
-                          ? "ring-emerald-300/60"
-                          : "ring-primary/30"
+                          ? "bg-emerald-50/80 text-emerald-950 dark:bg-emerald-950/20 dark:text-emerald-50"
+                          : "bg-indigo-50/80 text-indigo-950 dark:bg-indigo-950/20 dark:text-indigo-50"
                     }`}
                   >
                     <p
@@ -541,7 +545,7 @@ export default async function ROIPage() {
                     >
                       {alert.title}
                     </p>
-                    <p className="mt-2 text-sm text-muted-foreground">{alert.body}</p>
+                    <p className="mt-2 text-sm text-current/72">{alert.body}</p>
                   </div>
                 ))}
                 <button

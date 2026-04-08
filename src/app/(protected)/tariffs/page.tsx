@@ -1,4 +1,5 @@
 import { api } from "@/trpc/server";
+import Link from "next/link";
 
 export default async function TariffsPage() {
   const groups = await api.tariff.listGroups();
@@ -7,12 +8,12 @@ export default async function TariffsPage() {
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Tarifák</h1>
-        <a
+        <Link
           href="/tariffs/new"
           className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
         >
           + Új csoport
-        </a>
+        </Link>
       </div>
 
       {groups.length === 0 ? (
@@ -25,14 +26,24 @@ export default async function TariffsPage() {
           {groups.map((group) => (
             <div key={group.id} className="rounded-lg border border-border p-6">
               <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">{group.name}</h3>
-              <a
-                href={`/tariffs/${group.id}/new-tariff`}
-                className="rounded-md border border-border px-3 py-1 text-xs hover:bg-secondary"
-              >
-                + Tarifa
-              </a>
-            </div>
+                <div>
+                  <h3 className="text-lg font-semibold">{group.name}</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/tariffs/${group.id}/edit`}
+                    className="rounded-md border border-border px-3 py-1 text-xs hover:bg-secondary"
+                  >
+                    Szerkesztés
+                  </Link>
+                  <Link
+                    href={`/tariffs/${group.id}/new-tariff`}
+                    className="rounded-md border border-border px-3 py-1 text-xs hover:bg-secondary"
+                  >
+                    + Tarifa
+                  </Link>
+                </div>
+              </div>
               {group.description && (
                 <p className="mt-1 text-sm text-muted-foreground">
                   {group.description}

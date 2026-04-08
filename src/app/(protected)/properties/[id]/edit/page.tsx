@@ -37,10 +37,13 @@ export default function EditPropertyPage() {
   const [purchasePrice, setPurchasePrice] = useState("");
   const [notes, setNotes] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [buildingPropertyId, setBuildingPropertyId] = useState<string>("");
 
   const { data: allProperties } = api.property.list.useQuery();
   const { data: landlordProfiles } = api.landlordProfile.list.useQuery();
+  const utils = api.useUtils();
 
   useEffect(() => {
     if (property) {
@@ -62,20 +65,21 @@ export default function EditPropertyPage() {
       setMonthlyRent(property.monthlyRent?.toString() ?? "");
       setPurchasePrice(property.purchasePrice?.toString() ?? "");
       setNotes(property.notes ?? "");
+      setAvatarUrl(property.avatarUrl ?? "");
       setBuildingPropertyId(property.buildingPropertyId?.toString() ?? "");
     }
   }, [property]);
 
   const updateProperty = api.property.update.useMutation({
-    onSuccess: () => {
-      router.push(`/properties/${propertyId}`);
-      router.refresh();
+    onSuccess: async () => {
+      await utils.property.get.invalidate({ id: propertyId });
+      await utils.property.list.invalidate();
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateProperty.mutate({
+    await updateProperty.mutateAsync({
       id: propertyId,
       name,
       propertyType,
@@ -96,7 +100,10 @@ export default function EditPropertyPage() {
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
       notes: notes || undefined,
       buildingPropertyId: buildingPropertyId ? Number(buildingPropertyId) : undefined,
+      avatarUrl: avatarUrl || undefined,
     });
+    router.push(`/properties/${propertyId}`);
+    router.refresh();
   };
 
   const typeLabels = {
@@ -359,9 +366,9 @@ export default function EditPropertyPage() {
         {/* Avatar */}
         <div>
           <label className="block text-sm font-medium">Ingatlan fotó</label>
-          {property?.avatarUrl && (
+          {avatarUrl && (
             <Image
-              src={property.avatarUrl}
+              src={avatarUrl}
               alt={property.name}
               width={96}
               height={96}
@@ -375,26 +382,51 @@ export default function EditPropertyPage() {
               const file = e.target.files?.[0];
               if (!file) return;
               setAvatarUploading(true);
+              setAvatarError("");
               try {
                 const formData = new FormData();
                 formData.append("file", file);
+                formData.append("folder", "property-avatars");
+
                 const res = await fetch("/api/upload", { method: "POST", body: formData });
                 const payload: unknown = await res.json();
+
+                if (!res.ok) {
+                  if (
+                    payload &&
+                    typeof payload === "object" &&
+                    "error" in payload &&
+                    typeof payload.error === "string"
+                  ) {
+                    throw new Error(payload.error);
+                  }
+                  throw new Error("Az upload nem sikerült.");
+                }
+
                 if (
                   payload &&
                   typeof payload === "object" &&
                   "url" in payload &&
                   typeof payload.url === "string"
                 ) {
-                  updateProperty.mutate({ id: propertyId, avatarUrl: payload.url });
+                  await updateProperty.mutateAsync({ id: propertyId, avatarUrl: payload.url });
+                  setAvatarUrl(payload.url);
+                } else {
+                  throw new Error("Az upload válasza érvénytelen.");
                 }
+              } catch (error) {
+                setAvatarError(
+                  error instanceof Error ? error.message : "A thumbnail feltöltése nem sikerült.",
+                );
               } finally {
                 setAvatarUploading(false);
+                e.currentTarget.value = "";
               }
             }}
             className="mt-2 text-sm"
           />
           {avatarUploading && <p className="mt-1 text-xs text-muted-foreground">Feltöltés...</p>}
+          {avatarError && <p className="mt-1 text-xs text-destructive">{avatarError}</p>}
         </div>
 
         <div>

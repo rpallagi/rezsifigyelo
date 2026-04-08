@@ -13,6 +13,17 @@ export const tariffRouter = createTRPCRouter({
     });
   }),
 
+  getGroup: landlordProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireTariffGroupAccess(ctx, input.id);
+
+      return ctx.db.query.tariffGroups.findFirst({
+        where: eq(tariffGroups.id, input.id),
+        with: { tariffs: { orderBy: [desc(tariffs.validFrom)] } },
+      });
+    }),
+
   createGroup: landlordProcedure
     .input(
       z.object({
@@ -25,6 +36,28 @@ export const tariffRouter = createTRPCRouter({
         .insert(tariffGroups)
         .values({ landlordId: ctx.dbUser.id, ...input })
         .returning();
+      return group;
+    }),
+
+  updateGroup: landlordProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        name: z.string().min(1),
+        description: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireTariffGroupAccess(ctx, input.id);
+
+      const { id, ...data } = input;
+
+      const [group] = await ctx.db
+        .update(tariffGroups)
+        .set(data)
+        .where(eq(tariffGroups.id, id))
+        .returning();
+
       return group;
     }),
 
