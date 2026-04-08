@@ -1,6 +1,7 @@
 import { api } from "@/trpc/server";
 import { getMessages } from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
+import Link from "next/link";
 
 export default async function TenantsPage() {
   const locale = await getCurrentLocale();
@@ -10,10 +11,52 @@ export default async function TenantsPage() {
   const allTenancies = properties.flatMap((p) =>
     p.tenancies.map((t) => ({ ...t, propertyName: p.name })),
   );
+  const vacantProperties = properties.filter(
+    (property) => !property.tenancies.some((tenancy) => tenancy.active),
+  );
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">{m.tenantsPage.title}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{m.tenantsPage.title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Bérlőt az ingatlanhoz kötve tudsz felvenni. Ha megadod az email címet,
+            a rendszer meghívót küld és aktiválja a bérlői hozzáférést.
+          </p>
+        </div>
+        <Link
+          href="/properties"
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+        >
+          Ingatlanok megnyitása
+        </Link>
+      </div>
+
+      {vacantProperties.length > 0 && (
+        <div className="mt-6 rounded-xl border border-border p-4">
+          <h2 className="text-lg font-semibold">Bérlő nélkül álló ingatlanok</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {vacantProperties.map((property) => (
+              <div
+                key={property.id}
+                className="rounded-lg border border-border p-4"
+              >
+                <p className="font-medium">{property.name}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {property.address ?? m.common.noAddress}
+                </p>
+                <Link
+                  href={`/properties/${property.id}/move-in`}
+                  className="mt-3 inline-flex rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+                >
+                  Bérlő hozzáadása
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {allTenancies.length === 0 ? (
         <p className="mt-8 text-muted-foreground">

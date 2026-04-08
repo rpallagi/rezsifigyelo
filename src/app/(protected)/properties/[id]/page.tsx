@@ -119,7 +119,7 @@ export default async function PropertyDetailPage({
             href={`/properties/${property.id}/move-in`}
             className="rounded-md bg-green-600 px-4 py-3 text-sm text-white hover:bg-green-700"
           >
-            Beköltözés
+            + Bérlő hozzáadása
           </Link>
         )}
         {activeTenancy && (
@@ -141,6 +141,14 @@ export default async function PropertyDetailPage({
               ? `${activeTenancy.tenant.firstName ?? ""} ${activeTenancy.tenant.lastName ?? activeTenancy.tenant.email}`
               : "Nincs"}
           </p>
+          {!activeTenancy && (
+            <Link
+              href={`/properties/${property.id}/move-in`}
+              className="mt-3 inline-flex rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary"
+            >
+              Bérlő meghívása
+            </Link>
+          )}
         </div>
         <div className="rounded-lg border border-border p-4">
           <h3 className="text-sm text-muted-foreground">Mérők</h3>
