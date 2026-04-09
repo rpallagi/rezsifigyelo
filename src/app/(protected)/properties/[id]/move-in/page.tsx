@@ -212,7 +212,7 @@ export default function MoveInWizardPage() {
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-[24px] bg-background/80 px-4 py-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Ingtalan
+                  Ingatlan
                 </p>
                 <p className="mt-2 text-lg font-semibold tracking-tight">{property.name}</p>
               </div>

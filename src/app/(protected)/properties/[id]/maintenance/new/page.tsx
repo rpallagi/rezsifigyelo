@@ -30,7 +30,7 @@ const categoryCards: {
 }[] = [
   {
     value: "javitas",
-    label: "Javitas",
+    label: "Javítás",
     icon: Wrench,
     color: "text-primary",
     selectedBg: "bg-primary/10",
@@ -39,7 +39,7 @@ const categoryCards: {
   },
   {
     value: "karbantartas",
-    label: "Karbantartas",
+    label: "Karbantartás",
     icon: ShieldCheck,
     color: "text-emerald-600",
     selectedBg: "bg-emerald-50 dark:bg-emerald-950/30",
@@ -48,7 +48,7 @@ const categoryCards: {
   },
   {
     value: "felujitas",
-    label: "Felujitas",
+    label: "Felújítás",
     icon: Hammer,
     color: "text-amber-600",
     selectedBg: "bg-amber-50 dark:bg-amber-950/30",
@@ -82,7 +82,7 @@ const priorities: {
   },
   {
     value: "normal",
-    label: "Normal",
+    label: "Normál",
     className:
       "border-border text-foreground hover:bg-secondary",
     selectedClassName:
@@ -90,7 +90,7 @@ const priorities: {
   },
   {
     value: "urgent",
-    label: "Surgos",
+    label: "Sürgős",
     className:
       "border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30",
     selectedClassName:
@@ -231,7 +231,7 @@ export default function NewMaintenancePage() {
           Vissza
         </button>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Karbantartas rogzites
+          Karbantartás rögzítés
         </h1>
         {property && (
           <p className="mt-1 text-sm text-muted-foreground">
@@ -245,7 +245,7 @@ export default function NewMaintenancePage() {
         {/* Category cards */}
         <div>
           <label className="mb-3 block text-sm font-medium">
-            Kategoria <span className="text-destructive">*</span>
+            Kategória <span className="text-destructive">*</span>
           </label>
           <div className="grid grid-cols-2 gap-3">
             {categoryCards.map((cat) => {
@@ -287,21 +287,21 @@ export default function NewMaintenancePage() {
         {/* Description */}
         <div>
           <label className="mb-2 block text-sm font-medium">
-            Leiras <span className="text-destructive">*</span>
+            Leírás <span className="text-destructive">*</span>
           </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
             required
-            placeholder="Mi a problema? Mit kell csinalni?"
+            placeholder="Mi a probléma? Mit kell csinálni?"
             className="w-full rounded-[16px] border border-border/60 bg-background px-4 py-3 text-sm ring-1 ring-border/60 transition focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
         {/* Priority */}
         <div>
-          <label className="mb-3 block text-sm font-medium">Prioritas</label>
+          <label className="mb-3 block text-sm font-medium">Prioritás</label>
           <div className="flex gap-2">
             {priorities.map((p) => (
               <button
@@ -322,7 +322,7 @@ export default function NewMaintenancePage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium">
-              Koltseg (Ft)
+              Költség (Ft)
             </label>
             <input
               type="number"
@@ -333,7 +333,7 @@ export default function NewMaintenancePage() {
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium">Datum</label>
+            <label className="mb-2 block text-sm font-medium">Dátum</label>
             <input
               type="date"
               value={performedDate}
@@ -346,20 +346,20 @@ export default function NewMaintenancePage() {
         {/* Performed by */}
         <div>
           <label className="mb-2 block text-sm font-medium">
-            Ki vegezte?
+            Ki végezte?
           </label>
           <input
             type="text"
             value={performedBy}
             onChange={(e) => setPerformedBy(e.target.value)}
-            placeholder="pl. Kiss Janos villanyszerelo"
+            placeholder="pl. Kiss János villanyszerelő"
             className="w-full rounded-[16px] border border-border/60 bg-background px-4 py-3 text-sm ring-1 ring-border/60 transition focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
         {/* Photos */}
         <div>
-          <label className="mb-3 block text-sm font-medium">Fotok</label>
+          <label className="mb-3 block text-sm font-medium">Fotók</label>
           <div className="rounded-[24px] border border-border/60 bg-card p-4 ring-1 ring-border/60">
             {photos.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-3">
@@ -461,7 +461,7 @@ export default function NewMaintenancePage() {
               className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
             >
               <Upload className="h-4 w-4" />
-              {uploading ? "Feltoltes..." : "Dokumentum hozzaadasa"}
+              {uploading ? "Feltöltés..." : "Dokumentum hozzáadása"}
             </button>
             <input
               ref={docInputRef}
@@ -481,14 +481,14 @@ export default function NewMaintenancePage() {
             disabled={!description || createLog.isPending || uploading}
             className="rounded-2xl bg-primary px-8 py-3 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
           >
-            {createLog.isPending ? "Mentes..." : "Mentes"}
+            {createLog.isPending ? "Mentés..." : "Mentés"}
           </button>
           <button
             type="button"
             onClick={() => router.push(`/properties/${propertyId}`)}
             className="rounded-2xl border border-border/70 px-8 py-3 text-sm font-medium transition hover:bg-secondary"
           >
-            Megse
+            Mégse
           </button>
         </div>
       </form>

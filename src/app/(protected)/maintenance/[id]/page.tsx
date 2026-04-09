@@ -38,19 +38,19 @@ function categoryMeta(category: MaintenanceCategory) {
   switch (category) {
     case "javitas":
       return {
-        label: "Javitas",
+        label: "Javítás",
         badge: "bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary-foreground",
         icon: Wrench,
       };
     case "karbantartas":
       return {
-        label: "Karbantartas",
+        label: "Karbantartás",
         badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
         icon: ShieldCheck,
       };
     case "felujitas":
       return {
-        label: "Felujitas",
+        label: "Felújítás",
         badge: "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300",
         icon: Hammer,
       };
@@ -72,12 +72,12 @@ function priorityBadge(priority: string) {
       };
     case "urgent":
       return {
-        label: "Surgos",
+        label: "Sürgős",
         className: "bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300",
       };
     default:
       return {
-        label: "Normal",
+        label: "Normál",
         className: "bg-secondary text-muted-foreground",
       };
   }
@@ -87,7 +87,7 @@ function statusBadge(status: MaintenanceStatus) {
   switch (status) {
     case "pending":
       return {
-        label: "Fuggoben",
+        label: "Függőben",
         className: "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300",
       };
     case "in_progress":
@@ -97,7 +97,7 @@ function statusBadge(status: MaintenanceStatus) {
       };
     case "done":
       return {
-        label: "Kesz",
+        label: "Kész",
         className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
       };
   }
@@ -218,7 +218,7 @@ export default function MaintenanceDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <p className="text-muted-foreground">Betoltes...</p>
+        <p className="text-muted-foreground">Betöltés...</p>
       </div>
     );
   }
@@ -226,7 +226,7 @@ export default function MaintenanceDetailPage() {
   if (error || !log) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-24">
-        <p className="text-muted-foreground">Nem talalhato karbantartasi bejegyzes.</p>
+        <p className="text-muted-foreground">Nem található karbantartási bejegyzés.</p>
         <Link
           href="/maintenance"
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
@@ -273,7 +273,7 @@ export default function MaintenanceDetailPage() {
       active: status === "in_progress" || status === "done",
     },
     {
-      label: "Kesz",
+      label: "Kész",
       date: formatDateHu(performedDate),
       active: status === "done",
     },
@@ -311,7 +311,7 @@ export default function MaintenanceDetailPage() {
               className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"
             >
               <Check className="h-4 w-4" />
-              Kesz
+              Kész
             </button>
           )}
           {!confirmDelete ? (
@@ -322,11 +322,11 @@ export default function MaintenanceDetailPage() {
               className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:opacity-50 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300"
             >
               <Trash2 className="h-4 w-4" />
-              Torles
+              Törlés
             </button>
           ) : (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-rose-600">Biztosan torlod?</span>
+              <span className="text-sm text-rose-600">Biztosan törlöd?</span>
               <button
                 type="button"
                 onClick={() => deleteMutation.mutate({ id })}
@@ -341,7 +341,7 @@ export default function MaintenanceDetailPage() {
                 onClick={() => setConfirmDelete(false)}
                 className="inline-flex items-center gap-1 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary"
               >
-                Megse
+                Mégse
               </button>
             </div>
           )}
@@ -395,7 +395,7 @@ export default function MaintenanceDetailPage() {
       {/* Timeline */}
       <div className="rounded-[24px] border border-border/60 bg-card/90 p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Idosor
+          Idősor
         </h2>
         <div className="relative ml-3 space-y-0">
           {timelineSteps.map((step, idx) => {
@@ -500,7 +500,7 @@ export default function MaintenanceDetailPage() {
       {/* Photos */}
       <div className="rounded-[24px] border border-border/60 bg-card/90 p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Fotok
+          Fotók
         </h2>
         <div className="flex flex-wrap gap-3">
           {photoUrls.map((url) => (
@@ -602,11 +602,11 @@ export default function MaintenanceDetailPage() {
             className="inline-flex items-center gap-2 rounded-xl border-2 border-dashed border-border/60 px-4 py-2.5 text-sm font-medium text-muted-foreground transition hover:border-primary hover:text-primary disabled:opacity-50"
           >
             {uploadingDoc ? (
-              <span>Feltoltes...</span>
+              <span>Feltöltés...</span>
             ) : (
               <>
                 <Upload className="h-4 w-4" />
-                Dokumentum feltoltes
+                Dokumentum feltöltés
               </>
             )}
           </button>

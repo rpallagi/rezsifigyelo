@@ -37,7 +37,7 @@ function categoryMeta(category: MaintenanceCategory, locale: Locale) {
   switch (category) {
     case "javitas":
       return {
-        label: hu ? "Javitas" : "Repair",
+        label: hu ? "Javítás" : "Repair",
         badge:
           "bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary-foreground",
         iconWrap:
@@ -46,7 +46,7 @@ function categoryMeta(category: MaintenanceCategory, locale: Locale) {
       };
     case "karbantartas":
       return {
-        label: hu ? "Karbantartas" : "Maintenance",
+        label: hu ? "Karbantartás" : "Maintenance",
         badge:
           "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
         iconWrap:
@@ -55,7 +55,7 @@ function categoryMeta(category: MaintenanceCategory, locale: Locale) {
       };
     case "felujitas":
       return {
-        label: hu ? "Felujitas" : "Renovation",
+        label: hu ? "Felújítás" : "Renovation",
         badge:
           "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300",
         iconWrap:
@@ -84,13 +84,13 @@ function priorityBadge(priority: string, locale: Locale) {
       };
     case "urgent":
       return {
-        label: locale === "hu" ? "Surgos" : "Urgent",
+        label: locale === "hu" ? "Sürgős" : "Urgent",
         className:
           "bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300",
       };
     default:
       return {
-        label: locale === "hu" ? "Normal" : "Normal",
+        label: locale === "hu" ? "Normál" : "Normal",
         className:
           "bg-secondary text-muted-foreground",
       };
@@ -101,7 +101,7 @@ function statusBadge(status: MaintenanceStatus, locale: Locale) {
   switch (status) {
     case "pending":
       return {
-        label: locale === "hu" ? "Fuggoben" : "Pending",
+        label: locale === "hu" ? "Függőben" : "Pending",
         className:
           "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300",
       };
@@ -113,7 +113,7 @@ function statusBadge(status: MaintenanceStatus, locale: Locale) {
       };
     case "done":
       return {
-        label: locale === "hu" ? "Kesz" : "Done",
+        label: locale === "hu" ? "Kész" : "Done",
         className:
           "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
       };
@@ -149,13 +149,13 @@ function normalizeStatus(raw: string | null | undefined, performedDate: string |
 function propertyTypeLabel(propertyType: string, locale: Locale) {
   switch (propertyType) {
     case "uzlet":
-      return locale === "hu" ? "Uzlet" : "Commercial";
+      return locale === "hu" ? "Üzlet" : "Commercial";
     case "telek":
       return locale === "hu" ? "Telek" : "Plot";
     case "egyeb":
-      return locale === "hu" ? "Egyeb" : "Other";
+      return locale === "hu" ? "Egyéb" : "Other";
     default:
-      return locale === "hu" ? "Lakas" : "Apartment";
+      return locale === "hu" ? "Lakás" : "Apartment";
   }
 }
 
@@ -185,13 +185,13 @@ function buildMockLogs(locale: Locale): DisplayLog[] {
       id: "mock-1",
       description:
         locale === "hu"
-          ? "Csotores elharitasa - Furdoszoba"
+          ? "Csőtörés elhárítása - Fürdőszoba"
           : "Pipe burst repair - Bathroom",
       category: "javitas",
       costHuf: 45000,
       priority: "urgent",
       status: "done",
-      performedBy: "Viz-Gaz Kft.",
+      performedBy: "Víz-Gáz Kft.",
       performedDate: iso(4),
       propertyId: null,
       propertyName: locale === "hu" ? "Budapest, Akacfa u. 12." : "Budapest, Akacfa str. 12.",
@@ -206,7 +206,7 @@ function buildMockLogs(locale: Locale): DisplayLog[] {
       id: "mock-2",
       description:
         locale === "hu"
-          ? "Klimaberendezes eves tisztitasa"
+          ? "Klímaberendezés éves tisztítása"
           : "Annual HVAC servicing",
       category: "karbantartas",
       costHuf: 18000,
@@ -215,8 +215,8 @@ function buildMockLogs(locale: Locale): DisplayLog[] {
       performedBy: "Klima-Master",
       performedDate: null,
       propertyId: null,
-      propertyName: locale === "hu" ? "Szentendre, Duna korzo 4." : "Szentendre, Duna promenade 4.",
-      propertyAddress: locale === "hu" ? "Szentendre, Duna korzo 4." : "Szentendre, Duna promenade 4.",
+      propertyName: locale === "hu" ? "Szentendre, Duna korzó 4." : "Szentendre, Duna promenade 4.",
+      propertyAddress: locale === "hu" ? "Szentendre, Duna korzó 4." : "Szentendre, Duna promenade 4.",
       propertyType: "uzlet",
       propertyAvatarUrl: null,
       photoUrls: [],
@@ -227,7 +227,7 @@ function buildMockLogs(locale: Locale): DisplayLog[] {
       id: "mock-3",
       description:
         locale === "hu"
-          ? "Konyhabutor csere es festes"
+          ? "Konyhabútor csere és festés"
           : "Kitchen furniture replacement and painting",
       category: "felujitas",
       costHuf: 850000,
@@ -236,8 +236,8 @@ function buildMockLogs(locale: Locale): DisplayLog[] {
       performedBy: "HomeDesign Studio",
       performedDate: iso(16),
       propertyId: null,
-      propertyName: locale === "hu" ? "Budapest, Vaci ut 88." : "Budapest, Vaci ut 88.",
-      propertyAddress: locale === "hu" ? "Budapest, Vaci ut 88." : "Budapest, Vaci ut 88.",
+      propertyName: locale === "hu" ? "Budapest, Váci út 88." : "Budapest, Váci út 88.",
+      propertyAddress: locale === "hu" ? "Budapest, Váci út 88." : "Budapest, Váci út 88.",
       propertyType: "lakas",
       propertyAvatarUrl: null,
       photoUrls: ["kitchen1.jpg"],
@@ -248,7 +248,7 @@ function buildMockLogs(locale: Locale): DisplayLog[] {
       id: "mock-4",
       description:
         locale === "hu"
-          ? "Kismegszakito tabla korszerusitese"
+          ? "Kismegszakító tábla korszerűsítése"
           : "Breaker panel modernization",
       category: "csere",
       costHuf: 62000,
@@ -352,32 +352,32 @@ export default async function MaintenancePage({
   }));
 
   const statusFilters: { status: MaintenanceStatus | "all"; label: string; count: number }[] = [
-    { status: "all", label: locale === "hu" ? "Osszes" : "All", count: activeLogs.length },
-    { status: "pending", label: locale === "hu" ? "Fuggoben" : "Pending", count: pendingCount },
+    { status: "all", label: locale === "hu" ? "Összes" : "All", count: activeLogs.length },
+    { status: "pending", label: locale === "hu" ? "Függőben" : "Pending", count: pendingCount },
     { status: "in_progress", label: locale === "hu" ? "Folyamatban" : "In progress", count: inProgressCount },
-    { status: "done", label: locale === "hu" ? "Kesz" : "Done", count: doneCount },
+    { status: "done", label: locale === "hu" ? "Kész" : "Done", count: doneCount },
   ];
 
   const copy =
     locale === "hu"
       ? {
-          title: "Karbantartasi Naplo",
-          subtitle: "Ingatlan-portfolio szerviz es javitasi elozmenyei",
-          export: "Exportalas",
-          newEntry: "Uj bejegyzes",
-          total: "Osszes kartya",
-          monthlyCost: "Havi koltseg",
-          inProgress: "Folyamatban levo",
-          closed: "Lezart",
+          title: "Karbantartási Napló",
+          subtitle: "Ingatlan-portfólió szerviz és javítási előzményei",
+          export: "Exportálás",
+          newEntry: "Új bejegyzés",
+          total: "Összes kártya",
+          monthlyCost: "Havi költség",
+          inProgress: "Folyamatban lévő",
+          closed: "Lezárt",
           property: "Ingatlan",
-          cost: "Koltseg",
-          vendor: "Vegezte",
-          date: "Datum",
-          photos: "foto",
+          cost: "Költség",
+          vendor: "Végezte",
+          date: "Dátum",
+          photos: "fotó",
           docs: "dok.",
           demoNote:
             normalizedLogs.length === 0
-              ? "Meg nincs eles karbantartasi bejegyzes, ezert demo elemekkel toltottuk fel a nezetet."
+              ? "Még nincs éles karbantartási bejegyzés, ezért demo elemekkel töltöttük fel a nézetet."
               : null,
         }
       : {

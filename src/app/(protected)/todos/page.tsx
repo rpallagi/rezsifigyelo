@@ -52,18 +52,18 @@ const maintenancePriorityBadge: Record<string, { label: string; className: strin
     className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
   },
   urgent: {
-    label: "Surgos",
+    label: "Sürgős",
     className: "bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300",
   },
   normal: {
-    label: "Normal",
+    label: "Normál",
     className: "bg-secondary text-muted-foreground",
   },
 };
 
 const maintenanceStatusBadge: Record<string, { label: string; className: string }> = {
   pending: {
-    label: "Fuggoben",
+    label: "Függőben",
     className: "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300",
   },
   in_progress: {
@@ -84,14 +84,14 @@ function MaintenanceTodos() {
   return (
     <div className="mt-6 rounded-xl border border-blue-300/60 bg-blue-50 p-4 dark:border-blue-700/60 dark:bg-blue-950/20">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-blue-800 dark:text-blue-200">
-        Nyitott karbantartasok
+        Nyitott karbantartások
       </h2>
       <div className="mt-3 space-y-2">
         {openLogs.map((log) => {
           const priority = ((log as Record<string, unknown>).priority as string) ?? "normal";
           const status = ((log as Record<string, unknown>).status as string) ?? "pending";
-          const pBadge = maintenancePriorityBadge[priority] ?? { label: "Normal", className: "bg-secondary text-muted-foreground" };
-          const sBadge = maintenanceStatusBadge[status] ?? { label: "Fuggoben", className: "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300" };
+          const pBadge = maintenancePriorityBadge[priority] ?? { label: "Normál", className: "bg-secondary text-muted-foreground" };
+          const sBadge = maintenanceStatusBadge[status] ?? { label: "Függőben", className: "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300" };
           const property = (log as Record<string, unknown>).property as
             | { name: string }
             | null
@@ -199,7 +199,7 @@ export default function TodosPage() {
         </div>
       )}
 
-      {/* Nyitott karbantartasok */}
+      {/* Nyitott karbantartások */}
       <MaintenanceTodos />
 
       {/* Quick add */}

@@ -61,8 +61,8 @@ export function MaintenanceEntryActions({
           onClick={() => completeLog.mutate({ id })}
           disabled={anyPending}
           className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"
-          aria-label="Kesz"
-          title="Kesz"
+          aria-label="Kész"
+          title="Kész"
         >
           <Check className="h-4 w-4" />
         </button>
@@ -72,8 +72,8 @@ export function MaintenanceEntryActions({
         onClick={() => deleteLog.mutate({ id })}
         disabled={anyPending}
         className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300"
-        aria-label="Bejegyzes torlese"
-        title="Bejegyzes torlese"
+        aria-label="Bejegyzés törlése"
+        title="Bejegyzés törlése"
       >
         <Trash2 className="h-4 w-4" />
       </button>
