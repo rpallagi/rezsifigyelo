@@ -4,6 +4,29 @@ import { getCurrentLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { PropertyCoverImage } from "@/components/properties/property-cover-image";
 
+function profileBadgeColor(color: string | null) {
+  const map: Record<string, string> = {
+    blue: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
+    emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+    purple: "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300",
+    amber: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+    rose: "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
+    sky: "bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300",
+    orange: "bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300",
+    slate: "bg-slate-100 text-slate-700 dark:bg-slate-800/40 dark:text-slate-300",
+  };
+  return map[color ?? ""] ?? map.slate!;
+}
+
+function profileDotColor(color: string | null) {
+  const map: Record<string, string> = {
+    blue: "bg-blue-500", emerald: "bg-emerald-500", purple: "bg-purple-500",
+    amber: "bg-amber-500", rose: "bg-rose-500", sky: "bg-sky-500",
+    orange: "bg-orange-500", slate: "bg-slate-500",
+  };
+  return map[color ?? ""] ?? "bg-slate-500";
+}
+
 function propertyTypeLabel(propertyType: string) {
   switch (propertyType) {
     case "lakas":
@@ -91,19 +114,9 @@ export default async function PropertiesPage() {
                 )}
                 {property.landlordProfile && (
                   <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
-                      property.landlordProfile.profileType === "company"
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-                        : property.landlordProfile.profileType === "co_ownership"
-                          ? "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300"
-                          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
-                    }`}>
-                      {property.landlordProfile.profileType === "company"
-                        ? "Cég"
-                        : property.landlordProfile.profileType === "co_ownership"
-                          ? "Közösség"
-                          : "Magán"}
-                      <span className="normal-case tracking-normal">· {property.landlordProfile.displayName}</span>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold ${profileBadgeColor(property.landlordProfile.color)}`}>
+                      <span className={`h-2 w-2 rounded-full ${profileDotColor(property.landlordProfile.color)}`} />
+                      {property.landlordProfile.displayName}
                     </span>
                   </div>
                 )}

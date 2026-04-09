@@ -287,6 +287,7 @@ export const landlordProfiles = createTable(
     billingEmail: d.varchar({ length: 255 }),
     billingAddress: d.text(),
     taxNumber: d.varchar({ length: 50 }),
+    color: d.varchar({ length: 20 }),
     agentKey: d.text(),
     eInvoice: d.boolean().notNull().default(true),
     defaultDueDays: d.integer().notNull().default(5),
@@ -571,6 +572,9 @@ export const invoices = createTable(
     vatTotalHuf: d.doublePrecision().notNull().default(0),
     grossTotalHuf: d.doublePrecision().notNull().default(0),
     emailedToBuyer: d.boolean().notNull().default(false),
+    paidAt: d.timestamp({ withTimezone: true }),
+    paidAmount: d.doublePrecision(),
+    paidMethod: d.varchar({ length: 50 }),
     createdAt: d
       .timestamp({ withTimezone: true })
       .$defaultFn(() => new Date())

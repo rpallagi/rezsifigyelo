@@ -483,6 +483,7 @@ export const invoiceRouter = createTRPCRouter({
         property: true,
         tenant: true,
         items: true,
+        sellerProfile: true,
       },
       orderBy: [desc(invoices.issueDate), desc(invoices.createdAt)],
       limit: 100,
@@ -706,5 +707,80 @@ export const invoiceRouter = createTRPCRouter({
         invoice,
         synced: false,
       };
+    }),
+
+  delete: landlordProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const invoice = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.id),
+          eq(invoices.landlordId, ctx.dbUser.id),
+        ),
+      });
+      if (!invoice) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Számla nem található" });
+      }
+      if (invoice.status !== "draft") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Csak draft számlát lehet törölni" });
+      }
+      await ctx.db.delete(invoiceItems).where(eq(invoiceItems.invoiceId, input.id));
+      await ctx.db.delete(invoices).where(eq(invoices.id, input.id));
+      return { success: true };
+    }),
+
+  markPaid: landlordProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        paidAmount: z.number().optional(),
+        paidMethod: z.string().optional(),
+        paidAt: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const invoice = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.id),
+          eq(invoices.landlordId, ctx.dbUser.id),
+        ),
+      });
+      if (!invoice) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Számla nem található" });
+      }
+      await ctx.db
+        .update(invoices)
+        .set({
+          status: "paid",
+          paidAt: input.paidAt ? new Date(input.paidAt) : new Date(),
+          paidAmount: input.paidAmount ?? invoice.grossTotalHuf,
+          paidMethod: input.paidMethod ?? null,
+        })
+        .where(eq(invoices.id, input.id));
+      return { success: true };
+    }),
+
+  markUnpaid: landlordProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const invoice = await ctx.db.query.invoices.findFirst({
+        where: and(
+          eq(invoices.id, input.id),
+          eq(invoices.landlordId, ctx.dbUser.id),
+        ),
+      });
+      if (!invoice) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Számla nem található" });
+      }
+      await ctx.db
+        .update(invoices)
+        .set({
+          status: "sent",
+          paidAt: null,
+          paidAmount: null,
+          paidMethod: null,
+        })
+        .where(eq(invoices.id, input.id));
+      return { success: true };
     }),
 });

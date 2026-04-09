@@ -5,6 +5,17 @@ import { useState } from "react";
 import { useLocale } from "@/components/providers/locale-provider";
 import { api } from "@/trpc/react";
 
+const PROFILE_COLORS = [
+  { value: "blue", label: "Kék", bg: "bg-blue-500" },
+  { value: "emerald", label: "Zöld", bg: "bg-emerald-500" },
+  { value: "purple", label: "Lila", bg: "bg-purple-500" },
+  { value: "amber", label: "Sárga", bg: "bg-amber-500" },
+  { value: "rose", label: "Piros", bg: "bg-rose-500" },
+  { value: "sky", label: "Égkék", bg: "bg-sky-500" },
+  { value: "orange", label: "Narancs", bg: "bg-orange-500" },
+  { value: "slate", label: "Szürke", bg: "bg-slate-500" },
+] as const;
+
 type ProfileFormState = {
   displayName: string;
   profileType: "individual" | "company" | "co_ownership";
@@ -12,6 +23,7 @@ type ProfileFormState = {
   billingEmail: string;
   billingAddress: string;
   taxNumber: string;
+  color: string;
   agentKey: string;
   eInvoice: boolean;
   defaultDueDays: string;
@@ -26,6 +38,7 @@ const emptyForm: ProfileFormState = {
   billingEmail: "",
   billingAddress: "",
   taxNumber: "",
+  color: "blue",
   agentKey: "",
   eInvoice: true,
   defaultDueDays: "5",
@@ -70,6 +83,7 @@ export default function LandlordProfilesPage() {
       billingEmail: form.billingEmail || undefined,
       billingAddress: form.billingAddress || undefined,
       taxNumber: form.taxNumber || undefined,
+      color: (form.color || undefined) as "blue" | "emerald" | "purple" | "amber" | "rose" | "sky" | "orange" | "slate" | undefined,
       agentKey: form.agentKey || undefined,
       eInvoice: form.eInvoice,
       defaultDueDays: Number(form.defaultDueDays || 5),
@@ -130,6 +144,22 @@ export default function LandlordProfilesPage() {
               <option value="company">{messages.settingsPage.profileTypeCompany}</option>
               <option value="co_ownership">{messages.settingsPage.profileTypeCoOwnership}</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Szín</label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {PROFILE_COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, color: c.value }))}
+                  title={c.label}
+                  className={`h-8 w-8 rounded-full ${c.bg} transition ring-offset-2 ring-offset-background ${
+                    form.color === c.value ? "ring-2 ring-primary" : "ring-0 hover:ring-2 hover:ring-border"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium">
@@ -280,6 +310,7 @@ export default function LandlordProfilesPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
+                    <span className={`h-3 w-3 rounded-full ${PROFILE_COLORS.find((c) => c.value === profile.color)?.bg ?? "bg-slate-500"}`} />
                     <p className="font-medium">{profile.displayName}</p>
                     {profile.isDefault && (
                       <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">
@@ -310,6 +341,7 @@ export default function LandlordProfilesPage() {
                         billingEmail: profile.billingEmail ?? "",
                         billingAddress: profile.billingAddress ?? "",
                         taxNumber: profile.taxNumber ?? "",
+                        color: profile.color ?? "blue",
                         agentKey: profile.agentKey ?? "",
                         eInvoice: profile.eInvoice,
                         defaultDueDays: String(profile.defaultDueDays),

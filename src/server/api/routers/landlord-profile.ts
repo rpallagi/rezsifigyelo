@@ -6,6 +6,8 @@ import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import { landlordProfiles, properties } from "@/server/db/schema";
 import { ensureDefaultLandlordProfile } from "@/server/landlord-profiles/service";
 
+const PROFILE_COLORS = ["blue", "emerald", "purple", "amber", "rose", "sky", "orange", "slate"] as const;
+
 const landlordProfileInput = z.object({
   displayName: z.string().min(1),
   profileType: z.enum(["individual", "company", "co_ownership"]),
@@ -13,6 +15,7 @@ const landlordProfileInput = z.object({
   billingEmail: z.string().email().optional().or(z.literal("")),
   billingAddress: z.string().optional(),
   taxNumber: z.string().optional(),
+  color: z.enum(PROFILE_COLORS).optional(),
   agentKey: z.string().optional(),
   eInvoice: z.boolean().default(true),
   defaultDueDays: z.number().int().min(0).max(31).default(5),
@@ -69,6 +72,7 @@ export const landlordProfileRouter = createTRPCRouter({
         billingEmail: input.billingEmail ?? null,
         billingAddress: input.billingAddress ?? null,
         taxNumber: input.taxNumber ?? null,
+        color: input.color ?? null,
         agentKey: input.agentKey ?? null,
         eInvoice: input.eInvoice,
         defaultDueDays: input.defaultDueDays,
@@ -118,6 +122,7 @@ export const landlordProfileRouter = createTRPCRouter({
           billingEmail: input.billingEmail ?? null,
           billingAddress: input.billingAddress ?? null,
           taxNumber: input.taxNumber ?? null,
+          color: input.color ?? null,
           agentKey: input.agentKey ?? null,
           eInvoice: input.eInvoice,
           defaultDueDays: input.defaultDueDays,
