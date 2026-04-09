@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import { requireLandlordPropertyAccess } from "@/server/api/access";
-import { meterInfo } from "@/server/db/schema";
+import { meterInfo, smartMeterDevices } from "@/server/db/schema";
 
 export const meterRouter = createTRPCRouter({
   list: landlordProcedure
@@ -61,5 +61,21 @@ export const meterRouter = createTRPCRouter({
 
       await requireLandlordPropertyAccess(ctx, meter.propertyId);
       await ctx.db.update(meterInfo).set(data).where(eq(meterInfo.id, id));
+    }),
+
+  delete: landlordProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const meter = await ctx.db.query.meterInfo.findFirst({
+        where: eq(meterInfo.id, input.id),
+      });
+      if (!meter) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Mérő nem található" });
+      }
+      await requireLandlordPropertyAccess(ctx, meter.propertyId);
+      // Delete linked smart meter devices
+      await ctx.db.delete(smartMeterDevices).where(eq(smartMeterDevices.meterInfoId, input.id));
+      await ctx.db.delete(meterInfo).where(eq(meterInfo.id, input.id));
+      return { success: true };
     }),
 });
