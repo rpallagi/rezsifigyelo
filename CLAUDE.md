@@ -2,7 +2,14 @@
 
 ## Project overview
 
-Rezsi Figyelő — közüzemi mérőállás nyilvántartó és bérlői fizetéskövető SaaS webapp.
+Rezsi Figyelő (rezsikovetes.hu) — közüzemi mérőállás nyilvántartó, bérlői fizetéskövető és automatikus számlázó SaaS webapp magyar bérbeadók számára.
+
+Fő funkciók:
+- **Ingatlankezelés**: ingatlanok, bérlők, mérőórák, fogyasztási trendek
+- **Számlázás**: Számlázz.hu integráció, automatikus havi számlázás (cron), kézi és automatikus fizetettség kezelés (IPN)
+- **Kiadói profilok**: több számlázási entitás (cég/magán/vagyonközösség) szín-kódolással, profilonként saját Számlázz.hu API kulcs
+- **Bérlő kezelés**: offline bérlők (email nélkül), beköltözési/kiköltözési checklist, meghívó rendszer
+- **ROI & Analytics**: hozam, kihasználtság, pénzügyi áttekintés
 
 ## Tech stack
 
@@ -12,7 +19,10 @@ Rezsi Figyelő — közüzemi mérőállás nyilvántartó és bérlői fizetés
 - **API**: tRPC v11 (server functions in `src/server/api/routers/`)
 - **Database**: PostgreSQL with Drizzle ORM (`src/server/db/schema.ts`)
 - **Styling**: Tailwind CSS v4 + shadcn/ui
-- **Payments**: Stripe (separate account from angolozzunk.hu)
+- **Billing**: Számlázz.hu API (XML) — `src/server/billing/szamlazz.ts`
+- **Payments**: Stripe (subscription billing)
+- **File storage**: Vercel Blob (production), local `public/uploads` (dev)
+- **Cron**: Vercel Cron — `vercel.json` + `/api/cron/generate-invoices`
 - **Package manager**: pnpm
 
 ## Commands
@@ -56,16 +66,37 @@ Rezsi Figyelő — közüzemi mérőállás nyilvántartó és bérlői fizetés
 
 ```
 src/
-├── proxy.ts          # Next.js 16 middleware (Clerk auth)
-├── app/              # Next.js App Router pages & layouts
-│   └── api/trpc/     # tRPC HTTP handler
+├── proxy.ts              # Next.js 16 middleware (Clerk auth)
+├── app/
+│   ├── (protected)/      # Authenticated pages (dashboard, properties, billing, etc.)
+│   ├── api/
+│   │   ├── trpc/         # tRPC HTTP handler
+│   │   ├── upload/       # File upload (Vercel Blob / local fallback)
+│   │   ├── cron/         # Vercel Cron jobs (auto-invoicing)
+│   │   └── webhooks/     # Clerk, Stripe, Számlázz.hu IPN, smart-meter
+│   └── (public)/         # Sign-in, sign-up, landing
+├── components/
+│   ├── layout/           # Navigation, user button
+│   ├── shared/           # Consumption chart, etc.
+│   └── providers/        # Locale, theme
 ├── server/
 │   ├── api/
-│   │   ├── root.ts   # App router
-│   │   ├── trpc.ts   # tRPC context & procedures
-│   │   └── routers/  # Domain routers
-│   └── db/
-│       ├── index.ts   # DB client
-│       └── schema.ts  # Drizzle schema
-└── trpc/             # Client-side tRPC setup
+│   │   ├── root.ts       # tRPC app router
+│   │   ├── trpc.ts       # tRPC context & procedures
+│   │   └── routers/      # Domain routers (property, invoice, tenancy, etc.)
+│   ├── billing/
+│   │   └── szamlazz.ts   # Számlázz.hu XML API client
+│   ├── db/
+│   │   ├── index.ts      # DB client
+│   │   └── schema.ts     # Drizzle schema (all tables with rezsi_ prefix)
+│   └── tenancy/          # Invitation handling, checklist creation
+└── trpc/                 # Client-side tRPC setup
 ```
+
+### Key domain concepts
+
+- **Landlord Profile** — számlázási entitás (cég/magán/közösség), saját Számlázz.hu kulccsal és színnel
+- **Property** — ingatlan, egy profilhoz rendelve, auto-billing beállítással
+- **Tenancy** — bérlő-ingatlan kapcsolat, offline (tenantId null) vagy linked user
+- **Handover Checklist** — beköltözési/kiköltözési teendők (meter_readings, contract_upload, etc.)
+- **Invoice** — számla, draft → sent → paid lifecycle, Számlázz.hu szinkronnal
