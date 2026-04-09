@@ -1,7 +1,13 @@
+import { cookies } from "next/headers";
 import { getCurrentLocale } from "@/lib/i18n/server";
 import { getMessages } from "@/lib/i18n/messages";
 import { ProtectedNavigation } from "@/components/layout/protected-navigation";
-import { HydrateClient } from "@/trpc/server";
+import { api, HydrateClient } from "@/trpc/server";
+import {
+  LANDLORD_PROFILE_SCOPE_COOKIE,
+  normalizeLandlordProfileScope,
+  parseLandlordProfileScopeValue,
+} from "@/lib/landlord-profile-scope";
 
 export default async function ProtectedLayout({
   children,
@@ -10,6 +16,14 @@ export default async function ProtectedLayout({
 }) {
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
+  const cookieStore = await cookies();
+  const landlordProfiles = await api.landlordProfile.list();
+  const normalizedScope = normalizeLandlordProfileScope(
+    parseLandlordProfileScopeValue(
+      cookieStore.get(LANDLORD_PROFILE_SCOPE_COOKIE)?.value,
+    ),
+    landlordProfiles.map((profile) => profile.id),
+  );
   const managementLinks = [
     {
       href: "/dashboard",
@@ -34,6 +48,12 @@ export default async function ProtectedLayout({
       label: m.common.payments,
       icon: "payments",
       description: locale === "hu" ? "Bejövő pénzmozgás" : "Incoming payments",
+    },
+    {
+      href: "/maintenance",
+      label: locale === "hu" ? "Karbantartás" : "Maintenance",
+      icon: "maintenance",
+      description: locale === "hu" ? "Szerviz és javítások" : "Service and repairs",
     },
     {
       href: "/tenants",
@@ -92,6 +112,15 @@ export default async function ProtectedLayout({
           appName={m.common.appName}
           sections={sections}
           createPropertyLabel={m.dashboardPage.createProperty}
+          landlordProfiles={landlordProfiles.map((profile) => ({
+            id: profile.id,
+            displayName: profile.displayName,
+            profileType: profile.profileType,
+            color: profile.color,
+            isDefault: profile.isDefault,
+            propertyCount: profile.propertyCount,
+          }))}
+          activeLandlordProfileIds={normalizedScope}
         />
 
         <div className="flex min-h-screen flex-1 flex-col">

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { access } from "node:fs/promises";
 import path from "node:path";
@@ -12,6 +12,7 @@ import {
 } from "@/server/api/access";
 import { ensureDefaultLandlordProfile } from "@/server/landlord-profiles/service";
 import { properties } from "@/server/db/schema";
+import { parseLandlordProfileScopeFromHeader } from "@/lib/landlord-profile-scope";
 
 async function sanitizeAvatarUrl<T extends { avatarUrl?: string | null }>(
   property: T,
@@ -37,11 +38,20 @@ async function sanitizeAvatarUrl<T extends { avatarUrl?: string | null }>(
 
 export const propertyRouter = createTRPCRouter({
   list: landlordProcedure.query(async ({ ctx }) => {
+    const scopeProfileIds = parseLandlordProfileScopeFromHeader(
+      ctx.headers.get("cookie"),
+    );
+    const whereConditions = [
+      eq(properties.landlordId, ctx.dbUser.id),
+      eq(properties.archived, false),
+    ];
+
+    if (scopeProfileIds) {
+      whereConditions.push(inArray(properties.landlordProfileId, scopeProfileIds));
+    }
+
     const propertyList = await ctx.db.query.properties.findMany({
-      where: and(
-        eq(properties.landlordId, ctx.dbUser.id),
-        eq(properties.archived, false),
-      ),
+      where: and(...whereConditions),
       with: {
         tenancies: {
           where: (t, { eq }) => eq(t.active, true),

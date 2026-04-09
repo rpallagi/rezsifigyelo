@@ -4,6 +4,7 @@ import {
   BarChart3,
   Building2,
   CreditCard,
+  Filter,
   Gauge,
   Home,
   MessageSquare,
@@ -12,12 +13,19 @@ import {
   SlidersHorizontal,
   SquareCheckBig,
   Users,
-  Waves,
+  Wrench,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useTransition } from "react";
 import type { LucideIcon } from "lucide-react";
+import {
+  LANDLORD_PROFILE_SCOPE_COOKIE,
+  normalizeLandlordProfileScope,
+  serializeLandlordProfileScope,
+} from "@/lib/landlord-profile-scope";
+import { api } from "@/trpc/react";
 
 type NavItem = {
   href: string;
@@ -35,6 +43,15 @@ type ProtectedNavigationProps = {
   appName: string;
   sections: NavSection[];
   createPropertyLabel: string;
+  landlordProfiles: {
+    id: number;
+    displayName: string;
+    profileType: "individual" | "company" | "co_ownership";
+    color: string | null;
+    isDefault: boolean;
+    propertyCount: number;
+  }[];
+  activeLandlordProfileIds: number[] | null;
 };
 
 const iconMap: Record<string, LucideIcon> = {
@@ -42,6 +59,7 @@ const iconMap: Record<string, LucideIcon> = {
   properties: Building2,
   readings: Gauge,
   payments: CreditCard,
+  maintenance: Wrench,
   tenants: Users,
   todos: SquareCheckBig,
   messages: MessageSquare,
@@ -67,12 +85,101 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function profileTypeLabel(profileType: "individual" | "company" | "co_ownership") {
+  switch (profileType) {
+    case "company":
+      return "Cég";
+    case "co_ownership":
+      return "Társasház";
+    default:
+      return "Magán";
+  }
+}
+
+function profileCountLabel(count: number) {
+  return `${count} ingatlan`;
+}
+
+function profileBadgeColor(color: string | null) {
+  const map: Record<string, string> = {
+    blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300",
+    emerald:
+      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
+    purple:
+      "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-300",
+    amber:
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
+    rose: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300",
+    sky: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300",
+    orange:
+      "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300",
+    slate:
+      "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800/60 dark:bg-slate-900/40 dark:text-slate-300",
+  };
+
+  return map[color ?? ""] ?? map.slate;
+}
+
+function profileDotColor(color: string | null) {
+  const map: Record<string, string> = {
+    blue: "bg-blue-500",
+    emerald: "bg-emerald-500",
+    purple: "bg-purple-500",
+    amber: "bg-amber-500",
+    rose: "bg-rose-500",
+    sky: "bg-sky-500",
+    orange: "bg-orange-500",
+    slate: "bg-slate-500",
+  };
+
+  return map[color ?? ""] ?? map.slate;
+}
+
 export function ProtectedNavigation({
   appName,
   sections,
   createPropertyLabel,
+  landlordProfiles,
+  activeLandlordProfileIds,
 }: ProtectedNavigationProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const utils = api.useUtils();
+  const [isPending, startTransition] = useTransition();
+  const allProfileIds = landlordProfiles.map((profile) => profile.id);
+  const normalizedScope = normalizeLandlordProfileScope(
+    activeLandlordProfileIds,
+    allProfileIds,
+  );
+  const activeProfileIds = normalizedScope ?? allProfileIds;
+  const allProfilesActive = normalizedScope === null;
+  const activeProfileCount = activeProfileIds.length;
+
+  function updateScope(nextProfileIds: number[] | null) {
+    const normalizedNext = normalizeLandlordProfileScope(nextProfileIds, allProfileIds);
+
+    document.cookie = `${LANDLORD_PROFILE_SCOPE_COOKIE}=${serializeLandlordProfileScope(normalizedNext)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    startTransition(() => {
+      void utils.invalidate();
+      router.refresh();
+    });
+  }
+
+  function toggleProfile(profileId: number) {
+    if (allProfilesActive) {
+      updateScope([profileId]);
+      return;
+    }
+
+    const selectedIds = new Set(activeProfileIds);
+    if (selectedIds.has(profileId)) {
+      selectedIds.delete(profileId);
+    } else {
+      selectedIds.add(profileId);
+    }
+
+    updateScope(selectedIds.size > 0 ? [...selectedIds] : null);
+  }
 
   return (
     <>
@@ -83,12 +190,74 @@ export function ProtectedNavigation({
             <p className="mt-1 text-sm text-muted-foreground">Admin Analytics</p>
           </Link>
 
-          <Link
-            href="/properties/new"
-            className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
-          >
-            {createPropertyLabel}
-          </Link>
+          <div className="mt-5 rounded-[24px] border border-border/60 bg-background/70 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">Profil szűrő</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {allProfilesActive
+                    ? "Minden szamlázói profil aktív."
+                    : `${activeProfileCount} profil aktív a globális scope-ban.`}
+                </p>
+              </div>
+              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
+                <Filter className="h-4 w-4" strokeWidth={2.1} />
+              </span>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => updateScope(null)}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  allProfilesActive
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/70 bg-card text-foreground hover:bg-secondary"
+                }`}
+              >
+                <span className="text-xs font-semibold">Összes profil</span>
+              </button>
+
+              {landlordProfiles.map((profile) => {
+                const selected = activeProfileIds.includes(profile.id);
+
+                return (
+                  <button
+                    key={profile.id}
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => toggleProfile(profile.id)}
+                    className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                      selected
+                        ? profileBadgeColor(profile.color)
+                        : "border-border/70 bg-card text-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    <span
+                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${profileDotColor(profile.color)}`}
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-semibold">
+                        {profile.displayName}
+                      </span>
+                      <span className="block truncate text-[10px] uppercase tracking-[0.14em] opacity-70">
+                        {profileTypeLabel(profile.profileType)} · {profileCountLabel(profile.propertyCount)}
+                        {profile.isDefault ? " · alap" : ""}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <Link
+              href="/properties/new"
+              className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-border/70 bg-card px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-secondary"
+            >
+              {createPropertyLabel}
+            </Link>
+          </div>
         </div>
 
         <nav className="mt-6 flex-1 space-y-6 overflow-y-auto pb-6">
@@ -155,6 +324,44 @@ export function ProtectedNavigation({
           </Link>
           <LazyUserButton />
         </div>
+        {landlordProfiles.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto px-4 pb-3">
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => updateScope(null)}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                allProfilesActive
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border/70 bg-card text-foreground"
+              }`}
+            >
+              Összes
+            </button>
+            {landlordProfiles.map((profile) => {
+              const selected = activeProfileIds.includes(profile.id);
+
+              return (
+                <button
+                  key={profile.id}
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => toggleProfile(profile.id)}
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                    selected
+                      ? profileBadgeColor(profile.color)
+                      : "border-border/70 bg-card text-foreground"
+                  }`}
+                >
+                  <span
+                    className={`h-2.5 w-2.5 rounded-full ${profileDotColor(profile.color)}`}
+                  />
+                  {profile.displayName}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <nav className="flex gap-2 overflow-x-auto px-4 pb-3">
           {sections.flatMap((section) => section.items).map((item) => {
             const Icon = iconMap[item.icon] ?? Home;
@@ -206,6 +413,7 @@ export function ProtectedNavigation({
             })}
         </div>
       </nav>
+
     </>
   );
 }

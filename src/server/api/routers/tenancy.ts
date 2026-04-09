@@ -21,6 +21,7 @@ import {
   handoverChecklists,
 } from "@/server/db/schema";
 import { createMoveInChecklist } from "@/server/tenancy/invitations";
+import { parseLandlordProfileScopeFromHeader } from "@/lib/landlord-profile-scope";
 
 function getBaseUrl(headers: Headers) {
   const origin = headers.get("origin");
@@ -33,7 +34,7 @@ function getBaseUrl(headers: Headers) {
 
 export const tenancyRouter = createTRPCRouter({
   pendingInvitations: landlordProcedure.query(async ({ ctx }) => {
-    return ctx.db.query.tenantInvitations.findMany({
+    const invitations = await ctx.db.query.tenantInvitations.findMany({
       where: and(
         eq(tenantInvitations.landlordId, ctx.dbUser.id),
         eq(tenantInvitations.status, "pending"),
@@ -43,6 +44,20 @@ export const tenancyRouter = createTRPCRouter({
       },
       orderBy: [desc(tenantInvitations.invitedAt)],
     });
+
+    const scopeProfileIds = parseLandlordProfileScopeFromHeader(
+      ctx.headers.get("cookie"),
+    );
+
+    if (!scopeProfileIds) {
+      return invitations;
+    }
+
+    return invitations.filter((invitation) =>
+      invitation.property.landlordProfileId
+        ? scopeProfileIds.includes(invitation.property.landlordProfileId)
+        : false,
+    );
   }),
 
   list: landlordProcedure
