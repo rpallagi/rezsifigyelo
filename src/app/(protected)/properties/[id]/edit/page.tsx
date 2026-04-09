@@ -1,9 +1,8 @@
 "use client";
-
-import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
+import { PropertyCoverImage } from "@/components/properties/property-cover-image";
 
 export default function EditPropertyPage() {
   const router = useRouter();
@@ -367,13 +366,15 @@ export default function EditPropertyPage() {
         <div>
           <label className="block text-sm font-medium">Ingatlan fotó</label>
           {avatarUrl && (
-            <Image
-              src={avatarUrl}
-              alt={property.name}
-              width={96}
-              height={96}
-              className="mt-2 h-24 w-24 rounded-lg object-cover"
-            />
+            <div className="mt-2 h-24 w-24 overflow-hidden rounded-lg">
+              <PropertyCoverImage
+                imageUrl={avatarUrl}
+                title={property.name}
+                className="h-full w-full object-cover"
+                placeholderClassName="h-full w-full"
+                placeholderBackground="linear-gradient(135deg, rgba(70,72,212,0.92), rgba(96,99,238,0.75)), radial-gradient(circle at top right, rgba(255,255,255,0.28), transparent 42%)"
+              />
+            </div>
           )}
           <input
             type="file"

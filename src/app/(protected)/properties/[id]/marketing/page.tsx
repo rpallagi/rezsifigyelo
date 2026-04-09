@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { api } from "@/trpc/react";
+import { PropertyCoverImage } from "@/components/properties/property-cover-image";
 
 type MarketingMeta = {
   kind: "photo" | "floorplan";
@@ -103,7 +104,12 @@ export default function MarketingPage() {
       setListingTitle(marketing.listingTitle ?? "");
       setListingDescription(marketing.listingDescription ?? "");
       setListingUrl(marketing.listingUrl ?? "");
+      return;
     }
+
+    setListingTitle("");
+    setListingDescription("");
+    setListingUrl("");
   }, [marketing]);
 
   const saveMarketing = api.marketing.upsert.useMutation({
@@ -232,14 +238,13 @@ export default function MarketingPage() {
 
         <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
           <div className="relative aspect-[4/3] overflow-hidden">
-            {property?.avatarUrl ? (
-              <img src={property.avatarUrl} alt={property.name} className="absolute inset-0 h-full w-full object-cover" />
-            ) : (
-              <div
-                className="absolute inset-0 h-full w-full"
-                style={{ background: propertyPlaceholder(property?.propertyType) }}
-              />
-            )}
+            <PropertyCoverImage
+              imageUrl={property?.avatarUrl}
+              title={property?.name ?? "Ingatlan"}
+              className="absolute inset-0 h-full w-full object-cover"
+              placeholderClassName="absolute inset-0 h-full w-full"
+              placeholderBackground={propertyPlaceholder(property?.propertyType)}
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
             <div className="absolute right-4 top-4 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-900 shadow-sm">
               {propertyTypeLabel(property?.propertyType)}

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { access } from "node:fs/promises";
+import path from "node:path";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import {
@@ -11,9 +13,31 @@ import {
 import { ensureDefaultLandlordProfile } from "@/server/landlord-profiles/service";
 import { properties } from "@/server/db/schema";
 
+async function sanitizeAvatarUrl<T extends { avatarUrl?: string | null }>(
+  property: T,
+): Promise<T> {
+  const avatarUrl = property.avatarUrl;
+  if (!avatarUrl?.startsWith("/uploads/")) {
+    return property;
+  }
+
+  const relativePath = avatarUrl.replace(/^\/+/, "");
+  const absolutePath = path.join(process.cwd(), "public", relativePath);
+
+  try {
+    await access(absolutePath);
+    return property;
+  } catch {
+    return {
+      ...property,
+      avatarUrl: null,
+    };
+  }
+}
+
 export const propertyRouter = createTRPCRouter({
   list: landlordProcedure.query(async ({ ctx }) => {
-    return ctx.db.query.properties.findMany({
+    const propertyList = await ctx.db.query.properties.findMany({
       where: and(
         eq(properties.landlordId, ctx.dbUser.id),
         eq(properties.archived, false),
@@ -33,12 +57,14 @@ export const propertyRouter = createTRPCRouter({
       },
       orderBy: (p, { asc }) => [asc(p.name)],
     });
+
+    return Promise.all(propertyList.map((property) => sanitizeAvatarUrl(property)));
   }),
 
   get: landlordProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.query.properties.findFirst({
+      const property = await ctx.db.query.properties.findFirst({
         where: and(
           eq(properties.id, input.id),
           eq(properties.landlordId, ctx.dbUser.id),
@@ -83,6 +109,8 @@ export const propertyRouter = createTRPCRouter({
           },
         },
       });
+
+      return property ? sanitizeAvatarUrl(property) : null;
     }),
 
   create: landlordProcedure

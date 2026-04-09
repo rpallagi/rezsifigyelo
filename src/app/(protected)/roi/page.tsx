@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PropertyCoverImage } from "@/components/properties/property-cover-image";
 import type { ReactNode } from "react";
 
 import { api } from "@/trpc/server";
@@ -386,18 +387,13 @@ export default async function ROIPage() {
                     className="group overflow-hidden rounded-[30px] bg-card/95 p-3 shadow-[0_18px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 dark:shadow-[0_18px_40px_rgba(0,0,0,0.24)]"
                   >
                     <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[24px]">
-                      {property.avatarUrl ? (
-                        <img
-                          src={property.avatarUrl}
-                          alt={property.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div
-                          className="h-full w-full"
-                          style={{ background: placeholderCover(property.propertyType) }}
-                        />
-                      )}
+                      <PropertyCoverImage
+                        imageUrl={property.avatarUrl}
+                        title={property.name}
+                        className="h-full w-full object-cover"
+                        placeholderClassName="h-full w-full"
+                        placeholderBackground={placeholderCover(property.propertyType)}
+                      />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
                       <div className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-900 shadow-sm">
                         {propertyTypeLabel(property.propertyType)}

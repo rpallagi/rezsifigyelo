@@ -2,6 +2,7 @@ import { api } from "@/trpc/server";
 import { formatNumber, getMessages } from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
 import Link from "next/link";
+import { PropertyCoverImage } from "@/components/properties/property-cover-image";
 
 function propertyTypeLabel(propertyType: string) {
   switch (propertyType) {
@@ -59,18 +60,13 @@ export default async function PropertiesPage() {
               className="group overflow-hidden rounded-[28px] border border-border/60 bg-card/95 shadow-[0_18px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_24px_50px_rgba(15,23,42,0.10)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.24)]"
             >
               <div className="relative h-[180px] overflow-hidden">
-                {property.avatarUrl ? (
-                  <img
-                    src={property.avatarUrl}
-                    alt={property.name}
-                    className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-                  />
-                ) : (
-                  <div
-                    className="absolute inset-0 h-full w-full"
-                    style={{ background: propertyPlaceholder(property.propertyType) }}
-                  />
-                )}
+                <PropertyCoverImage
+                  imageUrl={property.avatarUrl}
+                  title={property.name}
+                  className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                  placeholderClassName="absolute inset-0 h-full w-full"
+                  placeholderBackground={propertyPlaceholder(property.propertyType)}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
                 <div className="absolute right-4 top-4 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-900 shadow-sm">
                   {propertyTypeLabel(property.propertyType)}

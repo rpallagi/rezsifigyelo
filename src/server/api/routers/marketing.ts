@@ -11,9 +11,11 @@ export const marketingRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       await requireLandlordPropertyAccess(ctx, input.propertyId);
 
-      return ctx.db.query.marketingContent.findFirst({
+      const content = await ctx.db.query.marketingContent.findFirst({
         where: eq(marketingContent.propertyId, input.propertyId),
       });
+
+      return content ?? null;
     }),
 
   upsert: landlordProcedure

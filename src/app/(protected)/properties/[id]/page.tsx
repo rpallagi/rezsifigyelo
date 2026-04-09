@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PropertyCoverImage } from "@/components/properties/property-cover-image";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -220,27 +221,21 @@ export default async function PropertyDetailPage({
       <section className="overflow-hidden rounded-[32px] shadow-sm ring-1 ring-border/60">
         {/* Property hero image / gradient */}
         <div className="relative h-[200px] w-full sm:h-[280px]">
-          {property.avatarUrl ? (
-            <img
-              src={property.avatarUrl}
-              alt={property.name}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          ) : (
-            <div
-              className="absolute inset-0 h-full w-full"
-              style={{
-                background:
-                  property.propertyType === "lakas"
-                    ? "linear-gradient(135deg, rgba(70,72,212,0.92), rgba(96,99,238,0.75)), radial-gradient(circle at top right, rgba(255,255,255,0.28), transparent 42%)"
-                    : property.propertyType === "uzlet"
-                      ? "linear-gradient(135deg, rgba(0,108,73,0.92), rgba(108,248,187,0.68)), radial-gradient(circle at top right, rgba(255,255,255,0.22), transparent 40%)"
-                      : property.propertyType === "telek"
-                        ? "linear-gradient(135deg, rgba(131,81,0,0.9), rgba(255,185,95,0.72)), radial-gradient(circle at top right, rgba(255,255,255,0.24), transparent 40%)"
-                        : "linear-gradient(135deg, rgba(25,28,30,0.9), rgba(118,117,134,0.72)), radial-gradient(circle at top right, rgba(255,255,255,0.24), transparent 42%)",
-              }}
-            />
-          )}
+          <PropertyCoverImage
+            imageUrl={property.avatarUrl}
+            title={property.name}
+            className="absolute inset-0 h-full w-full object-cover"
+            placeholderClassName="absolute inset-0 h-full w-full"
+            placeholderBackground={
+              property.propertyType === "lakas"
+                ? "linear-gradient(135deg, rgba(70,72,212,0.92), rgba(96,99,238,0.75)), radial-gradient(circle at top right, rgba(255,255,255,0.28), transparent 42%)"
+                : property.propertyType === "uzlet"
+                  ? "linear-gradient(135deg, rgba(0,108,73,0.92), rgba(108,248,187,0.68)), radial-gradient(circle at top right, rgba(255,255,255,0.22), transparent 40%)"
+                  : property.propertyType === "telek"
+                    ? "linear-gradient(135deg, rgba(131,81,0,0.9), rgba(255,185,95,0.72)), radial-gradient(circle at top right, rgba(255,255,255,0.24), transparent 40%)"
+                    : "linear-gradient(135deg, rgba(25,28,30,0.9), rgba(118,117,134,0.72)), radial-gradient(circle at top right, rgba(255,255,255,0.24), transparent 42%)"
+            }
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
           <Link
             href={`/properties/${property.id}/edit`}

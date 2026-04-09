@@ -3,6 +3,10 @@ import { put } from "@vercel/blob";
 import { auth } from "@clerk/nextjs/server";
 import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const routeDir = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(routeDir, "../../../../");
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -42,7 +46,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Local dev fallback: save to public/uploads/
-  const uploadsDir = path.join(process.cwd(), "public", "uploads", folder);
+  const uploadsDir = path.join(projectRoot, "public", "uploads", folder);
   await mkdir(uploadsDir, { recursive: true });
 
   const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;

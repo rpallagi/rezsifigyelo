@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { api } from "@/trpc/react";
+import { PropertyCoverImage } from "@/components/properties/property-cover-image";
 
 const steps = [
   { key: "tenant", label: "Bérlő", eyebrow: "01" },
@@ -112,12 +113,14 @@ function PropertyCover({
   title: string;
   imageUrl?: string | null;
 }) {
-  if (imageUrl) {
-    return <img src={imageUrl} alt={title} className="absolute inset-0 h-full w-full object-cover" />;
-  }
-
   return (
-    <div className="h-full w-full bg-[linear-gradient(135deg,rgba(70,72,212,0.92),rgba(111,251,190,0.42)),radial-gradient(circle_at_top_right,rgba(255,255,255,0.24),transparent_42%)]" />
+    <PropertyCoverImage
+      imageUrl={imageUrl}
+      title={title}
+      className="absolute inset-0 h-full w-full object-cover"
+      placeholderClassName="h-full w-full"
+      placeholderBackground="linear-gradient(135deg,rgba(70,72,212,0.92),rgba(111,251,190,0.42)),radial-gradient(circle at top right,rgba(255,255,255,0.24),transparent 42%)"
+    />
   );
 }
 
