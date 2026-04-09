@@ -8,6 +8,20 @@ import { maintenanceLogs, properties } from "@/server/db/schema";
 import { parseLandlordProfileScopeFromHeader } from "@/lib/landlord-profile-scope";
 
 export const maintenanceRouter = createTRPCRouter({
+  get: landlordProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const log = await ctx.db.query.maintenanceLogs.findFirst({
+        where: eq(maintenanceLogs.id, input.id),
+        with: { property: true },
+      });
+      if (!log?.propertyId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Maintenance log not found" });
+      }
+      await requireLandlordPropertyAccess(ctx, log.propertyId);
+      return log;
+    }),
+
   list: landlordProcedure
     .input(z.object({ propertyId: z.number().optional() }))
     .query(async ({ ctx, input }) => {

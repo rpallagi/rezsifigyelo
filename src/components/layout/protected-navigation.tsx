@@ -187,7 +187,7 @@ export function ProtectedNavigation({
         <div className="rounded-[28px] bg-card/90 p-4 shadow-sm ring-1 ring-border/60">
           <Link href="/dashboard" className="block">
             <p className="text-xl font-semibold tracking-tight">{appName}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Admin Analytics</p>
+            <p className="mt-1 text-sm text-muted-foreground">Ingatlankezelés</p>
           </Link>
 
           <div className="mt-5 rounded-[24px] border border-border/60 bg-background/70 p-3">
@@ -251,12 +251,6 @@ export function ProtectedNavigation({
               })}
             </div>
 
-            <Link
-              href="/properties/new"
-              className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-border/70 bg-card px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-secondary"
-            >
-              {createPropertyLabel}
-            </Link>
           </div>
         </div>
 

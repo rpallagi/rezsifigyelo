@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Wrench } from "lucide-react";
 import { api } from "@/trpc/react";
 
 const priorityColors = {
@@ -43,6 +44,92 @@ function checklistHref(step: string, propertyId: number) {
     default:
       return `/properties/${propertyId}`;
   }
+}
+
+const maintenancePriorityBadge: Record<string, { label: string; className: string }> = {
+  low: {
+    label: "Alacsony",
+    className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
+  },
+  urgent: {
+    label: "Surgos",
+    className: "bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300",
+  },
+  normal: {
+    label: "Normal",
+    className: "bg-secondary text-muted-foreground",
+  },
+};
+
+const maintenanceStatusBadge: Record<string, { label: string; className: string }> = {
+  pending: {
+    label: "Fuggoben",
+    className: "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300",
+  },
+  in_progress: {
+    label: "Folyamatban",
+    className: "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300",
+  },
+};
+
+function MaintenanceTodos() {
+  const { data: logs } = api.maintenance.list.useQuery({});
+
+  const openLogs = (logs ?? []).filter(
+    (log) => ((log as Record<string, unknown>).status as string) !== "done",
+  );
+
+  if (openLogs.length === 0) return null;
+
+  return (
+    <div className="mt-6 rounded-xl border border-blue-300/60 bg-blue-50 p-4 dark:border-blue-700/60 dark:bg-blue-950/20">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-blue-800 dark:text-blue-200">
+        Nyitott karbantartasok
+      </h2>
+      <div className="mt-3 space-y-2">
+        {openLogs.map((log) => {
+          const priority = ((log as Record<string, unknown>).priority as string) ?? "normal";
+          const status = ((log as Record<string, unknown>).status as string) ?? "pending";
+          const pBadge = maintenancePriorityBadge[priority] ?? { label: "Normal", className: "bg-secondary text-muted-foreground" };
+          const sBadge = maintenanceStatusBadge[status] ?? { label: "Fuggoben", className: "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300" };
+          const property = (log as Record<string, unknown>).property as
+            | { name: string }
+            | null
+            | undefined;
+
+          return (
+            <Link
+              key={log.id}
+              href={`/maintenance/${log.id}`}
+              className="flex items-center justify-between rounded-lg border border-blue-200/60 bg-background p-3 transition hover:bg-secondary/50 dark:border-blue-800/40"
+            >
+              <div className="flex items-center gap-3">
+                <Wrench className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <div>
+                  <p className="text-sm font-medium">{log.description}</p>
+                  {property && (
+                    <p className="text-xs text-muted-foreground">{property.name}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${pBadge.className}`}
+                >
+                  {pBadge.label}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sBadge.className}`}
+                >
+                  {sBadge.label}
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function TodosPage() {
@@ -111,6 +198,9 @@ export default function TodosPage() {
           </div>
         </div>
       )}
+
+      {/* Nyitott karbantartasok */}
+      <MaintenanceTodos />
 
       {/* Quick add */}
       <form onSubmit={handleSubmit} className="mt-6 flex gap-2">

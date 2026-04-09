@@ -569,7 +569,7 @@ export default async function MaintenancePage({
           return (
             <Link
               key={log.id}
-              href={log.propertyId ? `/properties/${log.propertyId}` : "#"}
+              href={typeof log.id === "number" ? `/maintenance/${log.id}` : log.propertyId ? `/properties/${log.propertyId}` : "#"}
               className="group flex flex-col gap-5 rounded-[30px] border border-border/60 bg-card/90 p-5 shadow-sm transition hover:shadow-md md:flex-row md:items-center"
             >
               <div className="relative h-28 overflow-hidden rounded-[24px] md:w-52 shrink-0">
@@ -699,7 +699,7 @@ export default async function MaintenancePage({
                     return (
                       <Link
                         key={log.id}
-                        href={log.propertyId ? `/properties/${log.propertyId}` : "#"}
+                        href={typeof log.id === "number" ? `/maintenance/${log.id}` : log.propertyId ? `/properties/${log.propertyId}` : "#"}
                         className="flex items-center gap-3 rounded-[18px] bg-background/80 p-3 ring-1 ring-border/50 transition hover:bg-secondary/50"
                       >
                         <meta.icon className="h-4 w-4 text-muted-foreground" />
