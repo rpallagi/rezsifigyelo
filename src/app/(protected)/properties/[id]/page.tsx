@@ -341,6 +341,12 @@ export default async function PropertyDetailPage({
                     {property.landlordProfile.taxNumber}
                   </p>
                 )}
+                {property.autoBilling && (
+                  <p>
+                    <span className="font-medium">Auto számlázás:</span>{" "}
+                    hó {property.autoBillingDay}.
+                  </p>
+                )}
               </div>
             </div>
 

@@ -331,7 +331,10 @@ function NewInvoiceForm({
   const [includeCommonFees, setIncludeCommonFees] = useState(true);
   const [includeReadings, setIncludeReadings] = useState(true);
   const [sendToProvider, setSendToProvider] = useState(true);
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(() => {
+    const d = new Date(startOfMonth());
+    return `Bérleti díj és rezsi — ${d.toLocaleDateString("hu-HU", { year: "numeric", month: "long" })}`;
+  });
 
   const selectedProperty =
     properties?.find((p) => p.id === propertyId) ?? null;
@@ -508,7 +511,12 @@ function NewInvoiceForm({
                 <button
                   key={m.from}
                   type="button"
-                  onClick={() => { setPeriodFrom(m.from); setPeriodTo(m.to); }}
+                  onClick={() => {
+                    setPeriodFrom(m.from);
+                    setPeriodTo(m.to);
+                    const d = new Date(m.from);
+                    setNote(`Bérleti díj és rezsi — ${d.toLocaleDateString("hu-HU", { year: "numeric", month: "long" })}`);
+                  }}
                   className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
                     periodFrom === m.from && periodTo === m.to
                       ? "bg-primary text-primary-foreground"

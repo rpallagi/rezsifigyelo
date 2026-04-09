@@ -32,6 +32,9 @@ export default function EditPropertyPage() {
   const [billingMode, setBillingMode] = useState<"advance" | "arrears">("advance");
   const [billingDueDay, setBillingDueDay] = useState("5");
   const [landlordProfileId, setLandlordProfileId] = useState("");
+  const [autoBilling, setAutoBilling] = useState(false);
+  const [autoBillingDay, setAutoBillingDay] = useState("1");
+  const [autoBillingMissingReadings, setAutoBillingMissingReadings] = useState<"estimate" | "skip_readings" | "draft_only">("skip_readings");
   const [monthlyRent, setMonthlyRent] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [notes, setNotes] = useState("");
@@ -61,6 +64,11 @@ export default function EditPropertyPage() {
       setBillingMode(property.billingMode ?? "advance");
       setBillingDueDay(String(property.billingDueDay ?? 5));
       setLandlordProfileId(property.landlordProfileId?.toString() ?? "");
+      setAutoBilling(property.autoBilling ?? false);
+      setAutoBillingDay(String(property.autoBillingDay ?? 1));
+      setAutoBillingMissingReadings(
+        (property.autoBillingMissingReadings as "estimate" | "skip_readings" | "draft_only") ?? "skip_readings",
+      );
       setMonthlyRent(property.monthlyRent?.toString() ?? "");
       setPurchasePrice(property.purchasePrice?.toString() ?? "");
       setNotes(property.notes ?? "");
@@ -95,6 +103,9 @@ export default function EditPropertyPage() {
       billingMode,
       billingDueDay: Number(billingDueDay || 5),
       landlordProfileId: landlordProfileId ? Number(landlordProfileId) : undefined,
+      autoBilling,
+      autoBillingDay: Number(autoBillingDay || 1),
+      autoBillingMissingReadings,
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
       notes: notes || undefined,
@@ -314,6 +325,51 @@ export default function EditPropertyPage() {
               />
             </div>
           </div>
+        </fieldset>
+
+        <fieldset className="rounded-lg border border-border p-4">
+          <legend className="px-2 text-sm font-medium">Automatikus számlázás</legend>
+          <label className="flex items-center gap-3 py-2">
+            <input
+              type="checkbox"
+              checked={autoBilling}
+              onChange={(e) => setAutoBilling(e.target.checked)}
+              className="h-4 w-4 rounded accent-primary"
+            />
+            <div>
+              <span className="text-sm font-medium">Automatikus havi számlázás</span>
+              <p className="text-xs text-muted-foreground">
+                A rendszer minden hónapban automatikusan kiállítja és elküldi a számlát.
+              </p>
+            </div>
+          </label>
+          {autoBilling && (
+            <div className="mt-3 grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-xs text-muted-foreground">Kiállítás napja (1-28)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="28"
+                  value={autoBillingDay}
+                  onChange={(e) => setAutoBillingDay(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground">Ha nincs mérőállás</label>
+                <select
+                  value={autoBillingMissingReadings}
+                  onChange={(e) => setAutoBillingMissingReadings(e.target.value as "estimate" | "skip_readings" | "draft_only")}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="skip_readings">Csak bérleti díj + közös ktg.</option>
+                  <option value="estimate">Becslés az utolsó fogyasztásból</option>
+                  <option value="draft_only">Csak draft (ne küldje ki)</option>
+                </select>
+              </div>
+            </div>
+          )}
         </fieldset>
 
         <fieldset className="rounded-lg border border-border p-4">
