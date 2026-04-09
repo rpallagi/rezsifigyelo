@@ -487,29 +487,62 @@ function NewInvoiceForm({
           </div>
         </div>
 
-        {/* Period */}
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium">
-              {messages.billingPage.periodFrom}
-            </label>
-            <input
-              type="date"
-              value={periodFrom}
-              onChange={(e) => setPeriodFrom(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+        {/* Period — month shortcuts + manual */}
+        <div className="mt-4 space-y-3">
+          <label className="block text-sm font-medium">Időszak</label>
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              const now = new Date();
+              const months: { label: string; from: string; to: string }[] = [];
+              for (let i = 0; i < 6; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const year = d.getFullYear();
+                const month = d.getMonth();
+                const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+                const lastDay = new Date(year, month + 1, 0).getDate();
+                const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+                const label = d.toLocaleDateString(intlLocale, { year: "numeric", month: "short" });
+                months.push({ label, from, to });
+              }
+              return months.map((m) => (
+                <button
+                  key={m.from}
+                  type="button"
+                  onClick={() => { setPeriodFrom(m.from); setPeriodTo(m.to); }}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                    periodFrom === m.from && periodTo === m.to
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-foreground hover:bg-secondary/80"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ));
+            })()}
           </div>
-          <div>
-            <label className="block text-sm font-medium">
-              {messages.billingPage.periodTo}
-            </label>
-            <input
-              type="date"
-              value={periodTo}
-              onChange={(e) => setPeriodTo(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-xs text-muted-foreground">
+                {messages.billingPage.periodFrom}
+              </label>
+              <input
+                type="date"
+                value={periodFrom}
+                onChange={(e) => setPeriodFrom(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground">
+                {messages.billingPage.periodTo}
+              </label>
+              <input
+                type="date"
+                value={periodTo}
+                onChange={(e) => setPeriodTo(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
           </div>
         </div>
 
