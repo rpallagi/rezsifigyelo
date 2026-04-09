@@ -152,6 +152,7 @@ export default function MaintenanceDetailPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
 
   const anyPending =
@@ -437,31 +438,61 @@ export default function MaintenanceDetailPage() {
         </div>
       </div>
 
-      {/* Details */}
+      {/* Details — editable */}
       <div className="rounded-[24px] border border-border/60 bg-card/90 p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Reszletek
+          Részletek
         </h2>
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Koltseg
-            </p>
-            <p className="mt-1 text-lg font-semibold">{formatCurrencyHu(costHuf)}</p>
+            <label className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Költség (Ft)
+            </label>
+            <input
+              type="number"
+              defaultValue={costHuf || ""}
+              placeholder="0"
+              onBlur={(e) => {
+                const val = Number(e.target.value);
+                if (val !== costHuf) {
+                  updateMutation.mutate({ id: id, costHuf: val });
+                }
+              }}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Ki vegezte
-            </p>
-            <p className="mt-1 text-lg font-medium">{performedBy ?? "\u2014"}</p>
+            <label className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Ki végezte
+            </label>
+            <input
+              type="text"
+              defaultValue={performedBy ?? ""}
+              placeholder="pl. Víz-Gáz Kft."
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val !== (performedBy ?? "")) {
+                  updateMutation.mutate({ id: id, performedBy: val || undefined });
+                }
+              }}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Datum
-            </p>
-            <p className="mt-1 text-lg font-medium">
-              {formatDateHu(performedDate) ?? "\u2014"}
-            </p>
+            <label className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Elvégzés dátuma
+            </label>
+            <input
+              type="date"
+              defaultValue={performedDate ?? ""}
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val !== (performedDate ?? "")) {
+                  updateMutation.mutate({ id: id, performedDate: val || undefined });
+                }
+              }}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
           </div>
         </div>
       </div>
@@ -495,7 +526,22 @@ export default function MaintenanceDetailPage() {
             ) : (
               <>
                 <Upload className="h-5 w-5" />
-                <span className="text-[10px] font-medium">Foto</span>
+                <span className="text-[10px] font-medium">Feltöltés</span>
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={uploadingPhoto}
+            className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border/60 text-muted-foreground transition hover:border-primary hover:text-primary disabled:opacity-50"
+          >
+            {uploadingPhoto ? (
+              <span className="text-xs">...</span>
+            ) : (
+              <>
+                <ImageIcon className="h-5 w-5" />
+                <span className="text-[10px] font-medium">Kamera</span>
               </>
             )}
           </button>
@@ -503,6 +549,14 @@ export default function MaintenanceDetailPage() {
             ref={photoInputRef}
             type="file"
             accept="image/*"
+            className="hidden"
+            onChange={handlePhotoUpload}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
             className="hidden"
             onChange={handlePhotoUpload}
           />

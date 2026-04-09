@@ -124,6 +124,7 @@ export default function NewMaintenancePage() {
   const [uploading, setUploading] = useState(false);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
 
   const createLog = api.maintenance.create.useMutation({
@@ -386,20 +387,39 @@ export default function NewMaintenancePage() {
                 ))}
               </div>
             )}
-            <button
-              type="button"
-              onClick={() => photoInputRef.current?.click()}
-              disabled={uploading}
-              className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
-            >
-              <Upload className="h-4 w-4" />
-              {uploading ? "Feltoltes..." : "Fotok hozzaadasa"}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                disabled={uploading}
+                className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
+              >
+                <Upload className="h-4 w-4" />
+                {uploading ? "Feltöltés..." : "Galéria"}
+              </button>
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={uploading}
+                className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
+              >
+                <ImageIcon className="h-4 w-4" />
+                Kamera
+              </button>
+            </div>
             <input
               ref={photoInputRef}
               type="file"
               accept="image/*"
               multiple
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
               onChange={handlePhotoUpload}
               className="hidden"
             />
