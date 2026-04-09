@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Wrench, Download, Building2, Receipt, Hammer, ShieldCheck, ImageIcon, FileText } from "lucide-react";
 
 import { PropertyCoverImage } from "@/components/properties/property-cover-image";
@@ -267,7 +268,12 @@ function buildMockLogs(locale: Locale): DisplayLog[] {
   ];
 }
 
-export default async function MaintenancePage() {
+export default async function MaintenancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; category?: string }>;
+}) {
+  const params = await searchParams;
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
   const [properties, logs] = await Promise.all([
@@ -304,10 +310,19 @@ export default async function MaintenancePage() {
       };
     });
 
-  const displayLogs =
+  const activeStatus = params.status ?? "all";
+  const activeCategory = params.category ?? "all";
+
+  const allDisplayLogs =
     normalizedLogs.length >= 4
       ? normalizedLogs
       : [...normalizedLogs, ...buildMockLogs(locale).slice(0, 4 - normalizedLogs.length)];
+
+  const displayLogs = allDisplayLogs.filter((log) => {
+    if (activeStatus !== "all" && log.status !== activeStatus) return false;
+    if (activeCategory !== "all" && log.category !== activeCategory) return false;
+    return true;
+  });
 
   const activeLogs = normalizedLogs.length > 0 ? normalizedLogs : buildMockLogs(locale);
   const now = new Date();
@@ -466,37 +481,84 @@ export default async function MaintenancePage() {
 
       {/* Status filter tabs */}
       <div className="flex flex-wrap gap-2">
-        {statusFilters.map((filter, i) => (
-          <span
-            key={filter.status}
-            className={`rounded-full px-4 py-2 text-sm font-medium ${
-              i === 0
-                ? "bg-primary text-primary-foreground"
-                : "border border-border/70 bg-card text-foreground"
-            }`}
-          >
-            {filter.label} {filter.count > 0 ? `\u00B7 ${formatNumber(filter.count, locale)}` : ""}
-          </span>
-        ))}
-      </div>
-
-      {/* Category filter tabs */}
-      <div className="flex flex-wrap gap-2">
-        {categoryFilters.map((filter) => {
-          const meta = categoryMeta(filter.category, locale);
+        {statusFilters.map((filter) => {
+          const isActive = activeStatus === filter.status;
+          const href = filter.status === "all"
+            ? activeCategory !== "all" ? `/maintenance?category=${activeCategory}` : "/maintenance"
+            : activeCategory !== "all" ? `/maintenance?status=${filter.status}&category=${activeCategory}` : `/maintenance?status=${filter.status}`;
           return (
-            <span
-              key={filter.category}
-              className="rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium text-foreground"
+            <Link
+              key={filter.status}
+              href={href}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border/70 bg-card text-foreground hover:bg-secondary"
+              }`}
             >
-              {meta.label} {`\u00B7 ${formatNumber(filter.count, locale)}`}
-            </span>
+              {filter.label} {filter.count > 0 ? `· ${formatNumber(filter.count, locale)}` : ""}
+            </Link>
           );
         })}
       </div>
 
-      <div className="space-y-4">
-        {displayLogs.map((log) => {
+      {/* Category filter tabs */}
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href={activeStatus !== "all" ? `/maintenance?status=${activeStatus}` : "/maintenance"}
+          className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+            activeCategory === "all"
+              ? "bg-primary text-primary-foreground"
+              : "border border-border/70 bg-card text-foreground hover:bg-secondary"
+          }`}
+        >
+          {locale === "hu" ? "Összes" : "All"}
+        </Link>
+        {categoryFilters.map((filter) => {
+          const meta = categoryMeta(filter.category, locale);
+          const isActive = activeCategory === filter.category;
+          const href = activeStatus !== "all"
+            ? `/maintenance?status=${activeStatus}&category=${filter.category}`
+            : `/maintenance?category=${filter.category}`;
+          return (
+            <Link
+              key={filter.category}
+              href={href}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border/70 bg-card text-foreground hover:bg-secondary"
+              }`}
+            >
+              {meta.label} · {formatNumber(filter.count, locale)}
+            </Link>
+          );
+        })}
+      </div>
+
+      {(() => {
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+        const recentLogs = displayLogs.filter((log) => {
+          if (!log.performedDate) return true;
+          return new Date(log.performedDate) >= oneYearAgo;
+        });
+        const archiveLogs = displayLogs.filter((log) => {
+          if (!log.performedDate) return false;
+          return new Date(log.performedDate) < oneYearAgo;
+        });
+
+        return (
+          <>
+            <div className="space-y-4">
+              {recentLogs.length === 0 && archiveLogs.length === 0 && (
+                <div className="rounded-[24px] bg-card/90 p-8 text-center ring-1 ring-border/60">
+                  <p className="text-sm text-muted-foreground">
+                    {locale === "hu" ? "Nincs karbantartási bejegyzés." : "No maintenance entries."}
+                  </p>
+                </div>
+              )}
+              {recentLogs.map((log) => {
           const meta = categoryMeta(log.category, locale);
           const Icon = meta.icon;
           const propertyLabel =
@@ -505,8 +567,9 @@ export default async function MaintenancePage() {
           const sBadge = statusBadge(log.status, locale);
 
           return (
-            <div
+            <Link
               key={log.id}
+              href={log.propertyId ? `/properties/${log.propertyId}` : "#"}
               className="group flex flex-col gap-5 rounded-[30px] border border-border/60 bg-card/90 p-5 shadow-sm transition hover:shadow-md md:flex-row md:items-center"
             >
               <div className="relative h-28 overflow-hidden rounded-[24px] md:w-52 shrink-0">
@@ -620,10 +683,41 @@ export default async function MaintenancePage() {
                   </div>
                 )}
               </div>
-            </div>
+            </Link>
           );
         })}
-      </div>
+            </div>
+
+            {archiveLogs.length > 0 && (
+              <details className="mt-6 rounded-[24px] border border-border/60 bg-card/90">
+                <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-muted-foreground hover:text-foreground">
+                  {locale === "hu" ? "Archív karbantartások" : "Archived maintenance"} ({archiveLogs.length})
+                </summary>
+                <div className="space-y-3 px-5 pb-5">
+                  {archiveLogs.map((log) => {
+                    const meta = categoryMeta(log.category, locale);
+                    return (
+                      <Link
+                        key={log.id}
+                        href={log.propertyId ? `/properties/${log.propertyId}` : "#"}
+                        className="flex items-center gap-3 rounded-[18px] bg-background/80 p-3 ring-1 ring-border/50 transition hover:bg-secondary/50"
+                      >
+                        <meta.icon className="h-4 w-4 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{log.description}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {log.propertyName} · {log.performedDate ?? "—"} · {formatCurrency(log.costHuf, locale)}
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </details>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
