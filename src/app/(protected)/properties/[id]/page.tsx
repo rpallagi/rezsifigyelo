@@ -3,12 +3,51 @@ import { PropertyCoverImage } from "@/components/properties/property-cover-image
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { Zap, Droplets, Flame } from "lucide-react";
 import { ConsumptionChart } from "@/components/shared/consumption-chart";
 import { api } from "@/trpc/server";
 
 function formatCurrency(value?: number | null) {
   return value != null ? `${value.toLocaleString("hu-HU")} Ft` : "—";
 }
+
+function utilityIcon(type: string) {
+  switch (type) {
+    case "villany":
+      return <Zap className="h-4 w-4" />;
+    case "viz":
+    case "csatorna":
+      return <Droplets className="h-4 w-4" />;
+    case "gaz":
+      return <Flame className="h-4 w-4" />;
+    default:
+      return <Zap className="h-4 w-4" />;
+  }
+}
+
+function utilityColor(type: string) {
+  switch (type) {
+    case "villany":
+      return "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300";
+    case "viz":
+    case "csatorna":
+      return "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300";
+    case "gaz":
+      return "bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300";
+    default:
+      return "bg-secondary text-muted-foreground";
+  }
+}
+
+const utilityLabels: Record<string, string> = {
+  villany: "Villany",
+  viz: "Víz",
+  gaz: "Gáz",
+  csatorna: "Csatorna",
+  internet: "Internet",
+  kozos_koltseg: "Közös költség",
+  egyeb: "Egyéb",
+};
 
 function formatTenantName(
   tenant:
@@ -550,9 +589,9 @@ export default async function PropertyDetailPage({
         action={
           <Link
             href={`/properties/${property.id}/readings/new`}
-            className="rounded-full bg-background px-4 py-2 text-sm shadow-sm ring-1 ring-border/60 transition hover:bg-secondary/50"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90"
           >
-            Új leolvasás
+            + Új leolvasás
           </Link>
         }
       >
@@ -564,11 +603,16 @@ export default async function PropertyDetailPage({
               {property.readings.map((reading) => (
                 <div key={reading.id} className="rounded-[22px] bg-background/80 p-4 ring-1 ring-border/50">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="font-semibold capitalize">{reading.utilityType}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{reading.readingDate}</p>
+                    <div className="flex items-center gap-3">
+                      <span className={`inline-flex rounded-xl p-2 ${utilityColor(reading.utilityType)}`}>
+                        {utilityIcon(reading.utilityType)}
+                      </span>
+                      <div>
+                        <p className="font-semibold">{utilityLabels[reading.utilityType] ?? reading.utilityType}</p>
+                        <p className="mt-0.5 text-sm text-muted-foreground">{reading.readingDate}</p>
+                      </div>
                     </div>
-                    <p className="text-right text-sm font-semibold">{reading.value}</p>
+                    <p className="text-right font-mono text-sm font-semibold">{reading.value}</p>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                     <div>
@@ -610,7 +654,14 @@ export default async function PropertyDetailPage({
                   {property.readings.map((reading) => (
                     <tr key={reading.id} className="border-b border-border/50">
                       <td className="py-3">{reading.readingDate}</td>
-                      <td className="py-3 capitalize">{reading.utilityType}</td>
+                      <td className="py-3">
+                        <span className="inline-flex items-center gap-2">
+                          <span className={`inline-flex rounded-lg p-1.5 ${utilityColor(reading.utilityType)}`}>
+                            {utilityIcon(reading.utilityType)}
+                          </span>
+                          {utilityLabels[reading.utilityType] ?? reading.utilityType}
+                        </span>
+                      </td>
                       <td className="py-3">{reading.value}</td>
                       <td className="py-3">{reading.consumption ?? "—"}</td>
                       <td className="py-3">{formatCurrency(reading.costHuf)}</td>
