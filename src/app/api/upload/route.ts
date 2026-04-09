@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "File too large (max 10MB)" }, { status: 400 });
   }
 
-  // Use Vercel Blob in production, local filesystem in dev
+  // Shared storage is preferred everywhere. If Blob is configured, always use it.
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     const blob = await put(`${folder}/${Date.now()}-${file.name}`, file, {
       access: "public",
@@ -45,7 +45,17 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Local dev fallback: save to public/uploads/
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      {
+        error:
+          "BLOB_READ_WRITE_TOKEN hiányzik. Production környezetben a feltöltésekhez közös Blob storage szükséges.",
+      },
+      { status: 500 },
+    );
+  }
+
+  // Development-only fallback: local filesystem for cases where Blob is not configured yet.
   const uploadsDir = path.join(projectRoot, "public", "uploads", folder);
   await mkdir(uploadsDir, { recursive: true });
 
