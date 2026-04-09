@@ -102,15 +102,19 @@ function StatusBadge({
 
 function InvoiceListView({
   onNewInvoice,
+  activeProfileId,
+  onProfileChange,
 }: {
   onNewInvoice: () => void;
+  activeProfileId: number | null;
+  onProfileChange: (id: number | null) => void;
 }) {
   const { messages, intlLocale } = useLocale();
   const { data: invoices, isLoading } = api.invoice.list.useQuery();
   const { data: landlordProfiles } = api.landlordProfile.list.useQuery();
   const utils = api.useUtils();
 
-  const [filterProfileId, setFilterProfileId] = useState<number | null>(null);
+  const filterProfileId = activeProfileId;
 
   const deleteInvoice = api.invoice.delete.useMutation({
     onSuccess: () => void utils.invoice.list.invalidate(),
@@ -151,7 +155,7 @@ function InvoiceListView({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setFilterProfileId(null)}
+            onClick={() => onProfileChange(null)}
             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
               filterProfileId === null
                 ? "bg-primary text-primary-foreground"
@@ -164,7 +168,7 @@ function InvoiceListView({
             <button
               key={profile.id}
               type="button"
-              onClick={() => setFilterProfileId(profile.id)}
+              onClick={() => onProfileChange(profile.id)}
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                 filterProfileId === profile.id
                   ? "bg-primary text-primary-foreground"
@@ -177,6 +181,12 @@ function InvoiceListView({
               {profile.displayName}
             </button>
           ))}
+          <a
+            href="/settings/landlord-profiles"
+            className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs text-muted-foreground transition hover:text-foreground"
+          >
+            Profilok kezelése →
+          </a>
         </div>
       )}
 
@@ -299,7 +309,13 @@ function InvoiceListView({
 /*  NewInvoiceForm                                                     */
 /* ================================================================== */
 
-function NewInvoiceForm({ onBack }: { onBack: () => void }) {
+function NewInvoiceForm({
+  onBack,
+  initialProfileId,
+}: {
+  onBack: () => void;
+  initialProfileId: number | null;
+}) {
   const { messages, intlLocale } = useLocale();
   const { data: properties } = api.property.list.useQuery();
   const { data: landlordProfiles } = api.landlordProfile.list.useQuery();
@@ -308,7 +324,7 @@ function NewInvoiceForm({ onBack }: { onBack: () => void }) {
   const [propertyId, setPropertyId] = useState<number | undefined>();
   const [selectedProfileId, setSelectedProfileId] = useState<
     number | undefined
-  >();
+  >(initialProfileId ?? undefined);
   const [periodFrom, setPeriodFrom] = useState(startOfMonth());
   const [periodTo, setPeriodTo] = useState(today());
   const [includeRent, setIncludeRent] = useState(true);
@@ -435,9 +451,13 @@ function NewInvoiceForm({ onBack }: { onBack: () => void }) {
               className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">{messages.billingPage.chooseProperty}</option>
-              {properties?.map((property) => (
+              {(selectedProfileId
+                ? properties?.filter((p) => p.landlordProfile?.id === selectedProfileId)
+                : properties
+              )?.map((property) => (
                 <option key={property.id} value={property.id}>
                   {property.name}
+                  {property.landlordProfile ? ` (${property.landlordProfile.displayName})` : ""}
                 </option>
               ))}
             </select>
@@ -768,10 +788,22 @@ function NewInvoiceForm({ onBack }: { onBack: () => void }) {
 
 export function BillingClient() {
   const [mode, setMode] = useState<"list" | "new">("list");
+  const [activeProfileId, setActiveProfileId] = useState<number | null>(null);
 
   if (mode === "new") {
-    return <NewInvoiceForm onBack={() => setMode("list")} />;
+    return (
+      <NewInvoiceForm
+        onBack={() => setMode("list")}
+        initialProfileId={activeProfileId}
+      />
+    );
   }
 
-  return <InvoiceListView onNewInvoice={() => setMode("new")} />;
+  return (
+    <InvoiceListView
+      onNewInvoice={() => setMode("new")}
+      activeProfileId={activeProfileId}
+      onProfileChange={setActiveProfileId}
+    />
+  );
 }
