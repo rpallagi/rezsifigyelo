@@ -51,8 +51,11 @@ export const maintenanceRouter = createTRPCRouter({
         description: z.string().min(1),
         category: z.string().optional(),
         costHuf: z.number().optional(),
+        priority: z.enum(["low", "normal", "urgent"]).default("normal"),
         performedBy: z.string().optional(),
         performedDate: z.string().optional(),
+        photoUrls: z.array(z.string()).optional(),
+        documentUrls: z.array(z.string()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -60,9 +63,53 @@ export const maintenanceRouter = createTRPCRouter({
 
       const [log] = await ctx.db
         .insert(maintenanceLogs)
-        .values(input)
+        .values({
+          propertyId: input.propertyId,
+          description: input.description,
+          category: input.category,
+          costHuf: input.costHuf,
+          priority: input.priority,
+          status: input.performedDate ? "done" : "pending",
+          performedBy: input.performedBy,
+          performedDate: input.performedDate,
+          photoUrls: input.photoUrls ?? [],
+          documentUrls: input.documentUrls ?? [],
+        })
         .returning();
       return log;
+    }),
+
+  update: landlordProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        description: z.string().min(1).optional(),
+        category: z.string().optional(),
+        costHuf: z.number().optional(),
+        priority: z.enum(["low", "normal", "urgent"]).optional(),
+        status: z.enum(["pending", "in_progress", "done"]).optional(),
+        performedBy: z.string().optional(),
+        performedDate: z.string().optional(),
+        photoUrls: z.array(z.string()).optional(),
+        documentUrls: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const log = await ctx.db.query.maintenanceLogs.findFirst({
+        where: eq(maintenanceLogs.id, input.id),
+      });
+      if (!log?.propertyId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Maintenance log not found" });
+      }
+      await requireLandlordPropertyAccess(ctx, log.propertyId);
+
+      const { id, ...data } = input;
+      const [updated] = await ctx.db
+        .update(maintenanceLogs)
+        .set(data)
+        .where(eq(maintenanceLogs.id, id))
+        .returning();
+      return updated;
     }),
 
   markCompleted: landlordProcedure
@@ -84,9 +131,35 @@ export const maintenanceRouter = createTRPCRouter({
       const [updated] = await ctx.db
         .update(maintenanceLogs)
         .set({
+          status: "done",
           performedDate:
             log.performedDate ?? new Date().toISOString().slice(0, 10),
         })
+        .where(eq(maintenanceLogs.id, input.id))
+        .returning();
+
+      return updated;
+    }),
+
+  markInProgress: landlordProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const log = await ctx.db.query.maintenanceLogs.findFirst({
+        where: eq(maintenanceLogs.id, input.id),
+      });
+
+      if (!log?.propertyId) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Maintenance log not found",
+        });
+      }
+
+      await requireLandlordPropertyAccess(ctx, log.propertyId);
+
+      const [updated] = await ctx.db
+        .update(maintenanceLogs)
+        .set({ status: "in_progress" })
         .where(eq(maintenanceLogs.id, input.id))
         .returning();
 

@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { Wrench, Download, PlusCircle, Building2, Receipt, Hammer, ShieldCheck } from "lucide-react";
+import { Wrench, Download, Building2, Receipt, Hammer, ShieldCheck, ImageIcon, FileText } from "lucide-react";
 
 import { PropertyCoverImage } from "@/components/properties/property-cover-image";
 import { formatCurrency, formatNumber, getMessages, type Locale } from "@/lib/i18n/messages";
@@ -7,14 +6,18 @@ import { getCurrentLocale } from "@/lib/i18n/server";
 import { api } from "@/trpc/server";
 import { MaintenanceEntryActions } from "./maintenance-entry-actions";
 import { MaintenanceDemoActions } from "./maintenance-demo-actions";
+import { NewEntryDropdown } from "./new-entry-dropdown";
 
 type MaintenanceCategory = "javitas" | "karbantartas" | "felujitas" | "csere";
+type MaintenanceStatus = "pending" | "in_progress" | "done";
 
 type DisplayLog = {
   id: string | number;
   description: string;
   category: MaintenanceCategory;
   costHuf: number;
+  priority: string;
+  status: MaintenanceStatus;
   performedBy: string | null;
   performedDate: string | null;
   propertyId: number | null;
@@ -22,6 +25,8 @@ type DisplayLog = {
   propertyAddress: string | null;
   propertyType: string;
   propertyAvatarUrl: string | null;
+  photoUrls: string[];
+  documentUrls: string[];
   mock?: boolean;
 };
 
@@ -31,7 +36,7 @@ function categoryMeta(category: MaintenanceCategory, locale: Locale) {
   switch (category) {
     case "javitas":
       return {
-        label: hu ? "Javítás" : "Repair",
+        label: hu ? "Javitas" : "Repair",
         badge:
           "bg-primary/10 text-primary dark:bg-primary/15 dark:text-primary-foreground",
         iconWrap:
@@ -40,7 +45,7 @@ function categoryMeta(category: MaintenanceCategory, locale: Locale) {
       };
     case "karbantartas":
       return {
-        label: hu ? "Karbantartás" : "Maintenance",
+        label: hu ? "Karbantartas" : "Maintenance",
         badge:
           "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
         iconWrap:
@@ -49,7 +54,7 @@ function categoryMeta(category: MaintenanceCategory, locale: Locale) {
       };
     case "felujitas":
       return {
-        label: hu ? "Felújítás" : "Renovation",
+        label: hu ? "Felujitas" : "Renovation",
         badge:
           "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300",
         iconWrap:
@@ -64,6 +69,52 @@ function categoryMeta(category: MaintenanceCategory, locale: Locale) {
         iconWrap:
           "bg-sky-50 group-hover:bg-sky-100 text-sky-700 dark:bg-sky-950/20 dark:group-hover:bg-sky-950/30",
         icon: Receipt,
+      };
+  }
+}
+
+function priorityBadge(priority: string, locale: Locale) {
+  switch (priority) {
+    case "low":
+      return {
+        label: locale === "hu" ? "Alacsony" : "Low",
+        className:
+          "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
+      };
+    case "urgent":
+      return {
+        label: locale === "hu" ? "Surgos" : "Urgent",
+        className:
+          "bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300",
+      };
+    default:
+      return {
+        label: locale === "hu" ? "Normal" : "Normal",
+        className:
+          "bg-secondary text-muted-foreground",
+      };
+  }
+}
+
+function statusBadge(status: MaintenanceStatus, locale: Locale) {
+  switch (status) {
+    case "pending":
+      return {
+        label: locale === "hu" ? "Fuggoben" : "Pending",
+        className:
+          "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300",
+      };
+    case "in_progress":
+      return {
+        label: locale === "hu" ? "Folyamatban" : "In progress",
+        className:
+          "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300",
+      };
+    case "done":
+      return {
+        label: locale === "hu" ? "Kesz" : "Done",
+        className:
+          "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
       };
   }
 }
@@ -88,16 +139,22 @@ function normalizeCategory(raw: string | null | undefined): MaintenanceCategory 
   return "javitas";
 }
 
+function normalizeStatus(raw: string | null | undefined, performedDate: string | null): MaintenanceStatus {
+  if (raw === "in_progress") return "in_progress";
+  if (raw === "done" || performedDate) return "done";
+  return "pending";
+}
+
 function propertyTypeLabel(propertyType: string, locale: Locale) {
   switch (propertyType) {
     case "uzlet":
-      return locale === "hu" ? "Üzlet" : "Commercial";
+      return locale === "hu" ? "Uzlet" : "Commercial";
     case "telek":
       return locale === "hu" ? "Telek" : "Plot";
     case "egyeb":
-      return locale === "hu" ? "Egyéb" : "Other";
+      return locale === "hu" ? "Egyeb" : "Other";
     default:
-      return locale === "hu" ? "Lakás" : "Apartment";
+      return locale === "hu" ? "Lakas" : "Apartment";
   }
 }
 
@@ -114,14 +171,6 @@ function propertyPlaceholder(propertyType: string) {
   }
 }
 
-function formatPerformedDate(value: string | null, locale: Locale) {
-  if (!value) {
-    return locale === "hu" ? "Függőben" : "Pending";
-  }
-
-  return new Date(value).toLocaleDateString(locale === "hu" ? "hu-HU" : "en-US");
-}
-
 function buildMockLogs(locale: Locale): DisplayLog[] {
   const iso = (daysAgo: number | null) =>
     daysAgo == null
@@ -135,68 +184,84 @@ function buildMockLogs(locale: Locale): DisplayLog[] {
       id: "mock-1",
       description:
         locale === "hu"
-          ? "Csőtörés elhárítása - Fürdőszoba"
+          ? "Csotores elharitasa - Furdoszoba"
           : "Pipe burst repair - Bathroom",
       category: "javitas",
       costHuf: 45000,
-      performedBy: "Víz-Gáz Kft.",
+      priority: "urgent",
+      status: "done",
+      performedBy: "Viz-Gaz Kft.",
       performedDate: iso(4),
       propertyId: null,
-      propertyName: locale === "hu" ? "Budapest, Akácfa u. 12." : "Budapest, Akácfa str. 12.",
-      propertyAddress: locale === "hu" ? "Budapest, Akácfa u. 12." : "Budapest, Akácfa str. 12.",
+      propertyName: locale === "hu" ? "Budapest, Akacfa u. 12." : "Budapest, Akacfa str. 12.",
+      propertyAddress: locale === "hu" ? "Budapest, Akacfa u. 12." : "Budapest, Akacfa str. 12.",
       propertyType: "lakas",
       propertyAvatarUrl: null,
+      photoUrls: ["example1.jpg", "example2.jpg"],
+      documentUrls: [],
       mock: true,
     },
     {
       id: "mock-2",
       description:
         locale === "hu"
-          ? "Klímaberendezés éves tisztítása"
+          ? "Klimaberendezes eves tisztitasa"
           : "Annual HVAC servicing",
       category: "karbantartas",
       costHuf: 18000,
-      performedBy: "Klíma-Master",
-      performedDate: iso(9),
+      priority: "normal",
+      status: "in_progress",
+      performedBy: "Klima-Master",
+      performedDate: null,
       propertyId: null,
-      propertyName: locale === "hu" ? "Szentendre, Duna korzó 4." : "Szentendre, Duna promenade 4.",
-      propertyAddress: locale === "hu" ? "Szentendre, Duna korzó 4." : "Szentendre, Duna promenade 4.",
+      propertyName: locale === "hu" ? "Szentendre, Duna korzo 4." : "Szentendre, Duna promenade 4.",
+      propertyAddress: locale === "hu" ? "Szentendre, Duna korzo 4." : "Szentendre, Duna promenade 4.",
       propertyType: "uzlet",
       propertyAvatarUrl: null,
+      photoUrls: [],
+      documentUrls: ["receipt.pdf"],
       mock: true,
     },
     {
       id: "mock-3",
       description:
         locale === "hu"
-          ? "Konyhabútor csere és festés"
+          ? "Konyhabutor csere es festes"
           : "Kitchen furniture replacement and painting",
       category: "felujitas",
       costHuf: 850000,
-      performedBy: "HomeDesign Stúdió",
+      priority: "normal",
+      status: "done",
+      performedBy: "HomeDesign Studio",
       performedDate: iso(16),
       propertyId: null,
-      propertyName: locale === "hu" ? "Budapest, Váci út 88." : "Budapest, Váci út 88.",
-      propertyAddress: locale === "hu" ? "Budapest, Váci út 88." : "Budapest, Váci út 88.",
+      propertyName: locale === "hu" ? "Budapest, Vaci ut 88." : "Budapest, Vaci ut 88.",
+      propertyAddress: locale === "hu" ? "Budapest, Vaci ut 88." : "Budapest, Vaci ut 88.",
       propertyType: "lakas",
       propertyAvatarUrl: null,
+      photoUrls: ["kitchen1.jpg"],
+      documentUrls: ["invoice.pdf"],
       mock: true,
     },
     {
       id: "mock-4",
       description:
         locale === "hu"
-          ? "Kismegszakító tábla korszerűsítése"
+          ? "Kismegszakito tabla korszerusitese"
           : "Breaker panel modernization",
       category: "csere",
       costHuf: 62000,
+      priority: "low",
+      status: "pending",
       performedBy: "Watt-Vill Kft.",
       performedDate: null,
       propertyId: null,
-      propertyName: locale === "hu" ? "Budapest, Akácfa u. 12." : "Budapest, Akácfa str. 12.",
-      propertyAddress: locale === "hu" ? "Budapest, Akácfa u. 12." : "Budapest, Akácfa str. 12.",
+      propertyName: locale === "hu" ? "Budapest, Akacfa u. 12." : "Budapest, Akacfa str. 12.",
+      propertyAddress: locale === "hu" ? "Budapest, Akacfa u. 12." : "Budapest, Akacfa str. 12.",
       propertyType: "lakas",
       propertyAvatarUrl: null,
+      photoUrls: [],
+      documentUrls: [],
       mock: true,
     },
   ];
@@ -221,14 +286,21 @@ export default async function MaintenancePage() {
         description: log.description,
         category: normalizeCategory(log.category),
         costHuf: Math.round(log.costHuf ?? 0),
+        priority: (log as Record<string, unknown>).priority as string ?? "normal",
+        status: normalizeStatus(
+          (log as Record<string, unknown>).status as string | null,
+          log.performedDate ?? null,
+        ),
         performedBy: log.performedBy ?? null,
         performedDate: log.performedDate ?? null,
         propertyId: property?.id ?? null,
         propertyName:
-          property?.name ?? (locale === "hu" ? "Portfólió elem" : "Portfolio item"),
+          property?.name ?? (locale === "hu" ? "Portfolio elem" : "Portfolio item"),
         propertyAddress: property?.address ?? null,
         propertyType: property?.propertyType ?? "lakas",
         propertyAvatarUrl: property?.avatarUrl ?? null,
+        photoUrls: ((log as Record<string, unknown>).photoUrls as string[] | null) ?? [],
+        documentUrls: ((log as Record<string, unknown>).documentUrls as string[] | null) ?? [],
       };
     });
 
@@ -249,8 +321,9 @@ export default async function MaintenancePage() {
       );
     })
     .reduce((sum, log) => sum + log.costHuf, 0);
-  const inProgressCount = activeLogs.filter((log) => !log.performedDate).length;
-  const closedCount = activeLogs.length - inProgressCount;
+  const pendingCount = activeLogs.filter((log) => log.status === "pending").length;
+  const inProgressCount = activeLogs.filter((log) => log.status === "in_progress").length;
+  const doneCount = activeLogs.filter((log) => log.status === "done").length;
 
   const categories: MaintenanceCategory[] = [
     "javitas",
@@ -258,32 +331,38 @@ export default async function MaintenancePage() {
     "felujitas",
     "csere",
   ];
-  const filters = categories.map((category) => ({
+  const categoryFilters = categories.map((category) => ({
     category,
     count: activeLogs.filter((log) => log.category === category).length,
   }));
 
-  const createHref =
-    properties[0] != null ? `/properties/${properties[0].id}/maintenance/new` : "/properties";
+  const statusFilters: { status: MaintenanceStatus | "all"; label: string; count: number }[] = [
+    { status: "all", label: locale === "hu" ? "Osszes" : "All", count: activeLogs.length },
+    { status: "pending", label: locale === "hu" ? "Fuggoben" : "Pending", count: pendingCount },
+    { status: "in_progress", label: locale === "hu" ? "Folyamatban" : "In progress", count: inProgressCount },
+    { status: "done", label: locale === "hu" ? "Kesz" : "Done", count: doneCount },
+  ];
 
   const copy =
     locale === "hu"
       ? {
-          title: "Karbantartási Napló",
-          subtitle: "Ingatlan-portfólió szerviz és javítási előzményei",
-          export: "Exportálás",
-          newEntry: "Új bejegyzés",
-          total: "Összes kártya",
-          monthlyCost: "Havi költség",
-          inProgress: "Folyamatban lévő",
-          closed: "Lezárt",
+          title: "Karbantartasi Naplo",
+          subtitle: "Ingatlan-portfolio szerviz es javitasi elozmenyei",
+          export: "Exportalas",
+          newEntry: "Uj bejegyzes",
+          total: "Osszes kartya",
+          monthlyCost: "Havi koltseg",
+          inProgress: "Folyamatban levo",
+          closed: "Lezart",
           property: "Ingatlan",
-          cost: "Költség",
-          vendor: "Végezte",
-          date: "Dátum",
+          cost: "Koltseg",
+          vendor: "Vegezte",
+          date: "Datum",
+          photos: "foto",
+          docs: "dok.",
           demoNote:
             normalizedLogs.length === 0
-              ? "Még nincs éles karbantartási bejegyzés, ezért demó elemekkel töltöttük fel a nézetet."
+              ? "Meg nincs eles karbantartasi bejegyzes, ezert demo elemekkel toltottuk fel a nezetet."
               : null,
         }
       : {
@@ -299,6 +378,8 @@ export default async function MaintenancePage() {
           cost: "Cost",
           vendor: "Performed by",
           date: "Date",
+          photos: "photo(s)",
+          docs: "doc(s)",
           demoNote:
             normalizedLogs.length === 0
               ? "There are no live maintenance entries yet, so the layout is filled with demo content."
@@ -333,13 +414,14 @@ export default async function MaintenancePage() {
             <Download className="h-4 w-4" />
             {copy.export}
           </button>
-          <Link
-            href={createHref}
-            className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
-          >
-            <PlusCircle className="h-4 w-4" />
-            {copy.newEntry}
-          </Link>
+          <NewEntryDropdown
+            properties={properties.map((p) => ({
+              id: p.id,
+              name: p.name,
+              address: p.address ?? null,
+            }))}
+            label={copy.newEntry}
+          />
         </div>
       </div>
 
@@ -370,7 +452,7 @@ export default async function MaintenancePage() {
             <Wrench className="h-5 w-5" />
           </div>
           <p className="mt-4 text-sm text-muted-foreground">{copy.inProgress}</p>
-          <p className="mt-1 text-3xl font-semibold">{formatNumber(inProgressCount, locale)}</p>
+          <p className="mt-1 text-3xl font-semibold">{formatNumber(pendingCount + inProgressCount, locale)}</p>
         </div>
 
         <div className="rounded-[28px] border border-border/60 bg-card/90 p-6 shadow-sm">
@@ -378,22 +460,36 @@ export default async function MaintenancePage() {
             <ShieldCheck className="h-5 w-5" />
           </div>
           <p className="mt-4 text-sm text-muted-foreground">{copy.closed}</p>
-          <p className="mt-1 text-3xl font-semibold">{formatNumber(closedCount, locale)}</p>
+          <p className="mt-1 text-3xl font-semibold">{formatNumber(doneCount, locale)}</p>
         </div>
       </div>
 
+      {/* Status filter tabs */}
       <div className="flex flex-wrap gap-2">
-        <span className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-          {locale === "hu" ? "Összes" : "All"}
-        </span>
-        {filters.map((filter) => {
+        {statusFilters.map((filter, i) => (
+          <span
+            key={filter.status}
+            className={`rounded-full px-4 py-2 text-sm font-medium ${
+              i === 0
+                ? "bg-primary text-primary-foreground"
+                : "border border-border/70 bg-card text-foreground"
+            }`}
+          >
+            {filter.label} {filter.count > 0 ? `\u00B7 ${formatNumber(filter.count, locale)}` : ""}
+          </span>
+        ))}
+      </div>
+
+      {/* Category filter tabs */}
+      <div className="flex flex-wrap gap-2">
+        {categoryFilters.map((filter) => {
           const meta = categoryMeta(filter.category, locale);
           return (
             <span
               key={filter.category}
               className="rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-medium text-foreground"
             >
-              {meta.label} · {formatNumber(filter.count, locale)}
+              {meta.label} {`\u00B7 ${formatNumber(filter.count, locale)}`}
             </span>
           );
         })}
@@ -405,6 +501,8 @@ export default async function MaintenancePage() {
           const Icon = meta.icon;
           const propertyLabel =
             log.propertyAddress ?? log.propertyName;
+          const pBadge = priorityBadge(log.priority, locale);
+          const sBadge = statusBadge(log.status, locale);
 
           return (
             <div
@@ -444,6 +542,12 @@ export default async function MaintenancePage() {
                     <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${meta.badge}`}>
                       {meta.label}
                     </span>
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${pBadge.className}`}>
+                      {pBadge.label}
+                    </span>
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${sBadge.className}`}>
+                      {sBadge.label}
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       {typeof log.id === "number" ? `#LOG-${log.id}` : "#DEMO"}
                     </span>
@@ -456,11 +560,23 @@ export default async function MaintenancePage() {
                   <h3 className="mt-2 text-lg font-semibold tracking-tight">
                     {log.description}
                   </h3>
-                  <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                    <Building2 className="h-4 w-4" />
-                    <span>
-                      {copy.property}: {propertyLabel}
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Building2 className="h-4 w-4" />
+                      {propertyLabel}
                     </span>
+                    {log.photoUrls.length > 0 && (
+                      <span className="inline-flex items-center gap-1">
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        {log.photoUrls.length} {copy.photos}
+                      </span>
+                    )}
+                    {log.documentUrls.length > 0 && (
+                      <span className="inline-flex items-center gap-1">
+                        <FileText className="h-3.5 w-3.5" />
+                        {log.documentUrls.length} {copy.docs}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -479,7 +595,7 @@ export default async function MaintenancePage() {
                     {copy.vendor}
                   </p>
                   <p className="mt-1 text-sm font-medium">
-                    {log.performedBy ?? "—"}
+                    {log.performedBy ?? "\u2014"}
                   </p>
                 </div>
                 <div>
@@ -487,14 +603,19 @@ export default async function MaintenancePage() {
                     {copy.date}
                   </p>
                   <p className="mt-1 text-sm font-medium">
-                    {formatPerformedDate(log.performedDate, locale)}
+                    {log.performedDate
+                      ? new Date(log.performedDate).toLocaleDateString(
+                          locale === "hu" ? "hu-HU" : "en-US",
+                        )
+                      : "\u2014"}
                   </p>
                 </div>
                 {typeof log.id === "number" && (
                   <div className="col-span-2 flex justify-end md:col-span-1 md:items-end">
                     <MaintenanceEntryActions
                       id={log.id}
-                      canComplete={!log.performedDate}
+                      canComplete={log.status !== "done"}
+                      canMarkInProgress={log.status === "pending"}
                     />
                   </div>
                 )}

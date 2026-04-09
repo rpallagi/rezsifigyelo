@@ -636,8 +636,12 @@ export const maintenanceLogs = createTable(
     description: d.text().notNull(),
     category: d.varchar({ length: 50 }),
     costHuf: d.doublePrecision().default(0),
+    priority: d.varchar({ length: 20 }).notNull().default("normal"),
+    status: d.varchar({ length: 20 }).notNull().default("pending"),
     performedBy: d.varchar({ length: 100 }),
     performedDate: d.date(),
+    photoUrls: json().$type<string[]>().default([]),
+    documentUrls: json().$type<string[]>().default([]),
     createdAt: d
       .timestamp({ withTimezone: true })
       .$defaultFn(() => new Date())
