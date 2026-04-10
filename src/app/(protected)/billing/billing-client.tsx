@@ -96,6 +96,61 @@ function StatusBadge({
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Shared tab header                                                  */
+/* ------------------------------------------------------------------ */
+
+function BillingTabHeader({
+  activeTab,
+  onTabChange,
+  actionLabel,
+  onAction,
+}: {
+  activeTab: "invoices" | "payments";
+  onTabChange: (tab: "invoices" | "payments") => void;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">Számlázás</h1>
+        <div className="flex gap-1 rounded-xl bg-secondary p-1">
+          <button
+            type="button"
+            onClick={() => onTabChange("invoices")}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === "invoices"
+                ? "bg-background shadow-sm"
+                : "text-muted-foreground"
+            }`}
+          >
+            Számlák
+          </button>
+          <button
+            type="button"
+            onClick={() => onTabChange("payments")}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === "payments"
+                ? "bg-background shadow-sm"
+                : "text-muted-foreground"
+            }`}
+          >
+            Befizetések
+          </button>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onAction}
+        className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+      >
+        + {actionLabel}
+      </button>
+    </div>
+  );
+}
+
 /* ================================================================== */
 /*  InvoiceListView                                                    */
 /* ================================================================== */
@@ -104,10 +159,14 @@ function InvoiceListView({
   onNewInvoice,
   activeProfileId,
   onProfileChange,
+  activeTab,
+  onTabChange,
 }: {
   onNewInvoice: () => void;
   activeProfileId: number | null;
   onProfileChange: (id: number | null) => void;
+  activeTab: "invoices" | "payments";
+  onTabChange: (tab: "invoices" | "payments") => void;
 }) {
   const { messages, intlLocale } = useLocale();
   const { data: invoices, isLoading } = api.invoice.list.useQuery();
@@ -133,18 +192,12 @@ function InvoiceListView({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">
-          {messages.billingPage.title}
-        </h1>
-        <button
-          type="button"
-          onClick={onNewInvoice}
-          className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          + {messages.billingPage.createInvoice}
-        </button>
-      </div>
+      <BillingTabHeader
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+        actionLabel={messages.billingPage.createInvoice}
+        onAction={onNewInvoice}
+      />
 
       <p className="text-sm text-muted-foreground">
         {messages.billingPage.subtitle}
@@ -824,27 +877,430 @@ function NewInvoiceForm({
 }
 
 /* ================================================================== */
+/*  PaymentsListView                                                   */
+/* ================================================================== */
+
+const PAYMENT_METHOD_STYLES: Record<string, string> = {
+  transfer:
+    "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200",
+  cash:
+    "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200",
+  card:
+    "bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-200",
+};
+
+function paymentMethodLabel(method: string | null) {
+  switch (method) {
+    case "transfer":
+      return "Átutalás";
+    case "cash":
+      return "Készpénz";
+    case "card":
+      return "Kártya";
+    default:
+      return method ?? "—";
+  }
+}
+
+function PaymentsListView({
+  onNewPayment,
+  activeProfileId,
+  onProfileChange,
+  activeTab,
+  onTabChange,
+}: {
+  onNewPayment: () => void;
+  activeProfileId: number | null;
+  onProfileChange: (id: number | null) => void;
+  activeTab: "invoices" | "payments";
+  onTabChange: (tab: "invoices" | "payments") => void;
+}) {
+  const { intlLocale } = useLocale();
+  const { data: allPayments, isLoading } = api.payment.listAll.useQuery();
+  const { data: landlordProfiles } = api.landlordProfile.list.useQuery();
+  const { data: propertiesList } = api.property.list.useQuery();
+  const utils = api.useUtils();
+
+  const deletePayment = api.payment.delete.useMutation({
+    onSuccess: () => void utils.payment.listAll.invalidate(),
+  });
+
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  // Build property→profile mapping
+  const propertyProfileMap = new Map<number, number>();
+  propertiesList?.forEach((p) => {
+    if (p.landlordProfile?.id) {
+      propertyProfileMap.set(p.id, p.landlordProfile.id);
+    }
+  });
+
+  const filteredPayments = activeProfileId
+    ? allPayments?.filter(
+        (pay) => propertyProfileMap.get(pay.propertyId) === activeProfileId,
+      )
+    : allPayments;
+
+  return (
+    <div className="space-y-5">
+      <BillingTabHeader
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+        actionLabel="Kézi befizetés"
+        onAction={onNewPayment}
+      />
+
+      <p className="text-sm text-muted-foreground">
+        Bérlői befizetések nyilvántartása.
+      </p>
+
+      {/* Profile filter tabs */}
+      {landlordProfiles && landlordProfiles.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onProfileChange(null)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              activeProfileId === null
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-foreground hover:bg-secondary/80"
+            }`}
+          >
+            Összes
+          </button>
+          {landlordProfiles.map((profile) => (
+            <button
+              key={profile.id}
+              type="button"
+              onClick={() => onProfileChange(profile.id)}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                activeProfileId === profile.id
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-foreground hover:bg-secondary/80"
+              }`}
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${profileDotClass(profile.color)}`}
+              />
+              {profile.displayName}
+            </button>
+          ))}
+          <a
+            href="/settings/landlord-profiles"
+            className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs text-muted-foreground transition hover:text-foreground"
+          >
+            Profilok kezelése →
+          </a>
+        </div>
+      )}
+
+      {/* Payment cards */}
+      {isLoading ? (
+        <div className="py-12 text-center text-sm text-muted-foreground">
+          Betöltés...
+        </div>
+      ) : !filteredPayments?.length ? (
+        <div className="rounded-[24px] bg-card/90 p-8 text-center ring-1 ring-border/60">
+          <p className="text-sm text-muted-foreground">
+            Még nincs rögzített befizetés.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredPayments.map((payment) => (
+            <div
+              key={payment.id}
+              className="rounded-[22px] bg-card/90 p-4 shadow-sm ring-1 ring-border/60 sm:p-5"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                {/* Left side */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-medium">
+                      {payment.propertyName}
+                    </p>
+                    {payment.paymentMethod && (
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                          PAYMENT_METHOD_STYLES[payment.paymentMethod] ??
+                          "bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        {paymentMethodLabel(payment.paymentMethod)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-sm text-muted-foreground">
+                    {new Date(payment.paymentDate).toLocaleDateString(
+                      intlLocale,
+                    )}
+                  </p>
+                  {payment.notes && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {payment.notes}
+                    </p>
+                  )}
+                </div>
+
+                {/* Right side */}
+                <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+                  <p className="text-lg font-semibold tabular-nums tracking-tight">
+                    {payment.amountHuf.toLocaleString(intlLocale)} Ft
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {confirmDeleteId === payment.id ? (
+                      <>
+                        <button
+                          type="button"
+                          disabled={deletePayment.isPending}
+                          onClick={() => {
+                            deletePayment.mutate({ id: payment.id });
+                            setConfirmDeleteId(null);
+                          }}
+                          className="rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/5 disabled:opacity-50"
+                        >
+                          Megerősítés
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary"
+                        >
+                          Mégsem
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(payment.id)}
+                        className="rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/5"
+                      >
+                        Törlés
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  NewPaymentForm                                                     */
+/* ================================================================== */
+
+function NewPaymentForm({
+  onBack,
+  initialProfileId,
+}: {
+  onBack: () => void;
+  initialProfileId: number | null;
+}) {
+  const { data: properties } = api.property.list.useQuery();
+  const utils = api.useUtils();
+
+  const [propertyId, setPropertyId] = useState<number | undefined>();
+  const [amountHuf, setAmountHuf] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("átutalás");
+  const [paymentDate, setPaymentDate] = useState(today());
+  const [periodFrom, setPeriodFrom] = useState("");
+  const [periodTo, setPeriodTo] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const createPayment = api.payment.create.useMutation({
+    onSuccess: async () => {
+      await utils.payment.listAll.invalidate();
+      onBack();
+    },
+  });
+
+  const filteredProperties = initialProfileId
+    ? properties?.filter((p) => p.landlordProfile?.id === initialProfileId)
+    : properties;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-xl border border-border p-2 text-muted-foreground hover:bg-secondary"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+        <h1 className="text-2xl font-bold tracking-tight">Kézi befizetés rögzítése</h1>
+      </div>
+
+      <section className="rounded-[28px] bg-card/90 p-4 shadow-sm ring-1 ring-border/60 sm:p-6">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium">Ingatlan *</label>
+            <select
+              value={propertyId ?? ""}
+              onChange={(e) => setPropertyId(e.target.value ? Number(e.target.value) : undefined)}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
+            >
+              <option value="">Válassz ingatlant...</option>
+              {filteredProperties?.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Összeg (Ft) *</label>
+            <input
+              type="number"
+              value={amountHuf}
+              onChange={(e) => setAmountHuf(e.target.value)}
+              placeholder="0"
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Fizetés módja</label>
+            <div className="mt-1 flex gap-2">
+              {["átutalás", "készpénz", "kártya"].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setPaymentMethod(m)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition ${
+                    paymentMethod === m
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border hover:bg-secondary"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Dátum</label>
+            <input
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Időszak (tól)</label>
+            <input
+              type="date"
+              value={periodFrom}
+              onChange={(e) => setPeriodFrom(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Időszak (ig)</label>
+            <input
+              type="date"
+              value={periodTo}
+              onChange={(e) => setPeriodTo(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium">Megjegyzés</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              if (!propertyId || !amountHuf) return;
+              createPayment.mutate({
+                propertyId,
+                amountHuf: Number(amountHuf),
+                paymentDate,
+                paymentMethod: paymentMethod || undefined,
+                periodFrom: periodFrom || undefined,
+                periodTo: periodTo || undefined,
+                notes: notes || undefined,
+              });
+            }}
+            disabled={!propertyId || !amountHuf || createPayment.isPending}
+            className="rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {createPayment.isPending ? "Mentés..." : "Rögzítés"}
+          </button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-xl border border-border px-6 py-3 text-sm hover:bg-secondary"
+          >
+            Mégse
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ================================================================== */
 /*  Main export                                                        */
 /* ================================================================== */
 
 export function BillingClient() {
-  const [mode, setMode] = useState<"list" | "new">("list");
+  const [mode, setMode] = useState<
+    "invoices" | "payments" | "new-invoice" | "new-payment"
+  >("invoices");
   const [activeProfileId, setActiveProfileId] = useState<number | null>(null);
+  const activeTab: "invoices" | "payments" =
+    mode === "payments" || mode === "new-payment" ? "payments" : "invoices";
 
-  if (mode === "new") {
+  if (mode === "new-invoice") {
     return (
       <NewInvoiceForm
-        onBack={() => setMode("list")}
+        onBack={() => setMode("invoices")}
         initialProfileId={activeProfileId}
+      />
+    );
+  }
+
+  if (mode === "new-payment") {
+    return (
+      <NewPaymentForm
+        onBack={() => setMode("payments")}
+        initialProfileId={activeProfileId}
+      />
+    );
+  }
+
+  if (mode === "payments") {
+    return (
+      <PaymentsListView
+        onNewPayment={() => setMode("new-payment")}
+        activeProfileId={activeProfileId}
+        onProfileChange={setActiveProfileId}
+        activeTab={activeTab}
+        onTabChange={(tab) => setMode(tab)}
       />
     );
   }
 
   return (
     <InvoiceListView
-      onNewInvoice={() => setMode("new")}
+      onNewInvoice={() => setMode("new-invoice")}
       activeProfileId={activeProfileId}
       onProfileChange={setActiveProfileId}
+      activeTab={activeTab}
+      onTabChange={(tab: "invoices" | "payments") => setMode(tab)}
     />
   );
 }

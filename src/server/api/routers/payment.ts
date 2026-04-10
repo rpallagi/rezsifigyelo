@@ -1,31 +1,41 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import { requireLandlordPropertyAccess } from "@/server/api/access";
 import { payments, properties } from "@/server/db/schema";
+import { parseLandlordProfileScopeFromHeader } from "@/lib/landlord-profile-scope";
 
 export const paymentRouter = createTRPCRouter({
   listAll: landlordProcedure.query(async ({ ctx }) => {
+    const scopeProfileIds = parseLandlordProfileScopeFromHeader(
+      ctx.headers.get("cookie"),
+    );
+    const conditions = [
+      eq(properties.landlordId, ctx.dbUser.id),
+      eq(properties.archived, false),
+    ];
+    if (scopeProfileIds) {
+      conditions.push(inArray(properties.landlordProfileId, scopeProfileIds));
+    }
+
     return ctx.db
       .select({
         id: payments.id,
         propertyId: payments.propertyId,
         propertyName: properties.name,
+        propertyProfileId: properties.landlordProfileId,
         amountHuf: payments.amountHuf,
         paymentDate: payments.paymentDate,
         paymentMethod: payments.paymentMethod,
+        periodFrom: payments.periodFrom,
+        periodTo: payments.periodTo,
         notes: payments.notes,
       })
       .from(payments)
       .innerJoin(properties, eq(payments.propertyId, properties.id))
-      .where(
-        and(
-          eq(properties.landlordId, ctx.dbUser.id),
-          eq(properties.archived, false),
-        ),
-      )
+      .where(and(...conditions))
       .orderBy(desc(payments.paymentDate), desc(payments.id));
   }),
 

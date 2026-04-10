@@ -44,12 +44,6 @@ export default async function ProtectedLayout({
       description: locale === "hu" ? "Leolvasások és trendek" : "Readings and trends",
     },
     {
-      href: "/payments",
-      label: m.common.payments,
-      icon: "payments",
-      description: locale === "hu" ? "Bejövő pénzmozgás" : "Incoming payments",
-    },
-    {
       href: "/maintenance",
       label: locale === "hu" ? "Karbantartás" : "Maintenance",
       icon: "maintenance",
