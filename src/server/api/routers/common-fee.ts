@@ -1,10 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import { requireLandlordPropertyAccess } from "@/server/api/access";
-import { commonFees, commonFeePayments } from "@/server/db/schema";
+import { commonFees, commonFeePayments, payments } from "@/server/db/schema";
 
 export const commonFeeRouter = createTRPCRouter({
   list: landlordProcedure
@@ -62,16 +62,58 @@ export const commonFeeRouter = createTRPCRouter({
       }
 
       await requireLandlordPropertyAccess(ctx, commonFee.propertyId);
-      const [payment] = await ctx.db
+      const today = new Date().toISOString().split("T")[0]!;
+      const amount = input.amount ?? commonFee.monthlyAmount;
+
+      // Mark as paid in common fee tracking
+      const [feePayment] = await ctx.db
         .insert(commonFeePayments)
         .values({
           commonFeeId: input.commonFeeId,
           periodDate: input.periodDate,
           paid: true,
-          paidDate: new Date().toISOString().split("T")[0]!,
-          amount: input.amount,
+          paidDate: today,
+          amount,
         })
         .returning();
-      return payment;
+
+      // Also create a payment record with category
+      await ctx.db.insert(payments).values({
+        propertyId: commonFee.propertyId,
+        amountHuf: amount,
+        paymentDate: today,
+        paymentMethod: "transfer",
+        category: "kozos_koltseg",
+        notes: `Közös költség — ${new Date(input.periodDate).toLocaleDateString("hu-HU", { year: "numeric", month: "long" })}`,
+      });
+
+      return feePayment;
+    }),
+
+  unmarkPaid: landlordProcedure
+    .input(
+      z.object({
+        commonFeeId: z.number(),
+        periodDate: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const commonFee = await ctx.db.query.commonFees.findFirst({
+        where: eq(commonFees.id, input.commonFeeId),
+      });
+      if (!commonFee) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Common fee not found" });
+      }
+      await requireLandlordPropertyAccess(ctx, commonFee.propertyId);
+
+      // Remove the fee payment tracking record
+      await ctx.db.delete(commonFeePayments).where(
+        and(
+          eq(commonFeePayments.commonFeeId, input.commonFeeId),
+          eq(commonFeePayments.periodDate, input.periodDate),
+        ),
+      );
+
+      return { success: true };
     }),
 });

@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Zap, Droplets, Flame } from "lucide-react";
 import { ConsumptionChart } from "@/components/shared/consumption-chart";
 import { api } from "@/trpc/server";
+import { CommonFeeCalendar } from "./common-fee-calendar";
 
 function formatCurrency(value?: number | null) {
   return value != null ? `${value.toLocaleString("hu-HU")} Ft` : "—";
@@ -889,6 +890,11 @@ export default async function PropertyDetailPage({
                         <p className="font-mono text-xs text-muted-foreground">{fee.bankAccount}</p>
                       )}
                     </div>
+                    <CommonFeeCalendar
+                      commonFeeId={fee.id}
+                      monthlyAmount={fee.monthlyAmount}
+                      paymentsTracking={fee.paymentsTracking}
+                    />
                   </div>
                 ))}
               </div>

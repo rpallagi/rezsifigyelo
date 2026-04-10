@@ -513,6 +513,7 @@ export const payments = createTable(
     amountHuf: d.doublePrecision().notNull(),
     paymentDate: d.date().notNull(),
     paymentMethod: d.varchar({ length: 50 }),
+    category: d.varchar({ length: 30 }),
     periodFrom: d.date(),
     periodTo: d.date(),
     notes: d.text(),

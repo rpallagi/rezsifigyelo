@@ -35,6 +35,40 @@ function profileDotClass(color: string | null) {
   return PROFILE_DOT_COLORS[color ?? ""] ?? "bg-slate-500";
 }
 
+const PAYMENT_CATEGORIES = [
+  { value: "berleti_dij", label: "Bérleti díj" },
+  { value: "kozos_koltseg", label: "Közös költség" },
+  { value: "kaucio", label: "Kaució" },
+  { value: "villany", label: "Villany" },
+  { value: "viz", label: "Víz" },
+  { value: "gaz", label: "Gáz" },
+  { value: "karbantartas", label: "Karbantartás" },
+  { value: "egyeb", label: "Egyéb" },
+] as const;
+
+const CATEGORY_BADGE_STYLES: Record<string, string> = {
+  berleti_dij:
+    "bg-primary/15 text-primary dark:bg-primary/20",
+  kozos_koltseg:
+    "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200",
+  kaucio:
+    "bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-200",
+  villany:
+    "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300",
+  viz:
+    "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200",
+  gaz:
+    "bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200",
+  karbantartas:
+    "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200",
+  egyeb:
+    "bg-secondary text-muted-foreground",
+};
+
+function categoryLabel(category: string | null) {
+  return PAYMENT_CATEGORIES.find((c) => c.value === category)?.label ?? null;
+}
+
 const STATUS_STYLES: Record<string, string> = {
   draft:
     "bg-secondary text-muted-foreground",
@@ -1029,6 +1063,16 @@ function PaymentsListView({
                         {paymentMethodLabel(payment.paymentMethod)}
                       </span>
                     )}
+                    {payment.category && categoryLabel(payment.category) && (
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                          CATEGORY_BADGE_STYLES[payment.category] ??
+                          "bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        {categoryLabel(payment.category)}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1.5 text-sm text-muted-foreground">
                     {new Date(payment.paymentDate).toLocaleDateString(
@@ -1104,12 +1148,17 @@ function NewPaymentForm({
   const utils = api.useUtils();
 
   const [propertyId, setPropertyId] = useState<number | undefined>();
-  const [amountHuf, setAmountHuf] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("átutalás");
+  const [category, setCategory] = useState<string>("berleti_dij");
+  const [amountHuf, setAmountHuf] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<string>("transfer");
   const [paymentDate, setPaymentDate] = useState(today());
   const [periodFrom, setPeriodFrom] = useState("");
   const [periodTo, setPeriodTo] = useState("");
   const [notes, setNotes] = useState("");
+
+  const filteredProperties = initialProfileId
+    ? properties?.filter((p) => p.landlordProfile?.id === initialProfileId)
+    : properties;
 
   const createPayment = api.payment.create.useMutation({
     onSuccess: async () => {
@@ -1118,85 +1167,144 @@ function NewPaymentForm({
     },
   });
 
-  const filteredProperties = initialProfileId
-    ? properties?.filter((p) => p.landlordProfile?.id === initialProfileId)
-    : properties;
+  const canSubmit =
+    propertyId != null && amountHuf !== "" && Number(amountHuf) > 0;
 
   return (
     <div className="space-y-6">
+      {/* Back + title */}
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onBack}
           className="rounded-xl border border-border p-2 text-muted-foreground hover:bg-secondary"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15.75 19.5L8.25 12l7.5-7.5"
+            />
           </svg>
         </button>
-        <h1 className="text-2xl font-bold tracking-tight">Kézi befizetés rögzítése</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Kézi befizetés rögzítése
+        </h1>
       </div>
 
+      {/* Form */}
       <section className="rounded-[28px] bg-card/90 p-4 shadow-sm ring-1 ring-border/60 sm:p-6">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium">Ingatlan *</label>
-            <select
-              value={propertyId ?? ""}
-              onChange={(e) => setPropertyId(e.target.value ? Number(e.target.value) : undefined)}
-              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
-            >
-              <option value="">Válassz ingatlant...</option>
-              {filteredProperties?.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+        {/* Property selector */}
+        <div>
+          <label className="block text-sm font-medium">Ingatlan</label>
+          <select
+            value={propertyId ?? ""}
+            onChange={(e) =>
+              setPropertyId(
+                e.target.value ? Number(e.target.value) : undefined,
+              )
+            }
+            className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">Válassz ingatlant...</option>
+            {filteredProperties?.map((property) => (
+              <option key={property.id} value={property.id}>
+                {property.name}
+                {property.landlordProfile
+                  ? ` (${property.landlordProfile.displayName})`
+                  : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Category */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium">Kategória</label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {PAYMENT_CATEGORIES.map((cat) => (
+              <button
+                key={cat.value}
+                type="button"
+                onClick={() => setCategory(cat.value)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  category === cat.value
+                    ? CATEGORY_BADGE_STYLES[cat.value]
+                    : "bg-secondary text-foreground hover:bg-secondary/80"
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="block text-sm font-medium">Összeg (Ft) *</label>
-            <input
-              type="number"
-              value={amountHuf}
-              onChange={(e) => setAmountHuf(e.target.value)}
-              placeholder="0"
-              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
-            />
+        </div>
+
+        {/* Amount */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium">Összeg (Ft)</label>
+          <input
+            type="number"
+            value={amountHuf}
+            onChange={(e) => setAmountHuf(e.target.value)}
+            placeholder="0"
+            min={0}
+            className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
+        {/* Payment method */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium">Fizetés módja</label>
+          <div className="mt-2 flex gap-2">
+            {(
+              [
+                { value: "transfer", label: "Átutalás" },
+                { value: "cash", label: "Készpénz" },
+                { value: "card", label: "Kártya" },
+              ] as const
+            ).map((method) => (
+              <button
+                key={method.value}
+                type="button"
+                onClick={() => setPaymentMethod(method.value)}
+                className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
+                  paymentMethod === method.value
+                    ? PAYMENT_METHOD_STYLES[method.value]
+                    : "bg-secondary text-foreground hover:bg-secondary/80"
+                }`}
+              >
+                {method.label}
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="block text-sm font-medium">Fizetés módja</label>
-            <div className="mt-1 flex gap-2">
-              {["átutalás", "készpénz", "kártya"].map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setPaymentMethod(m)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition ${
-                    paymentMethod === m
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border hover:bg-secondary"
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium">Dátum</label>
-            <input
-              type="date"
-              value={paymentDate}
-              onChange={(e) => setPaymentDate(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
-            />
-          </div>
+        </div>
+
+        {/* Date */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium">Dátum</label>
+          <input
+            type="date"
+            value={paymentDate}
+            onChange={(e) => setPaymentDate(e.target.value)}
+            className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
+        {/* Period */}
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div>
             <label className="block text-sm font-medium">Időszak (tól)</label>
             <input
               type="date"
               value={periodFrom}
               onChange={(e) => setPeriodFrom(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div>
@@ -1205,47 +1313,50 @@ function NewPaymentForm({
               type="date"
               value={periodTo}
               onChange={(e) => setPeriodTo(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium">Megjegyzés</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm"
+              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         </div>
 
-        <div className="mt-5 flex gap-3">
+        {/* Notes */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium">Megjegyzés</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
+        {/* Submit */}
+        <div className="mt-5">
           <button
             type="button"
-            onClick={() => {
-              if (!propertyId || !amountHuf) return;
+            disabled={!canSubmit || createPayment.isPending}
+            onClick={() =>
+              propertyId &&
               createPayment.mutate({
                 propertyId,
                 amountHuf: Number(amountHuf),
                 paymentDate,
-                paymentMethod: paymentMethod || undefined,
+                paymentMethod,
+                category,
                 periodFrom: periodFrom || undefined,
                 periodTo: periodTo || undefined,
                 notes: notes || undefined,
-              });
-            }}
-            disabled={!propertyId || !amountHuf || createPayment.isPending}
-            className="rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              })
+            }
+            className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:w-auto"
           >
-            {createPayment.isPending ? "Mentés..." : "Rögzítés"}
+            {createPayment.isPending ? "Rögzítés..." : "Rögzítés"}
           </button>
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded-xl border border-border px-6 py-3 text-sm hover:bg-secondary"
-          >
-            Mégse
-          </button>
+
+          {createPayment.error && (
+            <p className="mt-3 text-sm text-destructive">
+              {createPayment.error.message}
+            </p>
+          )}
         </div>
       </section>
     </div>
