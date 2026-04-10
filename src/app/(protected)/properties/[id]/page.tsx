@@ -549,24 +549,51 @@ export default async function PropertyDetailPage({
       {property.meterInfo.length > 0 && (
         <SectionCard title="Mérőórák" subtitle="Gyári számok, helyszínek és gyors ellenőrzés.">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {property.meterInfo.map((meter) => (
-              <div key={meter.id} className="rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold capitalize">{meter.utilityType}</p>
-                    {meter.location && (
-                      <p className="mt-1 text-sm text-muted-foreground">{meter.location}</p>
-                    )}
+            {property.meterInfo.map((meter) => {
+              const smartDevice = property.smartMeters.find(
+                (sm) => sm.utilityType === meter.utilityType,
+              );
+              return (
+                <div key={meter.id} className="rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold capitalize">{meter.utilityType}</p>
+                      {meter.location && (
+                        <p className="mt-1 text-sm text-muted-foreground">{meter.location}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-1.5">
+                      {smartDevice && (
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] ${
+                          smartDevice.isActive
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            : "bg-secondary text-muted-foreground"
+                        }`}>
+                          {smartDevice.isActive ? "Okos" : "Inaktív"}
+                        </span>
+                      )}
+                      <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                        Mérő
+                      </span>
+                    </div>
                   </div>
-                  <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    Mérő
-                  </span>
+                  <p className="mt-4 font-mono text-sm text-muted-foreground">
+                    {meter.serialNumber ?? "Nincs gyári szám"}
+                  </p>
+                  {smartDevice && (
+                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                      {smartDevice.lastRawValue != null && (
+                        <p>Utolsó érték: <span className="font-medium text-foreground">{smartDevice.lastRawValue}</span></p>
+                      )}
+                      {smartDevice.lastSeenAt && (
+                        <p>Utolsó jel: {new Date(smartDevice.lastSeenAt).toLocaleString("hu-HU")}</p>
+                      )}
+                      <p className="font-mono text-[10px]">{smartDevice.deviceId}</p>
+                    </div>
+                  )}
                 </div>
-                <p className="mt-4 font-mono text-sm text-muted-foreground">
-                  {meter.serialNumber ?? "Nincs gyári szám"}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </SectionCard>
       )}

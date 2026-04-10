@@ -110,4 +110,18 @@ export const smartMeterRouter = createTRPCRouter({
         limit: input.limit,
       });
     }),
+
+  delete: landlordProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const device = await ctx.db.query.smartMeterDevices.findFirst({
+        where: eq(smartMeterDevices.id, input.id),
+      });
+      if (!device) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Eszköz nem található" });
+      }
+      await requireLandlordPropertyAccess(ctx, device.propertyId);
+      await ctx.db.delete(smartMeterDevices).where(eq(smartMeterDevices.id, input.id));
+      return { success: true };
+    }),
 });
