@@ -208,6 +208,9 @@ const messages = {
       title: "Üzenetek",
       description:
         "A chat funkció az ingatlanok részleteinél érhető el. Válaszd ki az ingatlant, és a Chat fülön tudsz üzenni a bérlőnek.",
+      openChat: "Megnyitás",
+      empty: "Még nincs ingatlan hozzáadva.",
+      noTenant: "Nincs aktív bérlő",
     },
     roiPage: {
       title: "ROI Áttekintés",
@@ -576,6 +579,9 @@ const messages = {
       title: "Messages",
       description:
         "Messaging is available on each property page. Open a property and use the Chat tab to talk to the tenant.",
+      openChat: "Open",
+      empty: "No properties added yet.",
+      noTenant: "No active tenant",
     },
     roiPage: {
       title: "ROI Overview",
