@@ -430,6 +430,32 @@ export const tenancyRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  // Update tenant info on an active tenancy
+  updateTenant: landlordProcedure
+    .input(
+      z.object({
+        tenancyId: z.number(),
+        tenantName: z.string().optional(),
+        tenantEmail: z.string().optional(),
+        tenantPhone: z.string().optional(),
+        depositAmount: z.number().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const tenancy = await ctx.db.query.tenancies.findFirst({
+        where: eq(tenancies.id, input.tenancyId),
+      });
+      if (!tenancy) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Bérleti viszony nem található" });
+      }
+      await requireLandlordPropertyAccess(ctx, tenancy.propertyId);
+      const { tenancyId, ...data } = input;
+      await ctx.db.update(tenancies).set(data).where(eq(tenancies.id, tenancyId));
+      revalidatePath(`/properties/${tenancy.propertyId}`);
+      revalidatePath("/tenants");
+      return { success: true };
+    }),
+
   // Get tenant history for a property
   history: landlordProcedure
     .input(z.object({ propertyId: z.number() }))

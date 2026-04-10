@@ -3,6 +3,7 @@ import { getMessages } from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { InvitationActions } from "./invitation-actions";
+import { TenantEditActions } from "./tenant-edit-actions";
 
 export default async function TenantsPage() {
   const locale = await getCurrentLocale();
@@ -107,34 +108,55 @@ export default async function TenantsPage() {
               <tr className="border-b text-left text-muted-foreground">
                 <th className="pb-3 font-medium">{m.common.name}</th>
                 <th className="pb-3 font-medium">{m.common.email}</th>
+                <th className="pb-3 font-medium">Telefon</th>
                 <th className="pb-3 font-medium">{m.tenantsPage.property}</th>
                 <th className="pb-3 font-medium">{m.common.status}</th>
+                <th className="pb-3 font-medium"></th>
               </tr>
             </thead>
             <tbody>
-              {allTenancies.map((t) => (
-                <tr key={t.id} className="border-b">
-                  <td className="py-3">
-                    {t.tenant?.firstName ?? ""} {t.tenant?.lastName ?? ""}
-                    {!t.tenant && t.tenantName ? t.tenantName : ""}
-                  </td>
-                  <td className="py-3 text-muted-foreground">
-                    {t.tenant?.email ?? t.tenantEmail ?? ""}
-                  </td>
-                  <td className="py-3">{t.propertyName}</td>
-                  <td className="py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        t.active
-                          ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                          : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                      }`}
-                    >
-                      {t.active ? m.common.active : m.common.inactive}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {allTenancies.map((t) => {
+                const displayName = t.tenant
+                  ? [t.tenant.firstName, t.tenant.lastName].filter(Boolean).join(" ") || ""
+                  : t.tenantName ?? "";
+                const displayEmail = t.tenant?.email ?? t.tenantEmail ?? "";
+                const displayPhone = t.tenantPhone ?? "";
+                return (
+                  <tr key={t.id} className="border-b">
+                    <td className="py-3">
+                      {displayName}
+                    </td>
+                    <td className="py-3 text-muted-foreground">
+                      {displayEmail}
+                    </td>
+                    <td className="py-3 text-muted-foreground">
+                      {displayPhone || "—"}
+                    </td>
+                    <td className="py-3">{t.propertyName}</td>
+                    <td className="py-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          t.active
+                            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                            : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                        }`}
+                      >
+                        {t.active ? m.common.active : m.common.inactive}
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      {t.active && (
+                        <TenantEditActions
+                          tenancyId={t.id}
+                          initialName={displayName}
+                          initialEmail={displayEmail}
+                          initialPhone={displayPhone}
+                        />
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

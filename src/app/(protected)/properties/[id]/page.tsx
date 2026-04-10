@@ -391,9 +391,24 @@ export default async function PropertyDetailPage({
             </div>
 
             <div className="rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                Bérlő
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  Bérlő
+                </p>
+                {activeTenancy && (
+                  <Link
+                    href={`/properties/${property.id}/edit`}
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                    title="Bérlő adatainak szerkesztése"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    <span>Szerkesztés</span>
+                  </Link>
+                )}
+              </div>
               <p className="mt-4 text-lg font-semibold tracking-tight">{tenantLabel}</p>
               {activeTenancy && (
                 <div className="mt-4 space-y-2 text-sm">
@@ -954,6 +969,56 @@ export default async function PropertyDetailPage({
             </SectionCard>
           )}
         </div>
+      )}
+
+      {property.tenantHistory.length > 0 && (
+        <SectionCard title="Korábbi bérlők" subtitle="Archivált bérleti viszonyok.">
+          <div className="grid gap-3 md:grid-cols-2">
+            {property.tenantHistory.map((history) => (
+              <div key={history.id} className="rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50">
+                <p className="font-semibold">{history.tenantName ?? "Ismeretlen bérlő"}</p>
+                {history.tenantEmail && (
+                  <p className="mt-1 text-sm text-muted-foreground">{history.tenantEmail}</p>
+                )}
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Beköltözés</p>
+                    <p className="mt-1 font-medium">{history.moveInDate ?? "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Kiköltözés</p>
+                    <p className="mt-1 font-medium">{history.moveOutDate ?? "—"}</p>
+                  </div>
+                </div>
+                {(history.depositAmount != null || history.depositReturned != null) && (
+                  <div className="mt-3 space-y-1 border-t border-border/50 pt-3 text-sm">
+                    {history.depositAmount != null && (
+                      <p>
+                        <span className="text-muted-foreground">Kaució:</span>{" "}
+                        <span className="font-medium">{formatCurrency(history.depositAmount)}</span>
+                      </p>
+                    )}
+                    {history.depositReturned != null && (
+                      <p>
+                        <span className="text-muted-foreground">Visszaadva:</span>{" "}
+                        <span className="font-medium">{formatCurrency(history.depositReturned)}</span>
+                      </p>
+                    )}
+                    {history.depositDeductions != null && history.depositDeductions > 0 && (
+                      <p>
+                        <span className="text-muted-foreground">Levonás:</span>{" "}
+                        <span className="font-medium">{formatCurrency(history.depositDeductions)}</span>
+                      </p>
+                    )}
+                    {history.depositNotes && (
+                      <p className="text-xs text-muted-foreground">{history.depositNotes}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </SectionCard>
       )}
     </div>
   );
