@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -10,10 +9,15 @@ import {
   CheckCircle2,
   Droplets,
   FileText,
+  Flame,
   Home,
+  ImageIcon,
   KeyRound,
   Mail,
+  Upload,
   Wallet,
+  Waves,
+  X,
   Zap,
 } from "lucide-react";
 
@@ -106,6 +110,30 @@ function inputClassName() {
   return "h-12 w-full rounded-2xl border border-border/60 bg-background/80 px-4 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/40 focus:ring-4 focus:ring-primary/10";
 }
 
+const utilityMeta: Record<string, { label: string; icon: typeof Zap }> = {
+  villany: { label: "Villany", icon: Zap },
+  viz: { label: "Víz", icon: Droplets },
+  gaz: { label: "Gáz", icon: Flame },
+  csatorna: { label: "Csatorna", icon: Waves },
+};
+
+const conditionOptions = [
+  { value: "excellent", label: "Kiváló" },
+  { value: "good", label: "Jó" },
+  { value: "average", label: "Átlagos" },
+  { value: "needs_renovation", label: "Felújítandó" },
+] as const;
+
+async function uploadFile(file: File, folder: string): Promise<string | null> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("folder", folder);
+  const res = await fetch("/api/upload", { method: "POST", body: formData });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { url: string };
+  return data.url;
+}
+
 function PropertyCover({
   title,
   imageUrl,
@@ -139,12 +167,60 @@ export default function MoveInWizardPage() {
   const [depositAmount, setDepositAmount] = useState("");
   const [sendInvitation, setSendInvitation] = useState(false);
 
+  // Step 1: Meter readings
+  const [initialReadings, setInitialReadings] = useState<Record<string, string>>({});
+
+  // Step 2: Condition + documents
+  const [conditionRating, setConditionRating] = useState("");
+  const [conditionNotes, setConditionNotes] = useState("");
+  const [conditionPhotos, setConditionPhotos] = useState<string[]>([]);
+  const [contractUrls, setContractUrls] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  // Step 3: Keys
+  const [keyCount, setKeyCount] = useState("");
+  const [keyNotes, setKeyNotes] = useState("");
+
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const contractInputRef = useRef<HTMLInputElement>(null);
+
   const moveIn = api.tenancy.moveIn.useMutation({
     onSuccess: () => {
       router.refresh();
       router.push(`/properties/${propertyId}`);
     },
   });
+
+  const handlePhotoUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      const urls = await Promise.all(
+        Array.from(files).map((f) => uploadFile(f, "move-in")),
+      );
+      setConditionPhotos((prev) => [...prev, ...urls.filter((u): u is string => u !== null)]);
+    } catch {
+      // silently ignore
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleContractUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      const urls = await Promise.all(
+        Array.from(files).map((f) => uploadFile(f, "contracts")),
+      );
+      setContractUrls((prev) => [...prev, ...urls.filter((u): u is string => u !== null)]);
+    } catch {
+      // silently ignore
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleFinish = () => {
     moveIn.mutate({
@@ -155,6 +231,15 @@ export default function MoveInWizardPage() {
       moveInDate,
       depositAmount: depositAmount ? Number(depositAmount) : undefined,
       sendInvitation,
+      initialReadings: Object.entries(initialReadings)
+        .filter(([, v]) => v && Number(v) > 0)
+        .map(([utilityType, value]) => ({ utilityType, value: Number(value) })),
+      conditionRating: conditionRating || undefined,
+      conditionNotes: conditionNotes || undefined,
+      conditionPhotos: conditionPhotos.length > 0 ? conditionPhotos : undefined,
+      contractUrls: contractUrls.length > 0 ? contractUrls : undefined,
+      keyCount: keyCount ? Number(keyCount) : undefined,
+      keyNotes: keyNotes || undefined,
     });
   };
 
@@ -388,50 +473,72 @@ export default function MoveInWizardPage() {
                   Nyitó mérőállások
                 </p>
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight">
-                  Rögzítsd az induló értékeket
+                  Kezdő mérőállások
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  A beköltözés után azonnal vidd fel a nyitó mérőállásokat, hogy
-                  tiszta legyen a bérlő első számlázási ciklusa.
+                  Rögzítsd a mérőórák aktuális állását a beköltözés pillanatában.
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  { label: "Villany", icon: Zap },
-                  { label: "Víz", icon: Droplets },
-                  { label: "Gáz / egyéb", icon: Home },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={item.label} className="rounded-[24px] bg-background/80 p-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                        <Icon className="h-4 w-4" />
+              {property.meterInfo.length === 0 ? (
+                <div className="rounded-[24px] bg-background/80 p-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Nincs mérőóra az ingatlanhoz. Hozzáadhatsz a mérők menüben.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {property.meterInfo.map((meter) => {
+                    const meta = utilityMeta[meter.utilityType] ?? {
+                      label: meter.utilityType,
+                      icon: Zap,
+                    };
+                    const Icon = meta.icon;
+                    return (
+                      <div
+                        key={meter.id}
+                        className="rounded-[24px] ring-1 ring-border/60 bg-background/80 p-5 space-y-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold">{meta.label}</p>
+                            {meter.serialNumber && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {meter.serialNumber}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {meter.location && (
+                          <p className="text-xs text-muted-foreground">
+                            Helyszín: {meter.location}
+                          </p>
+                        )}
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={initialReadings[meter.utilityType] ?? ""}
+                          onChange={(e) =>
+                            setInitialReadings((prev) => ({
+                              ...prev,
+                              [meter.utilityType]: e.target.value,
+                            }))
+                          }
+                          placeholder="Kezdő állás"
+                          className={inputClassName()}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Opcionális. Ha üres, később rögzítheted.
+                        </p>
                       </div>
-                      <p className="mt-4 text-sm font-semibold">{item.label}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Nyitó állás rögzítése külön bejegyzésként.
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="rounded-[26px] bg-gradient-to-br from-primary to-primary/80 p-6 text-primary-foreground">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary-foreground/70">
-                  Ajánlott következő lépés
-                </p>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/88">
-                  A wizard nem tárol itt mérőállást. Nyisd meg a mérőóra
-                  rögzítést egy új lapon, és a mentés után gyere vissza ide.
-                </p>
-                <Link
-                  href={`/properties/${propertyId}/readings/new`}
-                  className="mt-5 inline-flex rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-primary transition hover:bg-white/90"
-                >
-                  Mérőállás rögzítése
-                </Link>
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ) : null}
 
@@ -439,46 +546,169 @@ export default function MoveInWizardPage() {
             <div className="space-y-6">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-                  Dokumentumok
+                  Állapotfelvétel + dokumentumok
                 </p>
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight">
-                  Szerződés és átadás-átvételi papírok
+                  Állapotfelvétel és szerződés
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  A bérleti szerződés és az átadás-átvétel ide tartozik. Ezeket
-                  az ingatlan dokumentumai között érdemes azonnal feltölteni.
+                  Rögzítsd az ingatlan állapotát és töltsd fel a szükséges dokumentumokat.
                 </p>
               </div>
 
-              <div className="space-y-3">
-                {[
-                  "Bérleti szerződés",
-                  "Átadás-átvételi jegyzőkönyv",
-                  "Fotódokumentáció / melléklet",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-center gap-4 rounded-[22px] bg-background/78 px-4 py-4"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                      <FileText className="h-4 w-4" />
+              {/* Condition assessment */}
+              <div className="rounded-[24px] ring-1 ring-border/60 bg-background/80 p-5 space-y-4">
+                <p className="text-sm font-semibold">Az ingatlan állapota</p>
+                <div className="flex flex-wrap gap-2">
+                  {conditionOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() =>
+                        setConditionRating((prev) =>
+                          prev === opt.value ? "" : opt.value,
+                        )
+                      }
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                        conditionRating === opt.value
+                          ? "bg-primary text-primary-foreground shadow-[0_4px_16px_rgba(99,102,241,0.25)]"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                <Field label="Megjegyzés">
+                  <textarea
+                    value={conditionNotes}
+                    onChange={(e) => setConditionNotes(e.target.value)}
+                    placeholder="Az ingatlan állapotának leírása..."
+                    rows={3}
+                    className="w-full rounded-2xl border border-border/60 bg-background/80 px-4 py-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/40 focus:ring-4 focus:ring-primary/10"
+                  />
+                </Field>
+
+                <div>
+                  <p className="mb-2 text-sm font-medium">Fotók</p>
+                  {conditionPhotos.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {conditionPhotos.map((url, idx) => (
+                        <div key={url} className="group relative">
+                          <img
+                            src={url}
+                            alt={`Állapot fotó ${idx + 1}`}
+                            className="h-20 w-20 rounded-xl object-cover ring-1 ring-border/40"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setConditionPhotos((prev) =>
+                                prev.filter((_, i) => i !== idx),
+                              )
+                            }
+                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 transition group-hover:opacity-100"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold">{item}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Töltsd fel az ingatlan dokumentumai közé.
-                      </p>
-                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => handlePhotoUpload(e.target.files)}
+                    />
+                    <button
+                      type="button"
+                      disabled={uploading}
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      Kamera
+                    </button>
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handlePhotoUpload(e.target.files)}
+                    />
+                    <button
+                      type="button"
+                      disabled={uploading}
+                      onClick={() => photoInputRef.current?.click()}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Galéria
+                    </button>
                   </div>
-                ))}
+                  {uploading && (
+                    <p className="mt-2 text-xs text-muted-foreground">Feltöltés...</p>
+                  )}
+                </div>
               </div>
 
-              <Link
-                href={`/properties/${propertyId}/documents/new`}
-                className="inline-flex rounded-2xl border border-border bg-background/80 px-4 py-3 text-sm font-semibold transition hover:bg-muted/60"
-              >
-                Dokumentum feltöltése
-              </Link>
+              {/* Contract upload */}
+              <div className="rounded-[24px] ring-1 ring-border/60 bg-background/80 p-5 space-y-4">
+                <p className="text-sm font-semibold">Bérleti szerződés</p>
+                {contractUrls.length > 0 && (
+                  <div className="space-y-2">
+                    {contractUrls.map((url, idx) => (
+                      <div
+                        key={url}
+                        className="flex items-center justify-between gap-3 rounded-2xl bg-muted/60 px-4 py-2.5"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="truncate text-sm">
+                            Dokumentum {idx + 1}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setContractUrls((prev) =>
+                              prev.filter((_, i) => i !== idx),
+                            )
+                          }
+                          className="shrink-0 rounded-full p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div>
+                  <input
+                    ref={contractInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleContractUpload(e.target.files)}
+                  />
+                  <button
+                    type="button"
+                    disabled={uploading}
+                    onClick={() => contractInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Szerződés feltöltése
+                  </button>
+                </div>
+              </div>
             </div>
           ) : null}
 
@@ -489,36 +719,45 @@ export default function MoveInWizardPage() {
                   Záró ellenőrzés
                 </p>
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight">
-                  Kulcsátadás és indítás
+                  Kulcsátadás és összegzés
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Itt már csak az összefoglaló marad. A beköltözés indításával
-                  létrejön az aktív tenancy és a checklist.
+                  Add meg a kulcsátadás részleteit és ellenőrizd az összesítőt.
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[24px] bg-background/78 p-5">
+              {/* Key handover */}
+              <div className="rounded-[24px] ring-1 ring-border/60 bg-background/80 p-5 space-y-4">
+                <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                     <KeyRound className="h-4 w-4" />
                   </div>
-                  <p className="mt-4 text-sm font-semibold">Kulcsátadás</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    A fizikai kulcsátadás legyen meg a jegyzőkönyv és a nyitó
-                    mérőállások után.
-                  </p>
+                  <p className="text-sm font-semibold">Kulcsátadás</p>
                 </div>
-                <div className="rounded-[24px] bg-background/78 p-5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                    <CheckCircle2 className="h-4 w-4" />
-                  </div>
-                  <p className="mt-4 text-sm font-semibold">Checklist</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    A rendszer automatikusan létrehozza a beköltözési checklistet.
-                  </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Átadott kulcsok száma">
+                    <input
+                      type="number"
+                      min="0"
+                      value={keyCount}
+                      onChange={(e) => setKeyCount(e.target.value)}
+                      placeholder="0"
+                      className={inputClassName()}
+                    />
+                  </Field>
+                  <Field label="Kulcs megjegyzés">
+                    <input
+                      type="text"
+                      value={keyNotes}
+                      onChange={(e) => setKeyNotes(e.target.value)}
+                      placeholder="pl. 2 bejárati, 1 postaláda"
+                      className={inputClassName()}
+                    />
+                  </Field>
                 </div>
               </div>
 
+              {/* Summary */}
               <div className="rounded-[26px] bg-background/70 p-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Összegzés
@@ -550,6 +789,55 @@ export default function MoveInWizardPage() {
                     <span className="font-medium text-muted-foreground">App meghívó:</span>{" "}
                     {sendInvitation && tenantEmail ? "Igen, küldés" : "Nem"}
                   </p>
+
+                  {/* Meter readings summary */}
+                  {Object.entries(initialReadings).some(([, v]) => v && Number(v) > 0) && (
+                    <>
+                      <div className="my-2 h-px bg-border/60" />
+                      <p className="font-medium text-muted-foreground">Mérőállások:</p>
+                      {Object.entries(initialReadings)
+                        .filter(([, v]) => v && Number(v) > 0)
+                        .map(([type, value]) => (
+                          <p key={type} className="pl-3">
+                            {utilityMeta[type]?.label ?? type}: {value}
+                          </p>
+                        ))}
+                    </>
+                  )}
+
+                  {/* Condition summary */}
+                  {conditionRating && (
+                    <>
+                      <div className="my-2 h-px bg-border/60" />
+                      <p>
+                        <span className="font-medium text-muted-foreground">Állapot:</span>{" "}
+                        {conditionOptions.find((o) => o.value === conditionRating)?.label ?? conditionRating}
+                      </p>
+                    </>
+                  )}
+
+                  {/* Documents summary */}
+                  {(conditionPhotos.length > 0 || contractUrls.length > 0) && (
+                    <>
+                      <div className="my-2 h-px bg-border/60" />
+                      <p>
+                        <span className="font-medium text-muted-foreground">Dokumentumok:</span>{" "}
+                        {conditionPhotos.length + contractUrls.length} fájl
+                      </p>
+                    </>
+                  )}
+
+                  {/* Keys summary */}
+                  {keyCount && Number(keyCount) > 0 && (
+                    <>
+                      <div className="my-2 h-px bg-border/60" />
+                      <p>
+                        <span className="font-medium text-muted-foreground">Kulcsok:</span>{" "}
+                        {keyCount} db
+                        {keyNotes ? ` (${keyNotes})` : ""}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

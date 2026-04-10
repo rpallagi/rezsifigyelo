@@ -19,9 +19,110 @@ import {
   users,
   tenantInvitations,
   handoverChecklists,
+  meterReadings,
 } from "@/server/db/schema";
 import { createMoveInChecklist } from "@/server/tenancy/invitations";
 import { parseLandlordProfileScopeFromHeader } from "@/lib/landlord-profile-scope";
+import type { db as DbType } from "@/server/db";
+
+async function saveHandoverData(
+  database: typeof DbType,
+  propertyId: number,
+  input: {
+    initialReadings?: Array<{ utilityType: string; value: number }>;
+    conditionRating?: string;
+    conditionNotes?: string;
+    conditionPhotos?: string[];
+    contractUrls?: string[];
+    keyCount?: number;
+    keyNotes?: string;
+    moveInDate: string;
+  },
+) {
+  // Save initial readings
+  if (input.initialReadings?.length) {
+    for (const reading of input.initialReadings) {
+      if (reading.value > 0) {
+        await database.insert(meterReadings).values({
+          propertyId,
+          utilityType: reading.utilityType as "villany",
+          value: reading.value,
+          readingDate: input.moveInDate,
+          source: "manual",
+        });
+      }
+    }
+    // Mark checklist step completed
+    await database
+      .update(handoverChecklists)
+      .set({ status: "completed", completedAt: new Date() })
+      .where(
+        and(
+          eq(handoverChecklists.propertyId, propertyId),
+          eq(handoverChecklists.step, "meter_readings"),
+          eq(handoverChecklists.checklistType, "move_in"),
+        ),
+      );
+  }
+
+  // Save condition assessment in checklist dataJson
+  if (input.conditionRating || input.conditionNotes || input.conditionPhotos?.length) {
+    await database
+      .update(handoverChecklists)
+      .set({
+        status: "completed",
+        completedAt: new Date(),
+        dataJson: {
+          rating: input.conditionRating,
+          notes: input.conditionNotes,
+          photos: input.conditionPhotos,
+        },
+      })
+      .where(
+        and(
+          eq(handoverChecklists.propertyId, propertyId),
+          eq(handoverChecklists.step, "handover_protocol"),
+          eq(handoverChecklists.checklistType, "move_in"),
+        ),
+      );
+  }
+
+  // Mark contract step if uploaded
+  if (input.contractUrls?.length) {
+    await database
+      .update(handoverChecklists)
+      .set({
+        status: "completed",
+        completedAt: new Date(),
+        dataJson: { urls: input.contractUrls },
+      })
+      .where(
+        and(
+          eq(handoverChecklists.propertyId, propertyId),
+          eq(handoverChecklists.step, "contract_upload"),
+          eq(handoverChecklists.checklistType, "move_in"),
+        ),
+      );
+  }
+
+  // Save key handover
+  if (input.keyCount != null || input.keyNotes) {
+    await database
+      .update(handoverChecklists)
+      .set({
+        status: "completed",
+        completedAt: new Date(),
+        dataJson: { count: input.keyCount, notes: input.keyNotes },
+      })
+      .where(
+        and(
+          eq(handoverChecklists.propertyId, propertyId),
+          eq(handoverChecklists.step, "key_handover"),
+          eq(handoverChecklists.checklistType, "move_in"),
+        ),
+      );
+  }
+}
 
 function getBaseUrl(headers: Headers) {
   const origin = headers.get("origin");
@@ -94,6 +195,17 @@ export const tenancyRouter = createTRPCRouter({
         moveInDate: z.string(),
         depositAmount: z.number().optional(),
         sendInvitation: z.boolean().default(false),
+        // Handover data
+        initialReadings: z.array(z.object({
+          utilityType: z.string(),
+          value: z.number(),
+        })).optional(),
+        conditionRating: z.string().optional(),
+        conditionNotes: z.string().optional(),
+        conditionPhotos: z.array(z.string()).optional(),
+        contractUrls: z.array(z.string()).optional(),
+        keyCount: z.number().optional(),
+        keyNotes: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -154,6 +266,7 @@ export const tenancyRouter = createTRPCRouter({
           .returning();
         await createMoveInChecklist(ctx.db, input.propertyId, tenant.id);
 
+        await saveHandoverData(ctx.db, input.propertyId, input);
         revalidatePath("/properties");
         revalidatePath(`/properties/${input.propertyId}`);
         return { success: true, message: "Beköltözés elindítva", tenancy };
@@ -196,6 +309,7 @@ export const tenancyRouter = createTRPCRouter({
         });
       }
 
+      await saveHandoverData(ctx.db, input.propertyId, input);
       revalidatePath("/properties");
       revalidatePath(`/properties/${input.propertyId}`);
       return { success: true, message: "Bérlő felvéve", tenancy };
