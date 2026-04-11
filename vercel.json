@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/payment-reminders",
       "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/cron/poll-shelly",
+      "schedule": "0 */6 * * *"
     }
   ]
 }
