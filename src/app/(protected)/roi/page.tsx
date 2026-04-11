@@ -131,13 +131,19 @@ export default async function ROIPage() {
       const annualRent = (property.monthlyRent ?? 0) * 12;
       const roi = purchasePrice > 0 ? (annualRent / purchasePrice) * 100 : 0;
       const breakEvenYears = annualRent > 0 ? purchasePrice / annualRent : null;
-      const maintenanceEstimate = Math.round(annualRent * 0.08);
+      const actualMaintenance = property.maintenanceLogs?.reduce(
+        (sum: number, log: { costHuf?: number | null }) => sum + (log.costHuf ?? 0),
+        0,
+      ) ?? 0;
+      const maintenanceCost = actualMaintenance > 0 ? actualMaintenance : Math.round(annualRent * 0.08);
+      const maintenanceIsEstimate = actualMaintenance === 0;
       return {
         ...property,
         annualRent,
         roi,
         breakEvenYears,
-        maintenanceEstimate,
+        maintenanceCost,
+        maintenanceIsEstimate,
       };
     })
     .sort((a, b) => b.roi - a.roi);
@@ -149,7 +155,7 @@ export default async function ROIPage() {
   const bestYield = roiProperties[0] ?? null;
   const lowestYield = [...roiProperties].sort((a, b) => a.roi - b.roi)[0] ?? null;
   const lowestMaintenance = [...roiProperties].sort(
-    (a, b) => a.maintenanceEstimate - b.maintenanceEstimate,
+    (a, b) => a.maintenanceCost - b.maintenanceCost,
   )[0] ?? null;
   const fastestBreakEven = [...roiProperties]
     .filter((property) => property.breakEvenYears != null)
@@ -180,8 +186,8 @@ export default async function ROIPage() {
             locale === "hu" ? "Leghatékonyabb egység" : "Most efficient unit",
           body:
             locale === "hu"
-              ? `${lowestMaintenance.name} fenntartási becslése ${formatCurrency(lowestMaintenance.maintenanceEstimate, locale)}.`
-              : `${lowestMaintenance.name} has an estimated maintenance load of ${formatCurrency(lowestMaintenance.maintenanceEstimate, locale)}.`,
+              ? `${lowestMaintenance.name} fenntartási becslése ${formatCurrency(lowestMaintenance.maintenanceCost, locale)}.`
+              : `${lowestMaintenance.name} has an estimated maintenance load of ${formatCurrency(lowestMaintenance.maintenanceCost, locale)}.`,
         }
       : null,
     fastestBreakEven
@@ -257,7 +263,7 @@ export default async function ROIPage() {
   const avgUtilityCost =
     roiProperties.length > 0
       ? Math.round(
-          roiProperties.reduce((acc, property) => acc + property.maintenanceEstimate, 0) /
+          roiProperties.reduce((acc, property) => acc + property.maintenanceCost, 0) /
             roiProperties.length,
         )
       : 0;
@@ -432,9 +438,12 @@ export default async function ROIPage() {
                       <div className="rounded-[22px] bg-background/75 px-3 py-3">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                           {copy.maintenance}
+                          {property.maintenanceIsEstimate && (
+                            <span className="ml-1 normal-case tracking-normal opacity-60">~becslés</span>
+                          )}
                         </p>
-                        <p className="mt-1 text-base font-semibold text-rose-600 dark:text-rose-300">
-                          {formatCurrency(property.maintenanceEstimate, locale)}
+                        <p className={`mt-1 text-base font-semibold ${property.maintenanceIsEstimate ? "text-muted-foreground" : "text-rose-600 dark:text-rose-300"}`}>
+                          {formatCurrency(property.maintenanceCost, locale)}
                         </p>
                       </div>
                     </div>

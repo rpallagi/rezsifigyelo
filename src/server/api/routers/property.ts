@@ -64,6 +64,9 @@ export const propertyRouter = createTRPCRouter({
         handoverChecklists: {
           where: (c, { eq }) => eq(c.status, "pending"),
         },
+        maintenanceLogs: {
+          columns: { id: true, costHuf: true },
+        },
       },
       orderBy: (p, { asc }) => [asc(p.name)],
     });
