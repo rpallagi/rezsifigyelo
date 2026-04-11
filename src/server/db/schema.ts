@@ -111,6 +111,7 @@ export const smartMeterSourceEnum = pgEnum("rezsi_smart_meter_source", [
   "ttn",
   "mqtt",
   "home_assistant",
+  "shelly_cloud",
 ]);
 
 export const taxModeEnum = pgEnum("rezsi_tax_mode", [
@@ -903,6 +904,9 @@ export const chatMessages = createTable(
       .references(() => users.id, { onDelete: "cascade" }),
     senderType: d.varchar({ length: 10 }).notNull(), // 'admin' / 'tenant'
     message: d.text().notNull(),
+    attachmentUrl: d.text(),
+    attachmentType: d.varchar({ length: 20 }),
+    attachmentName: d.varchar({ length: 255 }),
     isRead: d.boolean().notNull().default(false),
     createdAt: d
       .timestamp({ withTimezone: true })
@@ -935,6 +939,9 @@ export const smartMeterDevices = createTable(
     ttnAppId: d.varchar({ length: 200 }),
     // MQTT
     mqttTopic: d.varchar({ length: 500 }),
+    // Shelly Cloud
+    shellyDeviceId: d.varchar({ length: 200 }),
+    shellyChannel: d.integer().default(0),
     // Payload parsing
     valueField: d.varchar({ length: 100 }).notNull().default("meter_value"),
     multiplier: d.doublePrecision().notNull().default(1.0),
