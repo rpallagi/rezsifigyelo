@@ -61,7 +61,7 @@ function getDashboardCopy(locale: Locale, pendingAssignments = 0, vacantProperti
     ? {
         title: "Portfólió áttekintés",
         subtitle:
-          "A Stitch ROI Analytics irány alapján ez most a portfólió egészségét, számlázási kontextust és azonnali teendőket emeli ki.",
+          "Az ingatlanportfólió egészsége, bérlők, számlázás és azonnali teendők egy helyen.",
         yield: "Portfólió hozam",
         annualCashflow: "Éves cashflow",
         profiles: "Kiállító profilok",
@@ -247,25 +247,25 @@ async function DashboardContent({
         <HeroStat
           label={m.dashboardPage.activeTenants}
           value={formatNumber(activeTenants, locale)}
-          detail={copy.vacant}
+          detail={locale === "hu" ? `${vacantProperties} szabad ingatlan` : `${vacantProperties} vacant`}
           href="/tenants"
         />
         <HeroStat
           label={m.dashboardPage.totalMeters}
           value={formatNumber(totalMeters, locale)}
-          detail={m.common.readings}
+          detail={locale === "hu" ? "Összes leolvasás →" : "All readings →"}
           href="/readings"
         />
         <HeroStat
           label={m.dashboardPage.monthlyRevenue}
           value={formatCurrency(monthlyRevenue, locale)}
-          detail={formatCurrency(annualRevenue, locale)}
+          detail={locale === "hu" ? `Éves: ${formatCurrency(annualRevenue, locale)}` : `Annual: ${formatCurrency(annualRevenue, locale)}`}
           href="/billing"
         />
         <HeroStat
           label={copy.profiles}
           value={formatNumber(landlordProfileCount, locale)}
-          detail={formatNumber(properties.length - pendingAssignments, locale)}
+          detail={locale === "hu" ? `${properties.length - pendingAssignments} ingatlan hozzárendelve` : `${properties.length - pendingAssignments} properties assigned`}
           href="/settings/landlord-profiles"
         />
       </section>
@@ -347,7 +347,11 @@ async function DashboardContent({
                     </div>
                     <div>
                       <p className="text-muted-foreground">{m.dashboardPage.monthlyRevenue}</p>
-                      <p className="mt-1 font-medium">{formatCurrency(property.monthlyRent ?? 0, locale)}</p>
+                      <p className="mt-1 font-medium">
+                        {property.monthlyRent
+                          ? `${Math.round(property.monthlyRent).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} ${property.rentCurrency === "EUR" ? "€" : "Ft"}`
+                          : "—"}
+                      </p>
                     </div>
                   </div>
 
