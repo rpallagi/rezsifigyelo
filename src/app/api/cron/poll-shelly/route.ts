@@ -7,7 +7,7 @@ import {
   smartMeterLogs,
   meterReadings,
   appSettings,
-  users,
+  properties,
 } from "@/server/db/schema";
 
 /**
@@ -101,10 +101,7 @@ export async function GET(req: NextRequest) {
 
       // Get property to find owner
       const property = await db.query.properties.findFirst({
-        where: eq(
-          (await import("@/server/db/schema")).properties.id,
-          device.propertyId,
-        ),
+        where: eq(properties.id, device.propertyId),
       });
       if (!property) {
         results.push({ deviceId: device.deviceId, status: "error", value: undefined });

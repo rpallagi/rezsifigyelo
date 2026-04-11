@@ -146,6 +146,15 @@ export default function SettingsPage() {
             </p>
           </Link>
           <Link
+            href="/settings/shelly-cloud"
+            className="rounded-lg border border-border p-4 hover:bg-secondary/50"
+          >
+            <h3 className="font-medium">Shelly Cloud</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Shelly energiamérők automatikus adatgyűjtése
+            </p>
+          </Link>
+          <Link
             href="/settings/smart-meters"
             className="rounded-lg border border-border p-4 hover:bg-secondary/50"
           >

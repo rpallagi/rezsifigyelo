@@ -27,7 +27,7 @@ import {
 
 type UtilityType = "villany" | "viz" | "gaz" | "csatorna";
 type MeterKind = "manual" | "smart";
-type SmartSource = "mqtt" | "ttn" | "home_assistant";
+type SmartSource = "mqtt" | "ttn" | "home_assistant" | "shelly_cloud";
 
 const utilityMeta: Record<
   UtilityType,
@@ -89,7 +89,8 @@ interface Preset {
 }
 
 const PRESETS: Preset[] = [
-  { id: "shelly_http", label: "Shelly 3EM Pro", source: "mqtt", valueField: "total", multiplier: 0.001, icon: "⚡" },
+  { id: "shelly_cloud", label: "Shelly Cloud (auto)", source: "shelly_cloud" as SmartSource, valueField: "total_act", multiplier: 0.001, icon: "☁️" },
+  { id: "shelly_http", label: "Shelly 3EM Pro (webhook)", source: "mqtt", valueField: "total", multiplier: 0.001, icon: "⚡" },
   { id: "homewizard", label: "HomeWizard P1", source: "mqtt", valueField: "total_power_import_kwh", multiplier: 1, icon: "🔌" },
   { id: "esp32_mqtt", label: "ESP32 MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: "📡" },
   { id: "zigbee2mqtt", label: "Zigbee2MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: "📶" },
@@ -663,6 +664,7 @@ export default function NewMeterPage() {
                     mqtt: "MQTT",
                     ttn: "TTN",
                     home_assistant: "Home Assistant",
+                    shelly_cloud: "Shelly Cloud",
                   };
                   return (
                     <button
@@ -829,6 +831,7 @@ export default function NewMeterPage() {
       mqtt: "MQTT",
       ttn: "TTN LoRaWAN",
       home_assistant: "Home Assistant",
+      shelly_cloud: "Shelly Cloud",
     };
 
     return (
