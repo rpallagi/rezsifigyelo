@@ -24,6 +24,23 @@ const utilityUnits: Record<string, string> = {
   egyeb: "",
 };
 
+const sourceLabels: Record<string, string> = {
+  manual: "Kézi",
+  tenant: "Bérlő",
+  smart_mqtt: "Okos mérő",
+  smart_ttn: "TTN",
+  home_assistant: "Home Assistant",
+};
+
+function sourceLabel(source: string) {
+  return sourceLabels[source] ?? source;
+}
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" });
+}
+
 function utilityIcon(type: string) {
   switch (type) {
     case "villany":
@@ -333,7 +350,7 @@ export default async function AllReadingsPage({
                                 {utilityLabels[r.utilityType] ?? r.utilityType}
                               </p>
                               <p className="mt-0.5 text-sm text-muted-foreground">
-                                {r.readingDate}
+                                {formatDate(r.readingDate)}
                               </p>
                             </div>
                           </div>
@@ -360,7 +377,7 @@ export default async function AllReadingsPage({
                             <p className="text-muted-foreground">Forrás</p>
                             <p className="mt-1">
                               <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">
-                                {r.source}
+                                {sourceLabel(r.source)}
                               </span>
                             </p>
                           </div>
@@ -401,7 +418,7 @@ export default async function AllReadingsPage({
                                 </span>
                               </div>
                             </td>
-                            <td className="py-3">{r.readingDate}</td>
+                            <td className="py-3">{formatDate(r.readingDate)}</td>
                             <td className="py-3 font-mono">{r.value}</td>
                             <td className="py-3">
                               {r.consumption != null
@@ -411,7 +428,7 @@ export default async function AllReadingsPage({
                             <td className="py-3">{formatCurrency(r.costHuf)}</td>
                             <td className="py-3">
                               <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">
-                                {r.source}
+                                {sourceLabel(r.source)}
                               </span>
                             </td>
                           </tr>
