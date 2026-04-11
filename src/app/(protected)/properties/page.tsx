@@ -161,6 +161,10 @@ export default async function PropertiesPage({
         aVal = a.monthlyRent ?? 0;
         bVal = b.monthlyRent ?? 0;
         break;
+      case "area":
+        aVal = a.buildingArea ?? 0;
+        bVal = b.buildingArea ?? 0;
+        break;
       case "profile":
         aVal = (a.landlordProfile?.displayName ?? "").toLowerCase();
         bVal = (b.landlordProfile?.displayName ?? "").toLowerCase();
@@ -406,6 +410,7 @@ export default async function PropertiesPage({
             { key: "type", label: "Típus" },
             { key: null, label: "Bérlő" },
             { key: "rent", label: "Bérleti díj" },
+            { key: "area", label: "m²" },
             { key: "profile", label: "Profil" },
           ] as const;
 
@@ -437,6 +442,14 @@ export default async function PropertiesPage({
                 {property.monthlyRent
                   ? `${Math.round(property.monthlyRent).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} ${property.rentCurrency === "EUR" ? "€" : "Ft"}`
                   : "Nincs"}
+              </td>
+              <td className="px-4 py-3 text-muted-foreground">
+                {property.buildingArea ? `${property.buildingArea} m²` : "—"}
+                {property.buildingArea && property.monthlyRent && (
+                  <span className="ml-1 text-xs opacity-70">
+                    ({Math.round(property.monthlyRent / property.buildingArea).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} /m²)
+                  </span>
+                )}
               </td>
               <td className="px-4 py-3">
                 {property.landlordProfile ? (
@@ -485,7 +498,7 @@ export default async function PropertiesPage({
                     groupedByProfile.map((group) => (
                       <React.Fragment key={group.profile?.id ?? "none"}>
                         <tr>
-                          <td colSpan={6} className="px-4 pb-1 pt-4">
+                          <td colSpan={7} className="px-4 pb-1 pt-4">
                             <div className="flex items-center gap-2">
                               {group.profile && (
                                 <span className={`h-2.5 w-2.5 rounded-full ${profileDotColor(group.profile.color)}`} />

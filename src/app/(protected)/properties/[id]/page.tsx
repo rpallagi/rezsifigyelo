@@ -173,10 +173,30 @@ export default async function PropertyDetailPage({
     notFound();
   }
 
-  const property = await api.property.get({ id: numId });
+  const [property, allProperties] = await Promise.all([
+    api.property.get({ id: numId }),
+    api.property.list(),
+  ]);
   if (!property) {
     notFound();
   }
+
+  // Category Ft/m² comparison
+  const rentPerSqm = property.monthlyRent && property.buildingArea
+    ? property.monthlyRent / property.buildingArea
+    : null;
+  const categoryAvgRentPerSqm = (() => {
+    if (!rentPerSqm) return null;
+    const peers = allProperties.filter(
+      (p) => p.id !== property.id && p.propertyType === property.propertyType && p.monthlyRent && p.buildingArea,
+    );
+    if (peers.length === 0) return null;
+    const avg = peers.reduce((sum, p) => sum + p.monthlyRent! / p.buildingArea!, 0) / peers.length;
+    return avg;
+  })();
+  const rentPerSqmDiffPct = rentPerSqm && categoryAvgRentPerSqm
+    ? Math.round(((rentPerSqm - categoryAvgRentPerSqm) / categoryAvgRentPerSqm) * 100)
+    : null;
 
   const activeTenancy = property.tenancies.find((tenancy) => tenancy.active);
   const pendingInvitation = property.tenantInvitations.find(
@@ -319,6 +339,14 @@ export default async function PropertyDetailPage({
             {property.address && (
               <p className="mt-2 max-w-2xl text-base text-white/75">
                 {property.address}
+              </p>
+            )}
+            {(property.buildingArea || property.landArea) && (
+              <p className="mt-1.5 text-sm text-white/60">
+                {[
+                  property.buildingArea && `${property.buildingArea} m² épület`,
+                  property.landArea && `${property.landArea} m² telek`,
+                ].filter(Boolean).join(" · ")}
               </p>
             )}
           </div>
@@ -552,7 +580,18 @@ export default async function PropertyDetailPage({
         <StatCard label="Mérők" value={`${property.meterInfo.length} db`} detail={`${property.smartMeters.length} okosmérő kapcsolva`} />
         <StatCard label="Utolsó leolvasás" value={latestReading?.readingDate ?? "—"} detail={latestReading ? `${latestReading.utilityType} · ${latestReading.value}` : "Még nincs adat"} />
         <StatCard label="Utolsó számla" value={latestInvoice ? formatCurrency(latestInvoice.grossTotalHuf) : "—"} detail={latestInvoice ? latestInvoice.issueDate : "Még nincs kiállítva"} tone={latestInvoice ? "success" : "neutral"} />
-        <StatCard label="Nyitott adó" value={unpaidTaxSeasons > 0 ? `${unpaidTaxSeasons} szezon` : "Rendben"} detail={property.monthlyRent ? `Bérleti díj: ${formatCurrency(property.monthlyRent)}${property.buildingArea && property.monthlyRent ? ` · ${Math.round(property.monthlyRent / property.buildingArea).toLocaleString("hu-HU")} Ft/m²` : ""}` : "Nincs havi bérleti díj"} tone={unpaidTaxSeasons > 0 ? "warning" : "success"} />
+        <StatCard
+          label="Ft/m²"
+          value={rentPerSqm ? `${Math.round(rentPerSqm).toLocaleString("hu-HU")} Ft/m²` : "—"}
+          detail={
+            rentPerSqmDiffPct !== null
+              ? `${rentPerSqmDiffPct > 0 ? "▲" : rentPerSqmDiffPct < 0 ? "▼" : "="} ${Math.abs(rentPerSqmDiffPct)}% a kategória átlaghoz képest`
+              : rentPerSqm
+                ? "Nincs összehasonlítási adat"
+                : "Adj meg m²-t és bérleti díjat"
+          }
+          tone={rentPerSqmDiffPct !== null ? (rentPerSqmDiffPct >= 0 ? "success" : "warning") : "neutral"}
+        />
       </section>
 
       {property.meterInfo.length > 0 && (
