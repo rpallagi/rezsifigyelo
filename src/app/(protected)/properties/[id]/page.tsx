@@ -607,7 +607,6 @@ export default async function PropertyDetailPage({
         const utilityTypes = [...new Set(property.readings.map((r) => r.utilityType))];
         if (utilityTypes.length === 0 && property.smartMeters.length === 0) return null;
 
-        // Also include utilities from smart meters that may not have readings yet
         for (const sm of property.smartMeters) {
           if (!utilityTypes.includes(sm.utilityType)) utilityTypes.push(sm.utilityType);
         }
@@ -617,19 +616,36 @@ export default async function PropertyDetailPage({
             {utilityTypes.map((ut) => {
               const meta = UTILITY_META[ut] ?? { label: ut, unit: "", color: "#6b7280", icon: Zap };
               const Icon = meta.icon;
-              const readings = property.readings
-                .filter((r) => r.utilityType === ut && r.consumption != null && r.consumption > 0)
+              const allReadings = property.readings
+                .filter((r) => r.utilityType === ut)
                 .sort((a, b) => a.readingDate.localeCompare(b.readingDate));
-              const sparkData = readings.map((r) => r.consumption!);
-              const latest = readings[readings.length - 1];
-              const prev = readings.length >= 2 ? readings[readings.length - 2] : null;
-              const pctChange = latest && prev && prev.consumption
+              const withConsumption = allReadings.filter((r) => r.consumption != null && r.consumption > 0);
+              const sparkData = withConsumption.map((r) => r.consumption!);
+              const latest = withConsumption[withConsumption.length - 1];
+              const prev = withConsumption.length >= 2 ? withConsumption[withConsumption.length - 2] : null;
+              const smartDevice = property.smartMeters.find((sm) => sm.utilityType === ut);
+
+              // Month label for latest reading
+              const latestMonth = latest
+                ? new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "short" }).format(new Date(latest.readingDate))
+                : null;
+
+              // MoM change (vs previous month)
+              const momPct = latest && prev && prev.consumption
                 ? Math.round(((latest.consumption! - prev.consumption) / prev.consumption) * 100)
                 : null;
-              const latestCost = property.readings
-                .filter((r) => r.utilityType === ut)
-                .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0]?.costHuf;
-              const smartDevice = property.smartMeters.find((sm) => sm.utilityType === ut);
+
+              // YoY change (vs same month last year)
+              const latestDate = latest ? new Date(latest.readingDate) : null;
+              const sameMonthLastYear = latestDate
+                ? withConsumption.find((r) => {
+                    const d = new Date(r.readingDate);
+                    return d.getMonth() === latestDate.getMonth() && d.getFullYear() === latestDate.getFullYear() - 1;
+                  })
+                : null;
+              const yoyPct = latest && sameMonthLastYear?.consumption
+                ? Math.round(((latest.consumption! - sameMonthLastYear.consumption) / sameMonthLastYear.consumption) * 100)
+                : null;
 
               const cardHref = smartDevice?.isActive
                 ? `/readings?property=${property.id}`
@@ -648,56 +664,57 @@ export default async function PropertyDetailPage({
                       </div>
                       <span className="text-sm font-semibold">{meta.label}</span>
                     </div>
-                    {pctChange !== null && (
-                      <span className={`text-xs font-medium ${pctChange > 0 ? "text-rose-600" : pctChange < 0 ? "text-emerald-600" : "text-muted-foreground"}`}>
-                        {pctChange > 0 ? "▲" : pctChange < 0 ? "▼" : "="} {Math.abs(pctChange)}%
+                    {latestMonth && (
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        {latestMonth}
                       </span>
                     )}
                   </div>
 
                   {sparkData.length >= 2 && (
                     <div className="mt-3">
-                      <Sparkline data={sparkData} color={meta.color} height={40} />
+                      <Sparkline data={sparkData} color={meta.color} height={44} />
                     </div>
                   )}
 
-                  <div className="mt-2 flex items-end justify-between">
-                    <div>
-                      {latest?.consumption != null ? (
-                        <>
-                          <p className="text-xl font-bold tabular-nums">
-                            {latest.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })}
-                          </p>
-                          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                            {meta.unit} / utolsó fogyasztás
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-xl font-bold tabular-nums">
-                            {property.readings
-                              .filter((r) => r.utilityType === ut)
-                              .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0]
-                              ?.value.toLocaleString("hu-HU", { maximumFractionDigits: 1 }) ?? "—"}
-                          </p>
-                          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                            {meta.unit} mérőállás
-                          </p>
-                        </>
-                      )}
-                    </div>
-                    {latestCost != null && latestCost > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        ~{Math.round(latestCost).toLocaleString("hu-HU")} Ft
-                      </p>
+                  <div className="mt-2">
+                    <p className="text-2xl font-bold tabular-nums">
+                      {latest?.consumption != null
+                        ? `${Math.round(latest.consumption).toLocaleString("hu-HU")} ${meta.unit}`
+                        : allReadings.length > 0
+                          ? `${Math.round(allReadings[allReadings.length - 1]!.value).toLocaleString("hu-HU")} ${meta.unit}`
+                          : "—"}
+                    </p>
+                  </div>
+
+                  {/* Comparison badges */}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {momPct !== null && (
+                      <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        momPct > 5 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300"
+                          : momPct < -5 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+                          : "bg-secondary text-muted-foreground"
+                      }`}>
+                        {momPct > 0 ? "▲" : momPct < 0 ? "▼" : "="}{Math.abs(momPct)}% előző hó
+                      </span>
+                    )}
+                    {yoyPct !== null && (
+                      <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        yoyPct > 5 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300"
+                          : yoyPct < -5 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+                          : "bg-secondary text-muted-foreground"
+                      }`}>
+                        {yoyPct > 0 ? "▲" : yoyPct < 0 ? "▼" : "="}{Math.abs(yoyPct)}% tavaly ilyenkor
+                      </span>
                     )}
                   </div>
 
+                  {/* Live power from smart meter */}
                   {smartDevice?.isActive && smartDevice.lastRawValue != null && (
                     <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2 py-1 dark:bg-emerald-950/30">
                       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                       <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                        {Math.round(smartDevice.lastRawValue).toLocaleString("hu-HU")} W
+                        Élő: {Math.round(smartDevice.lastRawValue).toLocaleString("hu-HU")} W
                       </span>
                       {smartDevice.lastSeenAt && (
                         <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70">
