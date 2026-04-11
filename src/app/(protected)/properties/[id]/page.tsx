@@ -3,10 +3,18 @@ import { PropertyCoverImage } from "@/components/properties/property-cover-image
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { Zap, Droplets, Flame } from "lucide-react";
+import { Zap, Droplets, Flame, Waves } from "lucide-react";
 import { ConsumptionChart } from "@/components/shared/consumption-chart";
+import { Sparkline } from "@/components/shared/sparkline";
 import { api } from "@/trpc/server";
 import { CommonFeeCalendar } from "./common-fee-calendar";
+
+const UTILITY_META: Record<string, { label: string; unit: string; color: string; icon: typeof Zap }> = {
+  villany: { label: "Villany", unit: "kWh", color: "#eab308", icon: Zap },
+  viz: { label: "Víz", unit: "m³", color: "#3b82f6", icon: Droplets },
+  gaz: { label: "Gáz", unit: "m³", color: "#ef4444", icon: Flame },
+  csatorna: { label: "Csatorna", unit: "m³", color: "#8b5cf6", icon: Waves },
+};
 
 function formatCurrency(value?: number | null) {
   return value != null ? `${value.toLocaleString("hu-HU")} Ft` : "—";
@@ -594,6 +602,100 @@ export default async function PropertyDetailPage({
         />
       </section>
 
+      {/* Per-utility consumption cards */}
+      {(() => {
+        const utilityTypes = [...new Set(property.readings.map((r) => r.utilityType))];
+        if (utilityTypes.length === 0 && property.smartMeters.length === 0) return null;
+
+        // Also include utilities from smart meters that may not have readings yet
+        for (const sm of property.smartMeters) {
+          if (!utilityTypes.includes(sm.utilityType)) utilityTypes.push(sm.utilityType);
+        }
+
+        return (
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {utilityTypes.map((ut) => {
+              const meta = UTILITY_META[ut] ?? { label: ut, unit: "", color: "#6b7280", icon: Zap };
+              const Icon = meta.icon;
+              const readings = property.readings
+                .filter((r) => r.utilityType === ut && r.consumption != null && r.consumption > 0)
+                .sort((a, b) => a.readingDate.localeCompare(b.readingDate));
+              const sparkData = readings.map((r) => r.consumption!);
+              const latest = readings[readings.length - 1];
+              const prev = readings.length >= 2 ? readings[readings.length - 2] : null;
+              const pctChange = latest && prev && prev.consumption
+                ? Math.round(((latest.consumption! - prev.consumption) / prev.consumption) * 100)
+                : null;
+              const latestCost = property.readings
+                .filter((r) => r.utilityType === ut)
+                .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0]?.costHuf;
+              const smartDevice = property.smartMeters.find((sm) => sm.utilityType === ut);
+
+              return (
+                <Link
+                  key={ut}
+                  href={`/properties/${property.id}/readings/new`}
+                  className="group rounded-[24px] bg-card/90 p-4 ring-1 ring-border/50 transition hover:ring-border hover:shadow-md"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-lg p-1.5" style={{ backgroundColor: `${meta.color}15` }}>
+                        <Icon className="h-4 w-4" style={{ color: meta.color }} />
+                      </div>
+                      <span className="text-sm font-semibold">{meta.label}</span>
+                    </div>
+                    {pctChange !== null && (
+                      <span className={`text-xs font-medium ${pctChange > 0 ? "text-rose-600" : pctChange < 0 ? "text-emerald-600" : "text-muted-foreground"}`}>
+                        {pctChange > 0 ? "▲" : pctChange < 0 ? "▼" : "="} {Math.abs(pctChange)}%
+                      </span>
+                    )}
+                  </div>
+
+                  {sparkData.length >= 2 && (
+                    <div className="mt-3">
+                      <Sparkline data={sparkData} color={meta.color} height={40} />
+                    </div>
+                  )}
+
+                  <div className="mt-2 flex items-end justify-between">
+                    <div>
+                      <p className="text-xl font-bold tabular-nums">
+                        {latest?.consumption != null
+                          ? latest.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })
+                          : "—"}
+                      </p>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        {meta.unit} / utolsó
+                      </p>
+                    </div>
+                    {latestCost != null && latestCost > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        ~{Math.round(latestCost).toLocaleString("hu-HU")} Ft
+                      </p>
+                    )}
+                  </div>
+
+                  {smartDevice?.isActive && smartDevice.lastRawValue != null && (
+                    <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2 py-1 dark:bg-emerald-950/30">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                      <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                        {Math.round(smartDevice.lastRawValue).toLocaleString("hu-HU")} W
+                      </span>
+                      {smartDevice.lastSeenAt && (
+                        <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70">
+                          · {new Date(smartDevice.lastSeenAt).toLocaleString("hu-HU", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
+          </section>
+        );
+      })()}
+
+      {/* Meter cards — interactive */}
       {property.meterInfo.length > 0 && (
         <SectionCard title="Mérőórák" subtitle="Gyári számok, helyszínek és gyors ellenőrzés.">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -601,8 +703,16 @@ export default async function PropertyDetailPage({
               const smartDevice = property.smartMeters.find(
                 (sm) => sm.utilityType === meter.utilityType,
               );
+              const lastReading = property.readings
+                .filter((r) => r.utilityType === meter.utilityType)
+                .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0];
+
               return (
-                <div key={meter.id} className="rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50">
+                <Link
+                  key={meter.id}
+                  href={`/properties/${property.id}/readings/new`}
+                  className="group rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50 transition hover:ring-border hover:shadow-md"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold capitalize">{meter.utilityType}</p>
@@ -620,26 +730,31 @@ export default async function PropertyDetailPage({
                           {smartDevice.isActive ? "Okos" : "Inaktív"}
                         </span>
                       )}
-                      <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                        Mérő
-                      </span>
                     </div>
                   </div>
-                  <p className="mt-4 font-mono text-sm text-muted-foreground">
+                  <p className="mt-3 font-mono text-sm text-muted-foreground">
                     {meter.serialNumber ?? "Nincs gyári szám"}
                   </p>
-                  {smartDevice && (
+                  {lastReading && (
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-lg font-bold tabular-nums">{lastReading.value.toLocaleString("hu-HU", { maximumFractionDigits: 1 })}</span>
+                      <span className="text-xs text-muted-foreground">{lastReading.readingDate}</span>
+                    </div>
+                  )}
+                  {smartDevice && smartDevice.isActive && (
                     <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                       {smartDevice.lastRawValue != null && (
-                        <p>Utolsó érték: <span className="font-medium text-foreground">{smartDevice.lastRawValue}</span></p>
+                        <p>Élő: <span className="font-medium text-foreground">{Math.round(smartDevice.lastRawValue).toLocaleString("hu-HU")} W</span></p>
                       )}
                       {smartDevice.lastSeenAt && (
                         <p>Utolsó jel: {new Date(smartDevice.lastSeenAt).toLocaleString("hu-HU")}</p>
                       )}
-                      <p className="font-mono text-[10px]">{smartDevice.deviceId}</p>
                     </div>
                   )}
-                </div>
+                  <span className="mt-3 block text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
+                    Leolvasás &rarr;
+                  </span>
+                </Link>
               );
             })}
           </div>

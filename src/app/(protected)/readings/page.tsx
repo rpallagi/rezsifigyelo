@@ -1,6 +1,7 @@
 import { api } from "@/trpc/server";
 import Link from "next/link";
 import { Zap, Droplets, Flame, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { Sparkline } from "@/components/shared/sparkline";
 import { NewReadingDropdown } from "./new-reading-dropdown";
 
 const utilityLabels: Record<string, string> = {
@@ -111,6 +112,12 @@ function computeTrendCards(readings: Reading[]) {
       .filter((r) => r.readingDate.startsWith(currentMonth))
       .reduce((sum, r) => sum + (r.costHuf ?? 0), 0);
 
+    const sparkData = typeReadings
+      .filter((r) => r.consumption != null && r.consumption > 0)
+      .slice(0, 12)
+      .reverse()
+      .map((r) => r.consumption!);
+
     return {
       type,
       label: utilityLabels[type] ?? type,
@@ -118,6 +125,7 @@ function computeTrendCards(readings: Reading[]) {
       latestConsumption: latest?.consumption ?? null,
       changePercent,
       monthlyCost,
+      sparkData,
     };
   });
 }
@@ -219,7 +227,16 @@ export default async function AllReadingsPage({
                   </span>
                 )}
               </div>
-              <p className="mt-4 text-sm text-muted-foreground">{card.label}</p>
+              {card.sparkData.length >= 2 && (
+                <div className="mt-3">
+                  <Sparkline
+                    data={card.sparkData}
+                    color={card.type === "villany" ? "#eab308" : card.type === "gaz" ? "#ef4444" : "#3b82f6"}
+                    height={36}
+                  />
+                </div>
+              )}
+              <p className="mt-3 text-sm text-muted-foreground">{card.label}</p>
               <p className="mt-1 text-3xl font-semibold">
                 {card.latestConsumption != null
                   ? `${card.latestConsumption.toFixed(2)} ${card.unit}`

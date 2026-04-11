@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   AreaChart,
   Area,
@@ -24,8 +25,12 @@ const utilityColors: Record<string, string> = {
   csatorna: "#8b5cf6",
 };
 
+type Period = "6m" | "1y" | "all";
+
 export function ConsumptionChart({ readings }: { readings: Reading[] }) {
   const { intlLocale, messages, utilityLabel } = useLocale();
+  const [period, setPeriod] = useState<Period>("1y");
+
   // Group by month and utility
   const byMonth = new Map<string, Record<string, number>>();
 
@@ -37,18 +42,43 @@ export function ConsumptionChart({ readings }: { readings: Reading[] }) {
     byMonth.set(month, existing);
   }
 
-  const data = Array.from(byMonth.entries())
+  const allData = Array.from(byMonth.entries())
     .map(([month, values]) => ({ month, ...values }))
-    .sort((a, b) => a.month.localeCompare(b.month))
-    .slice(-12); // Last 12 months
+    .sort((a, b) => a.month.localeCompare(b.month));
+
+  const sliceCount = period === "6m" ? 6 : period === "1y" ? 12 : allData.length;
+  const data = allData.slice(-sliceCount);
 
   if (data.length < 2) return null;
 
   const utilityTypes = [...new Set(readings.map((r) => r.utilityType))];
 
+  const periods: { key: Period; label: string }[] = [
+    { key: "6m", label: "6 hó" },
+    { key: "1y", label: "1 év" },
+    { key: "all", label: "Összes" },
+  ];
+
   return (
     <div className="mt-8">
-      <h2 className="text-lg font-semibold">{messages.chart.title}</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">{messages.chart.title}</h2>
+        <div className="flex gap-1 rounded-lg border border-border p-0.5">
+          {periods.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                period === p.key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="mt-4 h-64">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
