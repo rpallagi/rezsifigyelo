@@ -262,6 +262,7 @@ export const properties = createTable(
     // ROI
     purchasePrice: d.doublePrecision(),
     monthlyRent: d.doublePrecision(),
+    rentCurrency: d.varchar({ length: 3 }).notNull().default("HUF"),
     // Avatar
     avatarUrl: d.text(),
     archived: d.boolean().notNull().default(false),

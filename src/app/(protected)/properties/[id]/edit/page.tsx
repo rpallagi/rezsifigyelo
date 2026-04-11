@@ -35,6 +35,7 @@ export default function EditPropertyPage() {
   const [autoBillingDay, setAutoBillingDay] = useState("1");
   const [autoBillingMissingReadings, setAutoBillingMissingReadings] = useState<"estimate" | "skip_readings" | "draft_only">("skip_readings");
   const [monthlyRent, setMonthlyRent] = useState("");
+  const [rentCurrency, setRentCurrency] = useState<"HUF" | "EUR">("HUF");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [notes, setNotes] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -72,6 +73,7 @@ export default function EditPropertyPage() {
         (property.autoBillingMissingReadings as "estimate" | "skip_readings" | "draft_only") ?? "skip_readings",
       );
       setMonthlyRent(property.monthlyRent?.toString() ?? "");
+      setRentCurrency((property.rentCurrency as "HUF" | "EUR") ?? "HUF");
       setPurchasePrice(property.purchasePrice?.toString() ?? "");
       setNotes(property.notes ?? "");
       setAvatarUrl(property.avatarUrl ?? "");
@@ -109,6 +111,7 @@ export default function EditPropertyPage() {
       autoBillingDay: Number(autoBillingDay || 1),
       autoBillingMissingReadings,
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
+      rentCurrency,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
       notes: notes || undefined,
       buildingPropertyId: buildingPropertyId ? Number(buildingPropertyId) : undefined,
@@ -388,13 +391,31 @@ export default function EditPropertyPage() {
           <legend className="px-2 text-sm font-medium">Pénzügyi adatok</legend>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-xs text-muted-foreground">Havi bérleti díj (Ft)</label>
-              <input
-                type="number"
-                value={monthlyRent}
-                onChange={(e) => setMonthlyRent(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+              <label className="block text-xs text-muted-foreground">Havi bérleti díj</label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="number"
+                  value={monthlyRent}
+                  onChange={(e) => setMonthlyRent(e.target.value)}
+                  className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <div className="flex gap-1 rounded-md border border-border p-0.5">
+                  {(["HUF", "EUR"] as const).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setRentCurrency(c)}
+                      className={`rounded px-2.5 py-1.5 text-xs font-medium transition ${
+                        rentCurrency === c
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {c === "HUF" ? "Ft" : "€"}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div>
               <label className="block text-xs text-muted-foreground">Vételár (Ft)</label>

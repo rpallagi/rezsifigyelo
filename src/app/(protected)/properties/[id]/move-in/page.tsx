@@ -184,10 +184,15 @@ export default function MoveInWizardPage() {
 
   const contractInputRef = useRef<HTMLInputElement>(null);
 
+  const [moveInError, setMoveInError] = useState("");
   const moveIn = api.tenancy.moveIn.useMutation({
     onSuccess: () => {
+      setMoveInError("");
       router.refresh();
       router.push(`/properties/${propertyId}`);
+    },
+    onError: (err) => {
+      setMoveInError(err.message);
     },
   });
 
@@ -855,6 +860,12 @@ export default function MoveInWizardPage() {
                 </button>
               )}
             </div>
+
+            {moveInError && (
+              <p className="mt-3 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {moveInError}
+              </p>
+            )}
           </div>
         </SurfaceCard>
 
