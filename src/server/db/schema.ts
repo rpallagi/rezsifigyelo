@@ -241,7 +241,7 @@ export const properties = createTable(
       .integer()
       .references(() => landlordProfiles.id, { onDelete: "set null" }),
     name: d.varchar({ length: 100 }).notNull(),
-    propertyType: propertyTypeEnum().notNull().default("lakas"),
+    propertyType: d.varchar({ length: 50 }).notNull().default("lakas"),
     address: d.text(),
     notes: d.text(),
     contactName: d.varchar({ length: 100 }),

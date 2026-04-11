@@ -14,9 +14,8 @@ export default function EditPropertyPage() {
   });
 
   const [name, setName] = useState("");
-  const [propertyType, setPropertyType] = useState<
-    "lakas" | "uzlet" | "telek" | "egyeb"
-  >("lakas");
+  const [propertyType, setPropertyType] = useState("lakas");
+  const [customType, setCustomType] = useState("");
   const [address, setAddress] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -51,6 +50,9 @@ export default function EditPropertyPage() {
     if (property) {
       setName(property.name);
       setPropertyType(property.propertyType);
+      if (!["lakas", "uzlet", "telek", "egyeb"].includes(property.propertyType)) {
+        setCustomType(property.propertyType);
+      }
       setAddress(property.address ?? "");
       setContactName(property.contactName ?? "");
       setContactPhone(property.contactPhone ?? "");
@@ -144,19 +146,14 @@ export default function EditPropertyPage() {
 
         <div>
           <label className="block text-sm font-medium">Típus</label>
-          <div className="mt-2 flex gap-2">
-            {(
-              Object.entries(typeLabels) as [
-                keyof typeof typeLabels,
-                string,
-              ][]
-            ).map(([value, label]) => (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {Object.entries(typeLabels).map(([value, label]) => (
               <button
                 key={value}
                 type="button"
-                onClick={() => setPropertyType(value)}
+                onClick={() => { setPropertyType(value); setCustomType(""); }}
                 className={`rounded-md border px-4 py-2 text-sm ${
-                  propertyType === value
+                  propertyType === value && !customType
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border hover:bg-secondary"
                 }`}
@@ -164,6 +161,15 @@ export default function EditPropertyPage() {
                 {label}
               </button>
             ))}
+            <input
+              type="text"
+              value={customType}
+              onChange={(e) => { setCustomType(e.target.value); if (e.target.value) setPropertyType(e.target.value); }}
+              placeholder="Egyéni típus..."
+              className={`rounded-md border px-4 py-2 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-ring ${
+                customType ? "border-primary ring-2 ring-primary/20" : "border-border"
+              }`}
+            />
           </div>
         </div>
 

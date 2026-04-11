@@ -28,16 +28,10 @@ function profileDotColor(color: string | null) {
 }
 
 function propertyTypeLabel(propertyType: string) {
-  switch (propertyType) {
-    case "lakas":
-      return "Lakás";
-    case "uzlet":
-      return "Üzlet";
-    case "telek":
-      return "Telek";
-    default:
-      return "Egyéb";
-  }
+  const builtIn: Record<string, string> = {
+    lakas: "Lakás", uzlet: "Üzlet", telek: "Telek", egyeb: "Egyéb",
+  };
+  return builtIn[propertyType] ?? propertyType;
 }
 
 function propertyPlaceholder(propertyType: string) {

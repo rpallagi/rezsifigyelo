@@ -130,7 +130,7 @@ export const propertyRouter = createTRPCRouter({
     .input(
       z.object({
         name: z.string().min(1),
-        propertyType: z.enum(["lakas", "uzlet", "telek", "egyeb"]),
+        propertyType: z.string().min(1).max(50),
         address: z.string().optional(),
         notes: z.string().optional(),
         contactName: z.string().optional(),
@@ -185,7 +185,7 @@ export const propertyRouter = createTRPCRouter({
       z.object({
         id: z.number(),
         name: z.string().min(1).optional(),
-        propertyType: z.enum(["lakas", "uzlet", "telek", "egyeb"]).optional(),
+        propertyType: z.string().min(1).max(50).optional(),
         address: z.string().optional(),
         notes: z.string().optional(),
         contactName: z.string().optional(),
