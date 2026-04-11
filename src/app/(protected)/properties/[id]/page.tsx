@@ -482,7 +482,7 @@ export default async function PropertyDetailPage({
                 const stepConfig: Record<string, { label: string; href: string }> = {
                   meter_readings: { label: "Kezdő mérőállások", href: `/properties/${property.id}/readings/new` },
                   contract_upload: { label: "Szerződés feltöltése", href: `/properties/${property.id}/documents/new` },
-                  handover_protocol: { label: "Átadás-átvételi jegyzőkönyv", href: `/properties/${property.id}/documents/new` },
+                  handover_protocol: { label: "Átadás-átvételi jegyzőkönyv", href: `/properties/${property.id}/condition` },
                   key_handover: { label: "Kulcsátadás", href: `/properties/${property.id}/edit` },
                 };
                 const config = stepConfig[item.step] ?? { label: item.step, href: "#" };
@@ -523,7 +523,7 @@ export default async function PropertyDetailPage({
                 const done = item.status === "completed";
                 const stepConfig: Record<string, { label: string; href: string }> = {
                   final_readings: { label: "Záró mérőállások", href: `/properties/${property.id}/readings/new` },
-                  condition_assessment: { label: "Állapotfelvétel", href: `/properties/${property.id}/documents/new` },
+                  condition_assessment: { label: "Állapotfelvétel", href: `/properties/${property.id}/condition` },
                   deposit_settlement: { label: "Kaució elszámolás", href: `/properties/${property.id}/move-out` },
                   key_return: { label: "Kulcsvisszavétel", href: `/properties/${property.id}/edit` },
                 };
