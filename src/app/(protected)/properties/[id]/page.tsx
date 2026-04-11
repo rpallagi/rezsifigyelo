@@ -659,14 +659,28 @@ export default async function PropertyDetailPage({
 
                   <div className="mt-2 flex items-end justify-between">
                     <div>
-                      <p className="text-xl font-bold tabular-nums">
-                        {latest?.consumption != null
-                          ? latest.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })
-                          : "—"}
-                      </p>
-                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                        {meta.unit} / utolsó
-                      </p>
+                      {latest?.consumption != null ? (
+                        <>
+                          <p className="text-xl font-bold tabular-nums">
+                            {latest.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })}
+                          </p>
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            {meta.unit} / utolsó fogyasztás
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xl font-bold tabular-nums">
+                            {property.readings
+                              .filter((r) => r.utilityType === ut)
+                              .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0]
+                              ?.value.toLocaleString("hu-HU", { maximumFractionDigits: 1 }) ?? "—"}
+                          </p>
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            {meta.unit} mérőállás
+                          </p>
+                        </>
+                      )}
                     </div>
                     {latestCost != null && latestCost > 0 && (
                       <p className="text-xs text-muted-foreground">
