@@ -631,10 +631,14 @@ export default async function PropertyDetailPage({
                 .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0]?.costHuf;
               const smartDevice = property.smartMeters.find((sm) => sm.utilityType === ut);
 
+              const cardHref = smartDevice?.isActive
+                ? `/readings?property=${property.id}`
+                : `/properties/${property.id}/readings/new`;
+
               return (
                 <Link
                   key={ut}
-                  href={`/properties/${property.id}/readings/new`}
+                  href={cardHref}
                   className="group rounded-[24px] bg-card/90 p-4 ring-1 ring-border/50 transition hover:ring-border hover:shadow-md"
                 >
                   <div className="flex items-center justify-between">
@@ -721,10 +725,14 @@ export default async function PropertyDetailPage({
                 .filter((r) => r.utilityType === meter.utilityType)
                 .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0];
 
+              const meterHref = smartDevice?.isActive
+                ? `/readings?property=${property.id}`
+                : `/properties/${property.id}/readings/new`;
+
               return (
                 <Link
                   key={meter.id}
-                  href={`/properties/${property.id}/readings/new`}
+                  href={meterHref}
                   className="group rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50 transition hover:ring-border hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -766,7 +774,7 @@ export default async function PropertyDetailPage({
                     </div>
                   )}
                   <span className="mt-3 block text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
-                    Leolvasás &rarr;
+                    {smartDevice?.isActive ? "Részletek →" : "Leolvasás →"}
                   </span>
                 </Link>
               );
