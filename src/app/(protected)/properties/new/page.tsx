@@ -21,6 +21,21 @@ export default function NewPropertyPage() {
   const [purchasePrice, setPurchasePrice] = useState("");
   const [notes, setNotes] = useState("");
   const { data: landlordProfiles } = api.landlordProfile.list.useQuery();
+  const { data: existingProperties } = api.property.list.useQuery();
+
+  // Collect all unique property types from existing properties
+  const defaultTypes: Record<string, string> = {
+    lakas: "Lakás", uzlet: "Üzlet", telek: "Telek", egyeb: "Egyéb",
+  };
+  const customTypes = [...new Set(
+    (existingProperties ?? [])
+      .map((p) => p.propertyType)
+      .filter((t) => !Object.keys(defaultTypes).includes(t))
+  )];
+  const allTypeButtons = [
+    ...Object.entries(defaultTypes),
+    ...customTypes.map((t) => [t, t] as [string, string]),
+  ];
 
   const createProperty = api.property.create.useMutation({
     onSuccess: (property) => {
@@ -150,7 +165,7 @@ export default function NewPropertyPage() {
         <div>
           <label className="block text-sm font-medium">Típus</label>
           <div className="mt-2 flex flex-wrap gap-2">
-            {Object.entries(typeLabels).map(([value, label]) => (
+            {allTypeButtons.map(([value, label]) => (
               <button
                 key={value}
                 type="button"
@@ -168,7 +183,7 @@ export default function NewPropertyPage() {
               type="text"
               value={customType}
               onChange={(e) => { setCustomType(e.target.value); if (e.target.value) setPropertyType(e.target.value); }}
-              placeholder="Egyéni típus..."
+              placeholder="+ Új típus..."
               className={`rounded-md border px-4 py-2 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-ring ${
                 customType ? "border-primary ring-2 ring-primary/20" : "border-border"
               }`}

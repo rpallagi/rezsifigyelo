@@ -118,12 +118,18 @@ export default function EditPropertyPage() {
     router.refresh();
   };
 
-  const typeLabels = {
-    lakas: "Lakás",
-    uzlet: "Üzlet",
-    telek: "Telek",
-    egyeb: "Egyéb",
+  const defaultTypes: Record<string, string> = {
+    lakas: "Lakás", uzlet: "Üzlet", telek: "Telek", egyeb: "Egyéb",
   };
+  const customTypes = [...new Set(
+    (allProperties ?? [])
+      .map((p) => p.propertyType)
+      .filter((t) => !Object.keys(defaultTypes).includes(t))
+  )];
+  const allTypeButtons = [
+    ...Object.entries(defaultTypes),
+    ...customTypes.map((t) => [t, t] as [string, string]),
+  ];
 
   if (isLoading) return <p className="text-muted-foreground">Betöltés...</p>;
   if (!property) return <p className="text-destructive">Ingatlan nem található.</p>;
@@ -147,7 +153,7 @@ export default function EditPropertyPage() {
         <div>
           <label className="block text-sm font-medium">Típus</label>
           <div className="mt-2 flex flex-wrap gap-2">
-            {Object.entries(typeLabels).map(([value, label]) => (
+            {allTypeButtons.map(([value, label]) => (
               <button
                 key={value}
                 type="button"
