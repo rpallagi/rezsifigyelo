@@ -165,6 +165,7 @@ export default function MoveInWizardPage() {
   const [tenantPhone, setTenantPhone] = useState("");
   const [moveInDate, setMoveInDate] = useState(new Date().toISOString().split("T")[0]!);
   const [depositAmount, setDepositAmount] = useState("");
+  const [leaseMonths, setLeaseMonths] = useState("12");
   const [sendInvitation, setSendInvitation] = useState(false);
 
   // Step 1: Meter readings
@@ -230,6 +231,7 @@ export default function MoveInWizardPage() {
       tenantPhone: tenantPhone || undefined,
       moveInDate,
       depositAmount: depositAmount ? Number(depositAmount) : undefined,
+      leaseMonths: leaseMonths && Number(leaseMonths) > 0 ? Number(leaseMonths) : undefined,
       sendInvitation,
       initialReadings: Object.entries(initialReadings)
         .filter(([, v]) => v && Number(v) > 0)
@@ -442,6 +444,39 @@ export default function MoveInWizardPage() {
                       onChange={(e) => setDepositAmount(e.target.value)}
                       placeholder="0"
                       className={`${inputClassName()} pl-11`}
+                    />
+                  </div>
+                </Field>
+
+                <Field label="Szerződés időtartama">
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: "3", label: "3 hónap" },
+                      { value: "6", label: "6 hónap" },
+                      { value: "12", label: "1 év" },
+                      { value: "0", label: "Határozatlan" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setLeaseMonths(opt.value)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                          leaseMonths === opt.value
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border hover:bg-secondary"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={!["3", "6", "12", "0"].includes(leaseMonths) ? leaseMonths : ""}
+                      onChange={(e) => setLeaseMonths(e.target.value)}
+                      placeholder="Egyéni (hónap)"
+                      className="w-32 rounded-full border border-border px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
                 </Field>

@@ -328,6 +328,9 @@ export const tenancies = createTable(
     tenantPhone: d.varchar({ length: 50 }),
     moveInDate: d.date(),
     moveOutDate: d.date(),
+    leaseMonths: d.integer(),
+    leaseEndDate: d.date(),
+    leaseRenewalNotified: d.boolean().notNull().default(false),
     depositAmount: d.doublePrecision(),
     active: d.boolean().notNull().default(true),
     createdAt: d

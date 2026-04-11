@@ -140,17 +140,66 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // -----------------------------------------------------------------------
+  // Lease expiration reminders (2 weeks before leaseEndDate)
+  // -----------------------------------------------------------------------
+
+  const twoWeeksFromNow = new Date(now);
+  twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
+  const twoWeeksStr = twoWeeksFromNow.toISOString().split("T")[0]!;
+  const todayStr = now.toISOString().split("T")[0]!;
+
+  const expiringTenancies = await db.query.tenancies.findMany({
+    where: and(
+      eq(tenancies.active, true),
+      eq(tenancies.leaseRenewalNotified, false),
+      lt(tenancies.leaseEndDate, twoWeeksStr),
+    ),
+    with: { property: true },
+  });
+
+  let leaseReminders = 0;
+  for (const tenancy of expiringTenancies) {
+    if (!tenancy.leaseEndDate || !tenancy.property) continue;
+
+    const msg = `Szerződés lejárat figyelmeztetés: A(z) ${tenancy.property.name} ingatlan bérleti szerződése ${tenancy.leaseEndDate}-n lejár. Kérjük egyeztessen a hosszabbításról vagy a kiköltözésről.`;
+
+    await db.insert(chatMessages).values({
+      propertyId: tenancy.propertyId,
+      senderId: tenancy.property.landlordId,
+      senderType: "admin",
+      message: msg,
+    });
+
+    const tenantEmail = tenancy.tenantEmail;
+    if (tenantEmail) {
+      await sendEmail({
+        to: tenantEmail,
+        subject: `Szerződés lejárat — ${tenancy.property.name}`,
+        html: `<p>${msg}</p>`,
+      });
+    }
+
+    await db
+      .update(tenancies)
+      .set({ leaseRenewalNotified: true })
+      .where(eq(tenancies.id, tenancy.id));
+
+    leaseReminders++;
+  }
+
   const summary = {
     timestamp: now.toISOString(),
     totalOverdue: overdueInvoices.length,
     reminded: results.filter((r) => r.status === "reminded").length,
     emailsSent: results.filter((r) => r.emailSent).length,
     errors: results.filter((r) => r.status === "error").length,
+    leaseReminders,
     results,
   };
 
   console.log(
-    `[cron] payment-reminders done — reminded: ${summary.reminded}, emails: ${summary.emailsSent}, errors: ${summary.errors}`,
+    `[cron] payment-reminders done — reminded: ${summary.reminded}, emails: ${summary.emailsSent}, lease: ${leaseReminders}, errors: ${summary.errors}`,
   );
 
   return Response.json(summary);

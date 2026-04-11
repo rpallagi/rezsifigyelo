@@ -25,6 +25,13 @@ import { createMoveInChecklist } from "@/server/tenancy/invitations";
 import { parseLandlordProfileScopeFromHeader } from "@/lib/landlord-profile-scope";
 import type { db as DbType } from "@/server/db";
 
+function computeLeaseEndDate(moveInDate: string, leaseMonths: number | undefined): string | null {
+  if (!leaseMonths || leaseMonths <= 0) return null;
+  const d = new Date(moveInDate);
+  d.setMonth(d.getMonth() + leaseMonths);
+  return d.toISOString().split("T")[0]!;
+}
+
 async function saveHandoverData(
   database: typeof DbType,
   propertyId: number,
@@ -194,6 +201,7 @@ export const tenancyRouter = createTRPCRouter({
         tenantPhone: z.string().optional(),
         moveInDate: z.string(),
         depositAmount: z.number().optional(),
+        leaseMonths: z.number().optional(),
         sendInvitation: z.boolean().default(false),
         // Handover data
         initialReadings: z.array(z.object({
@@ -261,6 +269,8 @@ export const tenancyRouter = createTRPCRouter({
             tenantPhone: input.tenantPhone,
             moveInDate: input.moveInDate,
             depositAmount: input.depositAmount,
+            leaseMonths: input.leaseMonths,
+            leaseEndDate: computeLeaseEndDate(input.moveInDate, input.leaseMonths),
             active: true,
           })
           .returning();
@@ -439,6 +449,7 @@ export const tenancyRouter = createTRPCRouter({
         tenantEmail: z.string().optional(),
         tenantPhone: z.string().optional(),
         depositAmount: z.number().optional(),
+        leaseMonths: z.number().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
