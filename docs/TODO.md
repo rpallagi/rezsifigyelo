@@ -1,54 +1,62 @@
 # TODO
 
-## Kész (ebben a sessionben)
+## Kész (2. session)
 
-- [x] Property hero kép / gradient a detail oldalon
-- [x] Property avatar fotó feltöltés (client-side resize, local dev fallback)
-- [x] Sidebar dark mode fix
-- [x] Offline bérlő támogatás (email nélkül, tenantId nullable)
-- [x] Move-in wizard: "Mentés, folytatom később" gomb, email nem kötelező
-- [x] Move-out egyszerűsített oldal (nem wizard)
-- [x] Beköltözési/kiköltözési checklist a property detail-en
-- [x] Checklist teendők megjelenése a feladatok oldalon és property kártyákon
-- [x] Meghívó visszavonás és újraküldés
-- [x] Kiadói profil szín választó (8 fix szín)
-- [x] Property lista: szín badge profilonként
-- [x] Billing UI átdolgozás: lista + form szétválasztás
-- [x] Draft számla törlés
-- [x] Számla fizetettség kezelés (kézi jelölés)
-- [x] Számlázz.hu IPN webhook
-- [x] Hónap gyorsválasztó gombok a számla formon
-- [x] Automatikus havi számlázás (cron, property-szintű beállítás)
-- [x] Számla megjegyzés automatikus hónap névvel
-- [x] revalidatePath minden mutáción
+- [x] Karbantartás rendszer: form, hub, detail, fotó/doc upload, prioritás, státusz
+- [x] Leolvasás 3-step wizard (típus → érték+OCR → összegzés)
+- [x] Leolvasás dashboard (trend kártyák, property szűrő)
+- [x] Mérőóra wizard (hagyományos + okos mérő preset-ek)
+- [x] Befizetések beolvasztva a számlázásba (tabs)
+- [x] Befizetés kategóriák (bérleti díj, közös költség, kaució, stb.)
+- [x] Közös költség fizetési naptár (havi pill grid)
+- [x] Chat oldal + üzenetek nézet
+- [x] Email utility (Resend)
+- [x] Fizetési emlékeztető cron (lejárt számlák + chat + email)
+- [x] Bérlő szerkesztés (inline edit a bérlők oldalon)
+- [x] Korábbi bérlők szekció (tenant history)
+- [x] Bérleti szerződés időtartam (3/6/12 hónap, határozatlan, egyéni)
+- [x] Szerződés lejárat értesítés (2 hét előtt, cron)
+- [x] Move-in wizard: tényleges adatgyűjtés (mérőállás, állapot, kulcs, szerződés)
+- [x] Állapotfelvétel dedikált oldal (/condition)
+- [x] PhotoGallery component (lightbox, caption, multi-upload, kamera)
+- [x] Egyéni ingatlan típusok (varchar, meglévőkből gombokként)
+- [x] Property lista nézet választó (grid/compact/list/table)
+- [x] Property lista profil szűrő + oszlop rendezés + csoportosítás
+- [x] EUR bérleti díj támogatás
+- [x] EUR/HUF árfolyam beállítás (settings)
+- [x] ROI Ft/€ nézet toggle
+- [x] Smart meter delete mutation + property detail státusz
+- [x] Épület + telek alapterület (m²) + Ft/m² számítás
+- [x] Vercel Blob store beállítás + fotó migráció
+- [x] Dev DB adatok migrálva prod-ba
+- [x] Production DB schema szinkron
 
 ## Következő lépések
 
 ### Magas prioritás
-- [ ] `CRON_SECRET` env var beállítása Vercel-en az auto-számlázáshoz
-- [ ] `BLOB_READ_WRITE_TOKEN` env var beállítása Vercel-en (fotó upload production-ben)
-- [ ] Settings oldal rendezés — integrációk jobb elkülönítése
-- [ ] Home Assistant integráció ingatlanhoz kötése (jelenleg globális)
+- [ ] MNB API automatikus EUR/HUF árfolyam (napi cron + exchangeRates tábla)
+- [ ] Befizetéseknél napi árfolyam mentés (historikus ROI számítás)
+- [ ] Adó PDF AI extraction (határozat feltöltés → AI kiolvasás)
+- [ ] Bérlői profil oldal (/my-home/profile)
+- [ ] Property fotó galéria (propertyPhotos tábla, avatar választó meglévőből)
+- [ ] Drag & drop fotó feltöltés (PhotoGallery bővítés)
+
+### UI/UX
+- [ ] Property tabbed UI (ne kelljen külön oldalakra navigálni)
+- [ ] Settings oldal rendezés
+- [ ] Marketing oldal: cover photo, drag&drop, preset címkék
+- [ ] Property edit vizuális felújítás
 
 ### Számlázás
-- [ ] Számlázz.hu IPN URL beállítása a Számlázz.hu admin felületen
-- [ ] Overdue számla automatikus jelölés (cron)
-- [ ] Számla PDF preview a billing listán
+- [ ] Számlázz.hu IPN URL beállítás
+- [ ] Számla PDF preview
 - [ ] Számla email újraküldés
 
-### Property kezelés
-- [ ] Property edit oldal vizuális felújítás
-- [ ] Marketing oldal: cover photo kijelölés, drag&drop, preset room címkék
-- [ ] Marketing média külön tábla (`marketing_media`)
-- [ ] Property komponensek: `PropertyHeroCard`, `PropertyStatCard`
-
-### Bérlő kezelés
-- [ ] Bérlő profil oldal (tenant nézet)
-- [ ] Bérlő önkiszolgáló mérőállás rögzítés
+### Bérlő
+- [ ] Bérlő önkiszolgáló mérőállás
 - [ ] Bérlői fizetés nyilvántartás
 
 ### Technikai
-- [ ] Agent key titkosítás (jelenleg plain text a DB-ben)
-- [ ] Számlázz.hu agent key validáció (teszt API hívás)
-- [ ] E2E tesztek a számlázási flow-ra
-- [ ] PWA offline support
+- [ ] Clerk production kulcsok (pk_live_)
+- [ ] Agent key titkosítás
+- [ ] E2E tesztek

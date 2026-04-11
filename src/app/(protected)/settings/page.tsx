@@ -30,7 +30,25 @@ export default function SettingsPage() {
   const [mqttTopic, setMqttTopic] = useState("rezsi/#");
   const [languageSaved, setLanguageSaved] = useState(false);
 
+  // EUR rate settings
+  const eurRateQuery = api.user.getEurRate.useQuery();
+  const [eurRateInput, setEurRateInput] = useState<string>("");
+  const [eurRateSaved, setEurRateSaved] = useState(false);
+  const eurRateInitialized = useState(false);
+  if (eurRateQuery.data != null && !eurRateInitialized[0]) {
+    setEurRateInput(String(eurRateQuery.data));
+    eurRateInitialized[1](true);
+  }
+
   const utils = api.useUtils();
+  const setEurRate = api.user.setEurRate.useMutation({
+    onSuccess: () => {
+      setEurRateSaved(true);
+      void utils.user.getEurRate.invalidate();
+      setTimeout(() => setEurRateSaved(false), 2000);
+    },
+  });
+
   const updateLocale = api.user.updateLocale.useMutation({
     onSuccess: (_, variables) => {
       setLocale(variables.locale);
@@ -279,6 +297,44 @@ export default function SettingsPage() {
           </code>
           <p>{messages.settingsPage.token}: Vercel env var SMART_METER_WEBHOOK_TOKEN</p>
         </div>
+      </section>
+
+      {/* EUR/HUF árfolyam */}
+      <section className="rounded-lg border border-border p-6">
+        <h2 className="text-lg font-semibold">EUR/HUF árfolyam</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Az EUR bérleti díjak átváltásához használt árfolyam.
+        </p>
+        <div className="mt-4 flex items-center gap-3">
+          <input
+            type="number"
+            min={1}
+            step={0.01}
+            value={eurRateInput}
+            onChange={(e) => setEurRateInput(e.target.value)}
+            placeholder="410"
+            className="w-32 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <span className="text-sm text-muted-foreground">Ft/€</span>
+          <button
+            onClick={() => {
+              const rate = Number(eurRateInput);
+              if (rate > 0) {
+                setEurRate.mutate({ rate });
+              }
+            }}
+            disabled={setEurRate.isPending || !eurRateInput || Number(eurRateInput) <= 0}
+            className="rounded-md border border-primary bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            Mentés
+          </button>
+          {eurRateSaved && (
+            <span className="text-sm text-emerald-600 dark:text-emerald-400">Mentve</span>
+          )}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Később: automatikus MNB árfolyam
+        </p>
       </section>
 
       {/* Clerk Profile */}

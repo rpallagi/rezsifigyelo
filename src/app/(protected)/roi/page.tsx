@@ -3,7 +3,7 @@ import { PropertyCoverImage } from "@/components/properties/property-cover-image
 import type { ReactNode } from "react";
 
 import { api } from "@/trpc/server";
-import { formatCurrency, formatNumber, getMessages } from "@/lib/i18n/messages";
+import { formatNumber, getMessages } from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
 
 function MetricChip({
@@ -90,16 +90,10 @@ function SectionCard({
 }
 
 function propertyTypeLabel(propertyType: string) {
-  switch (propertyType) {
-    case "lakas":
-      return "Lakás";
-    case "uzlet":
-      return "Iroda";
-    case "telek":
-      return "Telek";
-    default:
-      return "Villa";
-  }
+  const builtIn: Record<string, string> = {
+    lakas: "Lakás", uzlet: "Üzlet", telek: "Telek", egyeb: "Egyéb",
+  };
+  return builtIn[propertyType] ?? propertyType;
 }
 
 function placeholderCover(propertyType: string) {
@@ -119,19 +113,34 @@ function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
 }
 
-export default async function ROIPage() {
+export default async function ROIPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ currency?: string }>;
+}) {
+  const params = await searchParams;
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
-  const properties = await api.property.list();
+  const [properties, eurRate] = await Promise.all([
+    api.property.list(),
+    api.user.getEurRate(),
+  ]);
+  const currency = params.currency === "eur" ? "eur" : "huf";
+
+  function displayAmount(amountHuf: number): string {
+    if (currency === "eur") {
+      return `${Math.round(amountHuf / eurRate).toLocaleString("hu-HU")} €`;
+    }
+    return `${Math.round(amountHuf).toLocaleString("hu-HU")} Ft`;
+  }
 
   const roiProperties = properties
     .filter((property) => (property.purchasePrice ?? 0) > 0)
     .map((property) => {
       const purchasePrice = property.purchasePrice ?? 0;
       const isEur = property.rentCurrency === "EUR";
-      const EUR_HUF_APPROX = 410; // hozzávetőleges árfolyam
       const rawMonthly = property.monthlyRent ?? 0;
-      const monthlyHuf = isEur ? rawMonthly * EUR_HUF_APPROX : rawMonthly;
+      const monthlyHuf = isEur ? rawMonthly * eurRate : rawMonthly;
       const annualRent = monthlyHuf * 12;
       const roi = purchasePrice > 0 ? (annualRent / purchasePrice) * 100 : 0;
       const breakEvenYears = annualRent > 0 ? purchasePrice / annualRent : null;
@@ -143,6 +152,8 @@ export default async function ROIPage() {
       const maintenanceIsEstimate = actualMaintenance === 0;
       return {
         ...property,
+        isEur,
+        rawMonthly,
         annualRent,
         roi,
         breakEvenYears,
@@ -190,8 +201,8 @@ export default async function ROIPage() {
             locale === "hu" ? "Leghatékonyabb egység" : "Most efficient unit",
           body:
             locale === "hu"
-              ? `${lowestMaintenance.name} fenntartási becslése ${formatCurrency(lowestMaintenance.maintenanceCost, locale)}.`
-              : `${lowestMaintenance.name} has an estimated maintenance load of ${formatCurrency(lowestMaintenance.maintenanceCost, locale)}.`,
+              ? `${lowestMaintenance.name} fenntartási becslése ${displayAmount(lowestMaintenance.maintenanceCost)}.`
+              : `${lowestMaintenance.name} has an estimated maintenance load of ${displayAmount(lowestMaintenance.maintenanceCost)}.`,
         }
       : null,
     fastestBreakEven
@@ -304,6 +315,28 @@ export default async function ROIPage() {
             </div>
           </div>
           <div className="relative z-10 flex flex-wrap gap-3">
+            <div className="flex rounded-2xl bg-background/80 shadow-sm ring-1 ring-border/50">
+              <Link
+                href="/roi?currency=huf"
+                className={`rounded-l-2xl px-4 py-3 text-sm font-semibold transition ${
+                  currency === "huf"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                Ft
+              </Link>
+              <Link
+                href="/roi?currency=eur"
+                className={`rounded-r-2xl px-4 py-3 text-sm font-semibold transition ${
+                  currency === "eur"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                €
+              </Link>
+            </div>
             <div className="rounded-2xl bg-background/80 px-4 py-3 text-sm shadow-sm ring-1 ring-border/50">
               {copy.rangeLabel}
             </div>
@@ -342,7 +375,7 @@ export default async function ROIPage() {
                     <div>
                       <p className="text-sm text-white/70">{m.roiPage.totalInvestment}</p>
                       <p className="mt-2 text-5xl font-semibold tracking-tight">
-                        {formatCurrency(totalPurchase, locale)}
+                        {displayAmount(totalPurchase)}
                       </p>
                     </div>
                     <div className="rounded-[24px] border border-white/20 bg-white/10 px-5 py-4 backdrop-blur">
@@ -358,7 +391,7 @@ export default async function ROIPage() {
                   <div>
                     <p className="text-sm text-white/70">{copy.netCashflow}</p>
                     <p className="mt-2 text-2xl font-semibold">
-                      {formatCurrency(monthlyRevenue, locale)}
+                      {displayAmount(monthlyRevenue)}
                     </p>
                   </div>
                   <Link
@@ -380,7 +413,7 @@ export default async function ROIPage() {
               />
               <StatCard
                 label={copy.avgUtility}
-                value={formatCurrency(avgUtilityCost, locale)}
+                value={displayAmount(avgUtilityCost)}
                 detail={copy.maintenance}
                 accent="warning"
               />
@@ -436,8 +469,13 @@ export default async function ROIPage() {
                           {copy.netRent}
                         </p>
                         <p className="mt-1 text-base font-semibold">
-                          {formatCurrency(property.monthlyRent ?? 0, locale)}
+                          {displayAmount(property.monthlyRent ?? 0)}
                         </p>
+                        {property.isEur && (
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            {property.rawMonthly.toLocaleString("hu-HU")} € × {eurRate} Ft/€
+                          </p>
+                        )}
                       </div>
                       <div className="rounded-[22px] bg-background/75 px-3 py-3">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -447,7 +485,7 @@ export default async function ROIPage() {
                           )}
                         </p>
                         <p className={`mt-1 text-base font-semibold ${property.maintenanceIsEstimate ? "text-muted-foreground" : "text-rose-600 dark:text-rose-300"}`}>
-                          {formatCurrency(property.maintenanceCost, locale)}
+                          {displayAmount(property.maintenanceCost)}
                         </p>
                       </div>
                     </div>
