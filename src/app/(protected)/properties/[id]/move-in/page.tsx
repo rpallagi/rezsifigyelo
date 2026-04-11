@@ -11,7 +11,6 @@ import {
   FileText,
   Flame,
   Home,
-  ImageIcon,
   KeyRound,
   Mail,
   Upload,
@@ -23,6 +22,7 @@ import {
 
 import { api } from "@/trpc/react";
 import { PropertyCoverImage } from "@/components/properties/property-cover-image";
+import { PhotoGallery } from "@/components/shared/photo-gallery";
 
 const steps = [
   { key: "tenant", label: "Bérlő", eyebrow: "01" },
@@ -182,8 +182,6 @@ export default function MoveInWizardPage() {
   const [keyCount, setKeyCount] = useState("");
   const [keyNotes, setKeyNotes] = useState("");
 
-  const photoInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const contractInputRef = useRef<HTMLInputElement>(null);
 
   const moveIn = api.tenancy.moveIn.useMutation({
@@ -192,21 +190,6 @@ export default function MoveInWizardPage() {
       router.push(`/properties/${propertyId}`);
     },
   });
-
-  const handlePhotoUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    setUploading(true);
-    try {
-      const urls = await Promise.all(
-        Array.from(files).map((f) => uploadFile(f, "move-in")),
-      );
-      setConditionPhotos((prev) => [...prev, ...urls.filter((u): u is string => u !== null)]);
-    } catch {
-      // silently ignore
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleContractUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -627,69 +610,14 @@ export default function MoveInWizardPage() {
 
                 <div>
                   <p className="mb-2 text-sm font-medium">Fotók</p>
-                  {conditionPhotos.length > 0 && (
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      {conditionPhotos.map((url, idx) => (
-                        <div key={url} className="group relative">
-                          <img
-                            src={url}
-                            alt={`Állapot fotó ${idx + 1}`}
-                            className="h-20 w-20 rounded-xl object-cover ring-1 ring-border/40"
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setConditionPhotos((prev) =>
-                                prev.filter((_, i) => i !== idx),
-                              )
-                            }
-                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 transition group-hover:opacity-100"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <input
-                      ref={cameraInputRef}
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => handlePhotoUpload(e.target.files)}
-                    />
-                    <button
-                      type="button"
-                      disabled={uploading}
-                      onClick={() => cameraInputRef.current?.click()}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
-                    >
-                      <ImageIcon className="h-4 w-4" />
-                      Kamera
-                    </button>
-                    <input
-                      ref={photoInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => handlePhotoUpload(e.target.files)}
-                    />
-                    <button
-                      type="button"
-                      disabled={uploading}
-                      onClick={() => photoInputRef.current?.click()}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
-                    >
-                      <Upload className="h-4 w-4" />
-                      Galéria
-                    </button>
-                  </div>
-                  {uploading && (
-                    <p className="mt-2 text-xs text-muted-foreground">Feltöltés...</p>
-                  )}
+                  <PhotoGallery
+                    photos={conditionPhotos.map((url) => ({ url }))}
+                    onUpload={(urls) => setConditionPhotos((prev) => [...prev, ...urls])}
+                    onRemove={(url) => setConditionPhotos((prev) => prev.filter((u) => u !== url))}
+                    editable
+                    showCaptions
+                    folder="move-in"
+                  />
                 </div>
               </div>
 

@@ -15,11 +15,11 @@ import {
   Play,
   X,
   FileText,
-  ImageIcon,
   Building2,
 } from "lucide-react";
 
 import { api } from "@/trpc/react";
+import { PhotoGallery } from "@/components/shared/photo-gallery";
 
 type MaintenanceCategory = "javitas" | "karbantartas" | "felujitas" | "csere";
 type MaintenanceStatus = "pending" | "in_progress" | "done";
@@ -149,10 +149,7 @@ export default function MaintenanceDetailPage() {
   });
 
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
 
   const anyPending =
@@ -160,27 +157,6 @@ export default function MaintenanceDetailPage() {
     markCompleted.isPending ||
     deleteMutation.isPending ||
     updateMutation.isPending;
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !log) return;
-    setUploadingPhoto(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("folder", "maintenance");
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
-      const payload = (await res.json()) as { url: string };
-      const currentPhotos = (log as Record<string, unknown>).photoUrls as string[] ?? [];
-      updateMutation.mutate({ id, photoUrls: [...currentPhotos, payload.url] });
-    } catch {
-      // upload error silently ignored
-    } finally {
-      setUploadingPhoto(false);
-      if (photoInputRef.current) photoInputRef.current.value = "";
-    }
-  };
 
   const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -502,65 +478,16 @@ export default function MaintenanceDetailPage() {
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Fotók
         </h2>
-        <div className="flex flex-wrap gap-3">
-          {photoUrls.map((url) => (
-            <div key={url} className="group relative h-24 w-24 overflow-hidden rounded-xl border border-border/60">
-              <img src={url} alt="" className="h-full w-full object-cover" />
-              <button
-                type="button"
-                onClick={() => removePhoto(url)}
-                className="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-white group-hover:inline-flex"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => photoInputRef.current?.click()}
-            disabled={uploadingPhoto}
-            className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border/60 text-muted-foreground transition hover:border-primary hover:text-primary disabled:opacity-50"
-          >
-            {uploadingPhoto ? (
-              <span className="text-xs">...</span>
-            ) : (
-              <>
-                <Upload className="h-5 w-5" />
-                <span className="text-[10px] font-medium">Feltöltés</span>
-              </>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => cameraInputRef.current?.click()}
-            disabled={uploadingPhoto}
-            className="flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border/60 text-muted-foreground transition hover:border-primary hover:text-primary disabled:opacity-50"
-          >
-            {uploadingPhoto ? (
-              <span className="text-xs">...</span>
-            ) : (
-              <>
-                <ImageIcon className="h-5 w-5" />
-                <span className="text-[10px] font-medium">Kamera</span>
-              </>
-            )}
-          </button>
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handlePhotoUpload}
-          />
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handlePhotoUpload}
-          />
-        </div>
+        <PhotoGallery
+          photos={photoUrls.map((url) => ({ url }))}
+          onUpload={(urls) => {
+            const currentPhotos = (log as Record<string, unknown>).photoUrls as string[] ?? [];
+            updateMutation.mutate({ id, photoUrls: [...currentPhotos, ...urls] });
+          }}
+          onRemove={(url) => removePhoto(url)}
+          editable
+          folder="maintenance"
+        />
       </div>
 
       {/* Documents */}
