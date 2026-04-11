@@ -1,3 +1,4 @@
+import React from "react";
 import { api } from "@/trpc/server";
 import { formatNumber, getMessages } from "@/lib/i18n/messages";
 import { getCurrentLocale } from "@/lib/i18n/server";
@@ -49,10 +50,62 @@ function propertyPlaceholder(propertyType: string) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function ListRow({ property, m }: { property: any; m: any }) {
+  return (
+    <Link
+      href={`/properties/${property.id}`}
+      className="flex items-center gap-4 rounded-[16px] border border-border/60 bg-card/95 p-3 transition hover:bg-secondary/40"
+    >
+      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl">
+        <PropertyCoverImage
+          imageUrl={property.avatarUrl}
+          title={property.name}
+          className="h-full w-full object-cover"
+          placeholderClassName="h-full w-full"
+          placeholderBackground={propertyPlaceholder(property.propertyType)}
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-semibold">{property.name}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {property.address ?? m.common.noAddress}
+        </p>
+      </div>
+      <span className="hidden text-xs sm:block">
+        {propertyTypeLabel(property.propertyType)}
+      </span>
+      {property.landlordProfile && (
+        <span className={`hidden items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold md:inline-flex ${profileBadgeColor(property.landlordProfile.color)}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${profileDotColor(property.landlordProfile.color)}`} />
+          {property.landlordProfile.displayName}
+        </span>
+      )}
+      <span className="hidden text-xs text-muted-foreground lg:block">
+        {property.tenancies.length > 0
+          ? property.tenancies[0]?.tenant?.firstName ?? property.tenancies[0]?.tenantName ?? property.tenancies[0]?.tenant?.email ?? property.tenancies[0]?.tenantEmail ?? ""
+          : m.common.noTenant}
+      </span>
+    </Link>
+  );
+}
+
+function buildUrl(
+  base: Record<string, string | undefined>,
+  overrides: Record<string, string | undefined>,
+) {
+  const merged = { ...base, ...overrides };
+  const qs = Object.entries(merged)
+    .filter(([, v]) => v !== undefined)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v!)}`)
+    .join("&");
+  return qs ? `?${qs}` : "";
+}
+
 export default async function PropertiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; profile?: string; sort?: string; dir?: string }>;
 }) {
   const params = await searchParams;
   const locale = await getCurrentLocale();
@@ -63,6 +116,83 @@ export default async function PropertiesPage({
     cookieStore.get("rezsi-property-view")?.value ??
     "grid";
   const properties = await api.property.list();
+
+  // --- Profile filter ---
+  const profileFilter = params.profile ? Number(params.profile) : null;
+  const uniqueProfiles = [
+    ...new Map(
+      properties
+        .filter((p) => p.landlordProfile)
+        .map((p) => [p.landlordProfile!.id, p.landlordProfile!]),
+    ).values(),
+  ];
+  const filteredProperties = profileFilter
+    ? properties.filter((p) => p.landlordProfile?.id === profileFilter)
+    : properties;
+
+  // Base params to preserve across links
+  const baseParams: Record<string, string | undefined> = {
+    view: params.view,
+    profile: params.profile,
+    sort: params.sort,
+    dir: params.dir,
+  };
+
+  // --- Sorting (table view) ---
+  const sort = params.sort ?? "name";
+  const dir = params.dir === "desc" ? "desc" : "asc";
+  const sortedProperties = [...filteredProperties].sort((a, b) => {
+    let aVal: string | number = "";
+    let bVal: string | number = "";
+    switch (sort) {
+      case "name":
+        aVal = a.name.toLowerCase();
+        bVal = b.name.toLowerCase();
+        break;
+      case "address":
+        aVal = (a.address ?? "").toLowerCase();
+        bVal = (b.address ?? "").toLowerCase();
+        break;
+      case "type":
+        aVal = a.propertyType;
+        bVal = b.propertyType;
+        break;
+      case "rent":
+        aVal = a.monthlyRent ?? 0;
+        bVal = b.monthlyRent ?? 0;
+        break;
+      case "profile":
+        aVal = (a.landlordProfile?.displayName ?? "").toLowerCase();
+        bVal = (b.landlordProfile?.displayName ?? "").toLowerCase();
+        break;
+      default:
+        break;
+    }
+    if (aVal < bVal) return dir === "asc" ? -1 : 1;
+    if (aVal > bVal) return dir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  // Group by profile for list/table when no filter active
+  const groupedByProfile = !profileFilter
+    ? (() => {
+        const groups: { profile: typeof uniqueProfiles[number] | null; items: typeof sortedProperties }[] = [];
+        const profileMap = new Map<number | null, typeof sortedProperties>();
+        for (const p of sortedProperties) {
+          const key = p.landlordProfile?.id ?? null;
+          if (!profileMap.has(key)) profileMap.set(key, []);
+          profileMap.get(key)!.push(p);
+        }
+        // Named profiles first, then unassigned
+        for (const prof of uniqueProfiles) {
+          const items = profileMap.get(prof.id);
+          if (items?.length) groups.push({ profile: prof, items });
+        }
+        const noProfile = profileMap.get(null);
+        if (noProfile?.length) groups.push({ profile: null, items: noProfile });
+        return groups.length > 1 ? groups : null;
+      })()
+    : null;
 
   return (
     <div>
@@ -79,16 +209,50 @@ export default async function PropertiesPage({
         </div>
       </div>
 
+      {/* Profile filter pills */}
+      {uniqueProfiles.length > 1 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href={`/properties${buildUrl(baseParams, { profile: undefined })}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              !profileFilter
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            }`}
+          >
+            Összes
+          </Link>
+          {uniqueProfiles.map((prof) => (
+            <Link
+              key={prof.id}
+              href={`/properties${buildUrl(baseParams, { profile: String(prof.id) })}`}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                profileFilter === prof.id
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${profileDotColor(prof.color)}`} />
+              {prof.displayName}
+            </Link>
+          ))}
+        </div>
+      )}
+
       {properties.length === 0 ? (
         <p className="mt-8 text-muted-foreground">
           {m.propertiesPage.empty}
+        </p>
+      ) : filteredProperties.length === 0 ? (
+        <p className="mt-8 text-muted-foreground">
+          Nincs ingatlan ebben a profilban.
         </p>
       ) : (
         <>
         {/* Grid view (default — big cards) */}
         {view === "grid" && (
           <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {properties.map((property) => (
+            {filteredProperties.map((property) => (
               <Link
                 key={property.id}
                 href={`/properties/${property.id}`}
@@ -173,7 +337,7 @@ export default async function PropertiesPage({
         {/* Compact view — smaller cards, 4 columns */}
         {view === "compact" && (
           <div className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-            {properties.map((property) => (
+            {filteredProperties.map((property) => (
               <Link
                 key={property.id}
                 href={`/properties/${property.id}`}
@@ -209,106 +373,141 @@ export default async function PropertiesPage({
         {/* List view — rows with small thumbnail */}
         {view === "list" && (
           <div className="mt-6 space-y-2">
-            {properties.map((property) => (
-              <Link
-                key={property.id}
-                href={`/properties/${property.id}`}
-                className="flex items-center gap-4 rounded-[16px] border border-border/60 bg-card/95 p-3 transition hover:bg-secondary/40"
-              >
-                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl">
-                  <PropertyCoverImage
-                    imageUrl={property.avatarUrl}
-                    title={property.name}
-                    className="h-full w-full object-cover"
-                    placeholderClassName="h-full w-full"
-                    placeholderBackground={propertyPlaceholder(property.propertyType)}
-                  />
+            {groupedByProfile ? (
+              groupedByProfile.map((group) => (
+                <div key={group.profile?.id ?? "none"}>
+                  <div className="flex items-center gap-3 px-1 py-2">
+                    {group.profile && (
+                      <span className={`h-2.5 w-2.5 rounded-full ${profileDotColor(group.profile.color)}`} />
+                    )}
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {group.profile?.displayName ?? "Profil nélkül"}
+                    </span>
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
+                  {group.items.map((property) => (
+                    <ListRow key={property.id} property={property} m={m} />
+                  ))}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{property.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {property.address ?? m.common.noAddress}
-                  </p>
-                </div>
-                <span className="hidden text-xs sm:block">
-                  {propertyTypeLabel(property.propertyType)}
-                </span>
-                {property.landlordProfile && (
-                  <span className={`hidden items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold md:inline-flex ${profileBadgeColor(property.landlordProfile.color)}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${profileDotColor(property.landlordProfile.color)}`} />
-                    {property.landlordProfile.displayName}
-                  </span>
-                )}
-                <span className="hidden text-xs text-muted-foreground lg:block">
-                  {property.tenancies.length > 0
-                    ? property.tenancies[0]?.tenant?.firstName ?? property.tenancies[0]?.tenantName ?? property.tenancies[0]?.tenant?.email ?? property.tenancies[0]?.tenantEmail ?? ""
-                    : m.common.noTenant}
-                </span>
-              </Link>
-            ))}
+              ))
+            ) : (
+              filteredProperties.map((property) => (
+                <ListRow key={property.id} property={property} m={m} />
+              ))
+            )}
           </div>
         )}
 
         {/* Table view */}
-        {view === "table" && (
-          <div className="mt-6 overflow-auto rounded-[16px] border border-border/60">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-3 font-semibold">Név</th>
-                  <th className="px-4 py-3 font-semibold">Cím</th>
-                  <th className="px-4 py-3 font-semibold">Típus</th>
-                  <th className="px-4 py-3 font-semibold">Bérlő</th>
-                  <th className="px-4 py-3 font-semibold">Bérleti díj</th>
-                  <th className="px-4 py-3 font-semibold">Profil</th>
-                </tr>
-              </thead>
-              <tbody>
-                {properties.map((property) => (
-                  <tr
-                    key={property.id}
-                    className="border-b last:border-b-0 transition hover:bg-secondary/30"
-                  >
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/properties/${property.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {property.name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {property.address ?? m.common.noAddress}
-                    </td>
-                    <td className="px-4 py-3">
-                      {propertyTypeLabel(property.propertyType)}
-                    </td>
-                    <td className="px-4 py-3">
-                      {property.tenancies.length > 0
-                        ? property.tenancies[0]?.tenant?.firstName ?? property.tenancies[0]?.tenantName ?? property.tenancies[0]?.tenant?.email ?? property.tenancies[0]?.tenantEmail ?? ""
-                        : m.common.noTenant}
-                    </td>
-                    <td className="px-4 py-3">
-                      {property.monthlyRent
-                        ? `${Math.round(property.monthlyRent).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} Ft`
-                        : "Nincs"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {property.landlordProfile ? (
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${profileBadgeColor(property.landlordProfile.color)}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${profileDotColor(property.landlordProfile.color)}`} />
-                          {property.landlordProfile.displayName}
-                        </span>
+        {view === "table" && (() => {
+          const sortColumns = [
+            { key: "name", label: "Név" },
+            { key: "address", label: "Cím" },
+            { key: "type", label: "Típus" },
+            { key: null, label: "Bérlő" },
+            { key: "rent", label: "Bérleti díj" },
+            { key: "profile", label: "Profil" },
+          ] as const;
+
+          const renderTableRow = (property: typeof sortedProperties[number]) => (
+            <tr
+              key={property.id}
+              className="border-b last:border-b-0 transition hover:bg-secondary/30"
+            >
+              <td className="px-4 py-3">
+                <Link
+                  href={`/properties/${property.id}`}
+                  className="font-medium hover:underline"
+                >
+                  {property.name}
+                </Link>
+              </td>
+              <td className="px-4 py-3 text-muted-foreground">
+                {property.address ?? m.common.noAddress}
+              </td>
+              <td className="px-4 py-3">
+                {propertyTypeLabel(property.propertyType)}
+              </td>
+              <td className="px-4 py-3">
+                {property.tenancies.length > 0
+                  ? property.tenancies[0]?.tenant?.firstName ?? property.tenancies[0]?.tenantName ?? property.tenancies[0]?.tenant?.email ?? property.tenancies[0]?.tenantEmail ?? ""
+                  : m.common.noTenant}
+              </td>
+              <td className="px-4 py-3">
+                {property.monthlyRent
+                  ? `${Math.round(property.monthlyRent).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} Ft`
+                  : "Nincs"}
+              </td>
+              <td className="px-4 py-3">
+                {property.landlordProfile ? (
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${profileBadgeColor(property.landlordProfile.color)}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${profileDotColor(property.landlordProfile.color)}`} />
+                    {property.landlordProfile.displayName}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </td>
+            </tr>
+          );
+
+          return (
+            <div className="mt-6 overflow-auto rounded-[16px] border border-border/60">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs text-muted-foreground">
+                    {sortColumns.map((col) =>
+                      col.key ? (
+                        <th key={col.key} className="px-4 py-3 font-semibold">
+                          <Link
+                            href={`/properties${buildUrl(baseParams, {
+                              sort: col.key,
+                              dir: sort === col.key && dir === "asc" ? "desc" : "asc",
+                            })}`}
+                            className="inline-flex items-center gap-1 hover:text-foreground"
+                          >
+                            {col.label}
+                            {sort === col.key && (
+                              <span className="text-[10px]">{dir === "asc" ? "▲" : "▼"}</span>
+                            )}
+                          </Link>
+                        </th>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
+                        <th key={col.label} className="px-4 py-3 font-semibold">
+                          {col.label}
+                        </th>
+                      ),
+                    )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {groupedByProfile ? (
+                    groupedByProfile.map((group) => (
+                      <React.Fragment key={group.profile?.id ?? "none"}>
+                        <tr>
+                          <td colSpan={6} className="px-4 pb-1 pt-4">
+                            <div className="flex items-center gap-2">
+                              {group.profile && (
+                                <span className={`h-2.5 w-2.5 rounded-full ${profileDotColor(group.profile.color)}`} />
+                              )}
+                              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                {group.profile?.displayName ?? "Profil nélkül"}
+                              </span>
+                              <span className="h-px flex-1 bg-border" />
+                            </div>
+                          </td>
+                        </tr>
+                        {group.items.map(renderTableRow)}
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    sortedProperties.map(renderTableRow)
+                  )}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
         </>
       )}
     </div>
