@@ -34,6 +34,8 @@ export default function EditPropertyPage() {
   const [autoBilling, setAutoBilling] = useState(false);
   const [autoBillingDay, setAutoBillingDay] = useState("1");
   const [autoBillingMissingReadings, setAutoBillingMissingReadings] = useState<"estimate" | "skip_readings" | "draft_only">("skip_readings");
+  const [buildingArea, setBuildingArea] = useState("");
+  const [landArea, setLandArea] = useState("");
   const [monthlyRent, setMonthlyRent] = useState("");
   const [rentCurrency, setRentCurrency] = useState<"HUF" | "EUR">("HUF");
   const [purchasePrice, setPurchasePrice] = useState("");
@@ -72,6 +74,8 @@ export default function EditPropertyPage() {
       setAutoBillingMissingReadings(
         (property.autoBillingMissingReadings as "estimate" | "skip_readings" | "draft_only") ?? "skip_readings",
       );
+      setBuildingArea(property.buildingArea?.toString() ?? "");
+      setLandArea(property.landArea?.toString() ?? "");
       setMonthlyRent(property.monthlyRent?.toString() ?? "");
       setRentCurrency((property.rentCurrency as "HUF" | "EUR") ?? "HUF");
       setPurchasePrice(property.purchasePrice?.toString() ?? "");
@@ -110,6 +114,8 @@ export default function EditPropertyPage() {
       autoBilling,
       autoBillingDay: Number(autoBillingDay || 1),
       autoBillingMissingReadings,
+      buildingArea: buildingArea ? Number(buildingArea) : undefined,
+      landArea: landArea ? Number(landArea) : undefined,
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
       rentCurrency,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
@@ -388,6 +394,36 @@ export default function EditPropertyPage() {
         </fieldset>
 
         <fieldset className="rounded-lg border border-border p-4">
+          <legend className="px-2 text-sm font-medium">Terület</legend>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-xs text-muted-foreground">Épület alapterület (m²)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={buildingArea}
+                onChange={(e) => setBuildingArea(e.target.value)}
+                placeholder="pl. 65"
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground">Telek alapterület (m²)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={landArea}
+                onChange={(e) => setLandArea(e.target.value)}
+                placeholder="pl. 800"
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset className="rounded-lg border border-border p-4">
           <legend className="px-2 text-sm font-medium">Pénzügyi adatok</legend>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -416,6 +452,11 @@ export default function EditPropertyPage() {
                   ))}
                 </div>
               </div>
+              {monthlyRent && buildingArea && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  ≈ {Math.round(Number(monthlyRent) / Number(buildingArea)).toLocaleString("hu-HU")} {rentCurrency === "HUF" ? "Ft" : "€"}/m²
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs text-muted-foreground">Vételár (Ft)</label>

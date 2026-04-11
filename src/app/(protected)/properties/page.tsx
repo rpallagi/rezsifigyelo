@@ -312,7 +312,7 @@ export default async function PropertiesPage({
                       </p>
                       <p className="mt-1 text-base font-semibold">
                         {property.monthlyRent
-                          ? `${Math.round(property.monthlyRent).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} Ft`
+                          ? `${Math.round(property.monthlyRent).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} ${property.rentCurrency === "EUR" ? "€" : "Ft"}${property.buildingArea ? ` · ${Math.round(property.monthlyRent / property.buildingArea).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} ${property.rentCurrency === "EUR" ? "€" : "Ft"}/m²` : ""}`
                           : "Nincs"}
                       </p>
                     </div>
@@ -435,7 +435,7 @@ export default async function PropertiesPage({
               </td>
               <td className="px-4 py-3">
                 {property.monthlyRent
-                  ? `${Math.round(property.monthlyRent).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} Ft`
+                  ? `${Math.round(property.monthlyRent).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} ${property.rentCurrency === "EUR" ? "€" : "Ft"}`
                   : "Nincs"}
               </td>
               <td className="px-4 py-3">

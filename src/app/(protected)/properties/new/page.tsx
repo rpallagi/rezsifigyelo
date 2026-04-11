@@ -17,6 +17,8 @@ export default function NewPropertyPage() {
   const [billingName, setBillingName] = useState("");
   const [billingEmail, setBillingEmail] = useState("");
   const [landlordProfileId, setLandlordProfileId] = useState("");
+  const [buildingArea, setBuildingArea] = useState("");
+  const [landArea, setLandArea] = useState("");
   const [monthlyRent, setMonthlyRent] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [notes, setNotes] = useState("");
@@ -57,6 +59,8 @@ export default function NewPropertyPage() {
       billingName: billingName || undefined,
       billingEmail: billingEmail || undefined,
       landlordProfileId: landlordProfileId ? Number(landlordProfileId) : undefined,
+      buildingArea: buildingArea ? Number(buildingArea) : undefined,
+      landArea: landArea ? Number(landArea) : undefined,
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
       notes: notes || undefined,
@@ -270,6 +274,37 @@ export default function NewPropertyPage() {
           </div>
         </fieldset>
 
+        {/* Area */}
+        <fieldset className="rounded-lg border border-border p-4">
+          <legend className="px-2 text-sm font-medium">Terület</legend>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-xs text-muted-foreground">Épület alapterület (m²)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={buildingArea}
+                onChange={(e) => setBuildingArea(e.target.value)}
+                placeholder="pl. 65"
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground">Telek alapterület (m²)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={landArea}
+                onChange={(e) => setLandArea(e.target.value)}
+                placeholder="pl. 800"
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+        </fieldset>
+
         {/* Financial */}
         <fieldset className="rounded-lg border border-border p-4">
           <legend className="px-2 text-sm font-medium">Pénzügyi adatok</legend>
@@ -285,6 +320,11 @@ export default function NewPropertyPage() {
                 placeholder="0"
                 className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
+              {monthlyRent && buildingArea && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  ≈ {Math.round(Number(monthlyRent) / Number(buildingArea)).toLocaleString("hu-HU")} Ft/m²
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs text-muted-foreground">

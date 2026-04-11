@@ -259,6 +259,9 @@ export const properties = createTable(
     autoBilling: d.boolean().notNull().default(false),
     autoBillingDay: d.integer().notNull().default(1),
     autoBillingMissingReadings: d.varchar({ length: 20 }).notNull().default("skip_readings"),
+    // Area (m²)
+    buildingArea: d.doublePrecision(),
+    landArea: d.doublePrecision(),
     // ROI
     purchasePrice: d.doublePrecision(),
     monthlyRent: d.doublePrecision(),

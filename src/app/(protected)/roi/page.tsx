@@ -128,7 +128,11 @@ export default async function ROIPage() {
     .filter((property) => (property.purchasePrice ?? 0) > 0)
     .map((property) => {
       const purchasePrice = property.purchasePrice ?? 0;
-      const annualRent = (property.monthlyRent ?? 0) * 12;
+      const isEur = property.rentCurrency === "EUR";
+      const EUR_HUF_APPROX = 410; // hozzávetőleges árfolyam
+      const rawMonthly = property.monthlyRent ?? 0;
+      const monthlyHuf = isEur ? rawMonthly * EUR_HUF_APPROX : rawMonthly;
+      const annualRent = monthlyHuf * 12;
       const roi = purchasePrice > 0 ? (annualRent / purchasePrice) * 100 : 0;
       const breakEvenYears = annualRent > 0 ? purchasePrice / annualRent : null;
       const actualMaintenance = property.maintenanceLogs?.reduce(

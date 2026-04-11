@@ -552,7 +552,7 @@ export default async function PropertyDetailPage({
         <StatCard label="Mérők" value={`${property.meterInfo.length} db`} detail={`${property.smartMeters.length} okosmérő kapcsolva`} />
         <StatCard label="Utolsó leolvasás" value={latestReading?.readingDate ?? "—"} detail={latestReading ? `${latestReading.utilityType} · ${latestReading.value}` : "Még nincs adat"} />
         <StatCard label="Utolsó számla" value={latestInvoice ? formatCurrency(latestInvoice.grossTotalHuf) : "—"} detail={latestInvoice ? latestInvoice.issueDate : "Még nincs kiállítva"} tone={latestInvoice ? "success" : "neutral"} />
-        <StatCard label="Nyitott adó" value={unpaidTaxSeasons > 0 ? `${unpaidTaxSeasons} szezon` : "Rendben"} detail={property.monthlyRent ? `Bérleti díj: ${formatCurrency(property.monthlyRent)}` : "Nincs havi bérleti díj"} tone={unpaidTaxSeasons > 0 ? "warning" : "success"} />
+        <StatCard label="Nyitott adó" value={unpaidTaxSeasons > 0 ? `${unpaidTaxSeasons} szezon` : "Rendben"} detail={property.monthlyRent ? `Bérleti díj: ${formatCurrency(property.monthlyRent)}${property.buildingArea && property.monthlyRent ? ` · ${Math.round(property.monthlyRent / property.buildingArea).toLocaleString("hu-HU")} Ft/m²` : ""}` : "Nincs havi bérleti díj"} tone={unpaidTaxSeasons > 0 ? "warning" : "success"} />
       </section>
 
       {property.meterInfo.length > 0 && (
