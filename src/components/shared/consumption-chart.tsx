@@ -25,7 +25,7 @@ const utilityColors: Record<string, string> = {
   csatorna: "#8b5cf6",
 };
 
-type Period = "6m" | "1y" | "all";
+type Period = "3m" | "1y" | "all";
 
 export function ConsumptionChart({ readings }: { readings: Reading[] }) {
   const { intlLocale, messages, utilityLabel } = useLocale();
@@ -46,7 +46,7 @@ export function ConsumptionChart({ readings }: { readings: Reading[] }) {
     .map(([month, values]) => ({ month, ...values }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  const sliceCount = period === "6m" ? 6 : period === "1y" ? 12 : allData.length;
+  const sliceCount = period === "3m" ? 3 : period === "1y" ? 12 : allData.length;
   const data = allData.slice(-sliceCount);
 
   if (data.length < 2) return null;
@@ -54,7 +54,7 @@ export function ConsumptionChart({ readings }: { readings: Reading[] }) {
   const utilityTypes = [...new Set(readings.map((r) => r.utilityType))];
 
   const periods: { key: Period; label: string }[] = [
-    { key: "6m", label: "6 hó" },
+    { key: "3m", label: "3 hó" },
     { key: "1y", label: "1 év" },
     { key: "all", label: "Összes" },
   ];
