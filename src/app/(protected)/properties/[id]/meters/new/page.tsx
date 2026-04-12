@@ -160,9 +160,12 @@ export default function NewMeterPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isSaving =
+    submitting ||
+    submitted ||
     createMeter.isPending ||
     createSmartMeter.isPending ||
-    recordReading.isPending;
+    recordReading.isPending ||
+    importShellyHistory.isPending;
 
   const mutationError =
     createMeter.error ?? createSmartMeter.error ?? recordReading.error;
@@ -219,6 +222,10 @@ export default function NewMeterPage() {
   /* ---- submit ---- */
   const handleSubmit = async () => {
     if (!utilityType || !meterKind) return;
+    if (submitting || submitted) return; // Idempotent guard
+
+    setSubmitting(true);
+    setSubmitError(null);
 
     try {
       // 1. Create meterInfo
@@ -276,10 +283,15 @@ export default function NewMeterPage() {
         });
       }
 
-      router.push(`/properties/${propertyId}`);
-      router.refresh();
-    } catch {
-      // Errors are shown via mutationError
+      // Show success screen briefly before navigating
+      setSubmitted(true);
+      setTimeout(() => {
+        router.push(`/properties/${propertyId}`);
+        router.refresh();
+      }, 1200);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Hiba történt");
+      setSubmitting(false);
     }
   };
 
@@ -904,6 +916,25 @@ export default function NewMeterPage() {
       shelly_cloud: "Shelly Cloud",
     };
 
+    // Success screen — shown briefly after save before redirect
+    if (submitted) {
+      return (
+        <div className="mx-auto flex max-w-lg flex-col items-center justify-center space-y-4 py-16 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/40">
+            <Check className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <h1 className="text-xl font-bold">Mérő hozzáadva</h1>
+          <p className="text-sm text-muted-foreground">
+            {importResult
+              ? `${importResult.imported} historikus havi leolvasás importálva${importResult.totalKwh ? ` (${importResult.totalKwh} kWh)` : ""}`
+              : initialReading && Number(initialReading) > 0
+                ? `Kezdő leolvasás: ${initialReading} ${meta.unit}`
+                : "Átirányítás az ingatlan oldalára..."}
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-lg space-y-5">
         <div className="flex items-center gap-3">
@@ -918,6 +949,12 @@ export default function NewMeterPage() {
         </div>
 
         <ProgressBar />
+
+        {submitError && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+            {submitError}
+          </div>
+        )}
 
         {/* Summary card */}
         <div className="rounded-[24px] border border-border/60 bg-card/90 p-5 ring-1 ring-border/60">
@@ -1093,7 +1130,15 @@ export default function NewMeterPage() {
             ) : (
               <Check className="h-4 w-4" />
             )}
-            {isSaving ? "Mentés..." : "Mérő hozzáadása"}
+            {importShellyHistory.isPending
+              ? "Historikus adatok lekérése..."
+              : createSmartMeter.isPending
+                ? "Okosmérő csatolása..."
+                : createMeter.isPending
+                  ? "Mérő mentése..."
+                  : submitting
+                    ? "Mentés..."
+                    : "Mérő hozzáadása"}
           </button>
         </div>
       </div>
