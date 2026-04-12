@@ -131,71 +131,36 @@ export const shellyCloudRouter = createTRPCRouter({
     const creds = await getShellyCloudCredentials(ctx.db, ctx.dbUser.id);
     if (!creds) return [];
 
-    // Strip https:// if present, strip trailing /
     const host = creds.serverHost.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    const url = `https://${host}/interface/device/list?auth_key=${creds.authKey}`;
 
-    try {
-      const listRes = await fetch(
-        `https://${host}/interface/device/list?auth_key=${creds.authKey}`,
-      );
-      if (!listRes.ok) {
-        console.error("[shellyCloud.listDevices] device list fetch failed:", listRes.status, listRes.statusText);
-        return [];
-      }
-      const listData = (await listRes.json()) as {
-        isok?: boolean;
-        data?: {
-          devices?: Record<string, {
-            id: string;
-            name?: string;
-            type?: string;
-            category?: string;
-            gen?: number;
-            cloud_online?: boolean;
-          }>;
-        };
-      };
-      if (!listData.isok || !listData.data?.devices) {
-        console.error("[shellyCloud.listDevices] list response:", JSON.stringify(listData).slice(0, 200));
-        return [];
-      }
-
-      // Try to get live status, but don't fail if it doesn't work
-      let devicesStatus: Record<string, Record<string, unknown>> = {};
-      try {
-        const statusRes = await fetch(
-          `https://${host}/device/all_status?auth_key=${creds.authKey}`,
-        );
-        if (statusRes.ok) {
-          const statusData = (await statusRes.json()) as {
-            data?: { devices_status?: Record<string, Record<string, unknown>> };
-          };
-          devicesStatus = statusData?.data?.devices_status ?? {};
-        }
-      } catch (e) {
-        console.error("[shellyCloud.listDevices] status fetch failed:", e);
-      }
-
-      return Object.entries(listData.data.devices).map(([id, dev]) => {
-        const status = devicesStatus[id];
-        const em0 = status?.["em:0"] as Record<string, number> | undefined;
-        const emeters = status?.emeters as Array<Record<string, number>> | undefined;
-        const totalPower = em0?.total_act_power ?? emeters?.[0]?.power;
-
-        return {
-          id,
-          type: dev.type ?? "unknown",
-          code: dev.type ?? "",
-          name: dev.name ?? id,
-          online: dev.cloud_online ?? false,
-          emStatus: totalPower !== undefined ? { total_act_power: totalPower } : undefined,
-        };
-      });
-    } catch (error) {
-      console.error("[shellyCloud.listDevices] error:", error);
-      throw new Error(
-        `Shelly Cloud API hiba: ${error instanceof Error ? error.message : String(error)}`,
-      );
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`Shelly Cloud API hiba (${res.status})`);
     }
+
+    const listData = (await res.json()) as {
+      isok?: boolean;
+      data?: {
+        devices?: Record<string, {
+          id: string;
+          name?: string;
+          type?: string;
+          gen?: number;
+          cloud_online?: boolean;
+        }>;
+      };
+    };
+
+    if (!listData.isok || !listData.data?.devices) return [];
+
+    return Object.entries(listData.data.devices).map(([id, dev]) => ({
+      id,
+      type: dev.type ?? "unknown",
+      code: dev.type ?? "",
+      name: dev.name ?? id,
+      online: dev.cloud_online ?? false,
+      emStatus: undefined as { total_act_power: number } | undefined,
+    }));
   }),
 });

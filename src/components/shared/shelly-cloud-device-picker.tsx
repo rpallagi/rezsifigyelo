@@ -105,7 +105,21 @@ export function ShellyCloudDevicePicker({ deviceId, onSelectDevice }: ShellyClou
         </p>
       )}
 
-      {!devicesLoading && devices && devices.length === 0 && (
+      {devicesError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs dark:border-red-900 dark:bg-red-950/30">
+          <p className="font-semibold text-red-800 dark:text-red-300">Hiba a Shelly Cloud kapcsolatkor</p>
+          <p className="mt-1 text-red-700 dark:text-red-400">{devicesError.message}</p>
+          <button
+            type="button"
+            onClick={() => void refetchDevices()}
+            className="mt-2 rounded-md border border-red-300 px-2 py-1 font-medium text-red-800 hover:bg-red-100 dark:border-red-800 dark:text-red-200"
+          >
+            Újrapróbálás
+          </button>
+        </div>
+      )}
+
+      {!devicesLoading && !devicesError && devices && devices.length === 0 && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
           Nincsenek elérhető eszközök. Ellenőrizd a Shelly Cloud fiókodat.
         </p>
