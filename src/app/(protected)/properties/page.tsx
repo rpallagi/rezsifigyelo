@@ -177,31 +177,49 @@ export default async function PropertiesPage({
     return 0;
   });
 
-  // Group items by address — only creates sub-groups when 2+ properties share an address
-  function groupByAddress<T extends { address: string | null }>(items: T[]) {
-    const map = new Map<string, T[]>();
-    for (const p of items) {
-      const key = (p.address ?? "").trim().toLowerCase();
-      if (!key) continue; // skip empty addresses
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(p);
-    }
-    const hasMulti = [...map.values()].some((arr) => arr.length > 1);
-    if (!hasMulti) return null;
+  // Group items by building parent (buildingPropertyId) first, then by exact address match
+  function groupByBuilding(items: typeof sortedProperties) {
+    const seen = new Set<number>(); // property ids already placed in a group
+    const grouped: { label: string; items: typeof sortedProperties }[] = [];
 
-    // Collect grouped (2+) and ungrouped (1 or no address) items
-    const grouped: { address: string; items: T[] }[] = [];
-    const ungrouped: T[] = [];
-    const seen = new Set<T>();
-    for (const [, props] of map) {
-      if (props.length > 1) {
-        grouped.push({ address: props[0]!.address!, items: props });
-        props.forEach((p) => seen.add(p));
+    // 1) Group by buildingPropertyId — explicit parent link
+    const parentMap = new Map<number, typeof sortedProperties>();
+    for (const p of items) {
+      if (p.buildingPropertyId) {
+        if (!parentMap.has(p.buildingPropertyId)) parentMap.set(p.buildingPropertyId, []);
+        parentMap.get(p.buildingPropertyId)!.push(p);
       }
     }
-    for (const p of items) {
-      if (!seen.has(p)) ungrouped.push(p);
+    for (const [parentId, children] of parentMap) {
+      // Include the parent property itself if it's in the list
+      const parent = items.find((p) => p.id === parentId);
+      const allInGroup = parent ? [parent, ...children.filter((c) => c.id !== parentId)] : children;
+      if (allInGroup.length >= 2) {
+        const label = parent?.address ?? parent?.name ?? children[0]!.address ?? "Csoport";
+        grouped.push({ label, items: allInGroup });
+        allInGroup.forEach((p) => seen.add(p.id));
+      }
     }
+
+    // 2) Remaining items: group by exact address match
+    const remaining = items.filter((p) => !seen.has(p.id));
+    const addrMap = new Map<string, typeof sortedProperties>();
+    for (const p of remaining) {
+      const key = (p.address ?? "").trim().toLowerCase();
+      if (!key) continue;
+      if (!addrMap.has(key)) addrMap.set(key, []);
+      addrMap.get(key)!.push(p);
+    }
+    for (const [, props] of addrMap) {
+      if (props.length >= 2) {
+        grouped.push({ label: props[0]!.address!, items: props });
+        props.forEach((p) => seen.add(p.id));
+      }
+    }
+
+    if (grouped.length === 0) return null;
+
+    const ungrouped = items.filter((p) => !seen.has(p.id));
     return { grouped, ungrouped };
   }
 
@@ -405,7 +423,7 @@ export default async function PropertiesPage({
         {/* List view — rows with small thumbnail */}
         {view === "list" && (() => {
           const renderAddressSubGroups = (items: typeof sortedProperties) => {
-            const addrGroups = groupByAddress(items);
+            const addrGroups = groupByBuilding(items);
             if (!addrGroups) {
               return items.map((property) => (
                 <ListRow key={property.id} property={property} m={m} />
@@ -414,10 +432,10 @@ export default async function PropertiesPage({
             return (
               <>
                 {addrGroups.grouped.map((ag) => (
-                  <div key={ag.address} className="ml-4">
+                  <div key={ag.label} className="ml-4">
                     <div className="flex items-center gap-2 px-1 py-1.5">
                       <span className="text-[11px] font-medium text-muted-foreground/80">
-                        {ag.address}
+                        {ag.label}
                       </span>
                       <span className="text-[10px] text-muted-foreground/50">
                         ({ag.items.length})
@@ -554,17 +572,17 @@ export default async function PropertiesPage({
                 <tbody>
                   {(() => {
                     const renderAddressRows = (items: typeof sortedProperties) => {
-                      const addrGroups = groupByAddress(items);
+                      const addrGroups = groupByBuilding(items);
                       if (!addrGroups) return items.map(renderTableRow);
                       return (
                         <>
                           {addrGroups.grouped.map((ag) => (
-                            <React.Fragment key={ag.address}>
+                            <React.Fragment key={ag.label}>
                               <tr>
                                 <td colSpan={7} className="px-4 pb-0.5 pt-2">
                                   <div className="ml-4 flex items-center gap-2">
                                     <span className="text-[11px] font-medium text-muted-foreground/80">
-                                      {ag.address}
+                                      {ag.label}
                                     </span>
                                     <span className="text-[10px] text-muted-foreground/50">
                                       ({ag.items.length})
