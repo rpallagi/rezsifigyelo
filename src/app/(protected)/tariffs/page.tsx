@@ -1,5 +1,6 @@
 import { api } from "@/trpc/server";
 import Link from "next/link";
+import { TariffRowActions, GroupDeleteButton } from "./tariff-actions";
 
 export default async function TariffsPage() {
   const groups = await api.tariff.listGroups();
@@ -42,6 +43,7 @@ export default async function TariffsPage() {
                   >
                     + Tarifa
                   </Link>
+                  <GroupDeleteButton groupId={group.id} name={group.name} />
                 </div>
               </div>
               {group.description && (
@@ -61,16 +63,12 @@ export default async function TariffsPage() {
                       <th className="pb-2 font-medium">Díj</th>
                       <th className="pb-2 font-medium">Egység</th>
                       <th className="pb-2 font-medium">Érvényes</th>
+                      <th className="pb-2 font-medium">Műveletek</th>
                     </tr>
                   </thead>
                   <tbody>
                     {group.tariffs.map((t) => (
-                      <tr key={t.id} className="border-b">
-                        <td className="py-2 capitalize">{t.utilityType}</td>
-                        <td className="py-2">{t.rateHuf} Ft</td>
-                        <td className="py-2">{t.unit}</td>
-                        <td className="py-2">{t.validFrom}</td>
-                      </tr>
+                      <TariffRowActions key={t.id} tariff={t} />
                     ))}
                   </tbody>
                 </table>

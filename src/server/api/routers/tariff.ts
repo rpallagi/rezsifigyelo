@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
 
@@ -87,5 +88,76 @@ export const tariffRouter = createTRPCRouter({
         .values(input)
         .returning();
       return tariff;
+    }),
+
+  updateTariff: landlordProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        utilityType: z.enum([
+          "villany",
+          "viz",
+          "gaz",
+          "csatorna",
+          "internet",
+          "kozos_koltseg",
+          "egyeb",
+        ]).optional(),
+        rateHuf: z.number().optional(),
+        unit: z.string().min(1).optional(),
+        validFrom: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const tariff = await ctx.db.query.tariffs.findFirst({
+        where: eq(tariffs.id, input.id),
+      });
+      if (!tariff) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Tarifa nem található" });
+      }
+      await requireTariffGroupAccess(ctx, tariff.tariffGroupId);
+
+      const { id, ...data } = input;
+      const [updated] = await ctx.db
+        .update(tariffs)
+        .set(data)
+        .where(eq(tariffs.id, id))
+        .returning();
+      return updated;
+    }),
+
+  deleteTariff: landlordProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const tariff = await ctx.db.query.tariffs.findFirst({
+        where: eq(tariffs.id, input.id),
+      });
+      if (!tariff) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Tarifa nem található" });
+      }
+      await requireTariffGroupAccess(ctx, tariff.tariffGroupId);
+
+      await ctx.db.delete(tariffs).where(eq(tariffs.id, input.id));
+      return { success: true };
+    }),
+
+  deleteGroup: landlordProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireTariffGroupAccess(ctx, input.id);
+
+      // Unlink any properties first (set tariffGroupId to null)
+      const { properties } = await import("@/server/db/schema");
+      await ctx.db
+        .update(properties)
+        .set({ tariffGroupId: null })
+        .where(eq(properties.tariffGroupId, input.id));
+
+      // Delete all tariffs in this group
+      await ctx.db.delete(tariffs).where(eq(tariffs.tariffGroupId, input.id));
+
+      // Delete the group
+      await ctx.db.delete(tariffGroups).where(eq(tariffGroups.id, input.id));
+      return { success: true };
     }),
 });
