@@ -5,40 +5,27 @@ import { api } from "@/trpc/react";
 
 interface ShellyCloudDevicePickerProps {
   deviceId: string;
-  onSelectDevice: (id: string, name?: string) => void;
+  onSelectDevice: (id: string, name: string | undefined, authKey: string, serverHost: string) => void;
 }
 
 export function ShellyCloudDevicePicker({ deviceId, onSelectDevice }: ShellyCloudDevicePickerProps) {
-  const { data: settings, isLoading: settingsLoading, refetch: refetchSettings } = api.shellyCloud.getSettings.useQuery();
-  const { data: devices, isLoading: devicesLoading, error: devicesError, refetch: refetchDevices } =
-    api.shellyCloud.listDevices.useQuery(undefined, {
-      enabled: !!settings?.hasAuthKey,
-    });
-
   const [serverHost, setServerHost] = useState("shelly-63-eu.shelly.cloud");
   const [authKey, setAuthKey] = useState("");
-  const [saveError, setSaveError] = useState("");
+  const [devices, setDevices] = useState<Array<{ id: string; name: string; type: string; online: boolean }> | null>(null);
 
-  const saveSettings = api.shellyCloud.saveSettings.useMutation({
-    onSuccess: async () => {
-      setSaveError("");
-      await refetchSettings();
-      await refetchDevices();
+  const connect = api.shellyCloud.connectShelly.useMutation({
+    onSuccess: (result) => {
+      setDevices(result);
+      // Auto-select if only 1 device
+      if (result.length === 1) {
+        const d = result[0]!;
+        onSelectDevice(d.id, d.name, authKey, serverHost);
+      }
     },
-    onError: (err) => setSaveError(err.message),
   });
 
-  // Still loading — show skeleton
-  if (settingsLoading) {
-    return (
-      <div className="rounded-2xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
-        Shelly Cloud beállítások betöltése...
-      </div>
-    );
-  }
-
-  // No credentials yet → show inline form
-  if (!settings?.hasAuthKey) {
+  // Step 1: Connect form
+  if (!devices) {
     return (
       <div className="space-y-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
         <div>
@@ -46,6 +33,7 @@ export function ShellyCloudDevicePicker({ deviceId, onSelectDevice }: ShellyClou
             🔑 Shelly Cloud hozzáférés
           </p>
           <p className="mt-1 text-xs text-blue-800 dark:text-blue-300">
+            Hol találod?{" "}
             <a href="https://control.shelly.cloud" target="_blank" rel="noopener noreferrer" className="font-medium underline">
               control.shelly.cloud
             </a>
@@ -77,107 +65,70 @@ export function ShellyCloudDevicePicker({ deviceId, onSelectDevice }: ShellyClou
 
         <button
           type="button"
-          onClick={() => saveSettings.mutate({ authKey, serverHost })}
-          disabled={saveSettings.isPending || !authKey.trim() || !serverHost.trim()}
+          onClick={() => connect.mutate({ authKey, serverHost })}
+          disabled={connect.isPending || !authKey.trim() || !serverHost.trim()}
           className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
         >
-          {saveSettings.isPending ? "Mentés..." : "Kapcsolódás"}
+          {connect.isPending ? "Kapcsolódás..." : "Kapcsolódás →"}
         </button>
 
-        {saveError && <p className="text-xs text-destructive">{saveError}</p>}
+        {connect.error && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800 dark:bg-red-950/30 dark:text-red-300">
+            {connect.error.message}
+          </p>
+        )}
       </div>
     );
   }
 
-  // Credentials saved → show device picker
+  // Step 2: Device selection (or single-device confirmation)
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium">Eszköz kiválasztása</label>
-        <a href="/settings/shelly-cloud" className="text-xs text-muted-foreground underline hover:text-foreground">
-          Shelly Cloud beállítások
-        </a>
+        <p className="text-sm font-medium">
+          {devices.length === 1 ? "Eszköz:" : `${devices.length} eszköz található:`}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setDevices(null);
+            onSelectDevice("", undefined, "", "");
+          }}
+          className="text-xs text-muted-foreground underline hover:text-foreground"
+        >
+          Más fiók
+        </button>
       </div>
 
-      {devicesLoading && (
-        <p className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-xs text-muted-foreground">
-          Eszközök betöltése...
-        </p>
-      )}
-
-      {devicesError && (
-        <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs dark:border-red-900 dark:bg-red-950/30">
-          <p className="font-semibold text-red-800 dark:text-red-300">Hiba a Shelly Cloud kapcsolatkor</p>
-          <p className="text-red-700 dark:text-red-400">{devicesError.message || "Ismeretlen hiba"}</p>
-          <div className="flex gap-2">
+      <div className="space-y-1.5">
+        {devices.map((d) => {
+          const isSelected = deviceId === d.id;
+          return (
             <button
+              key={d.id}
               type="button"
-              onClick={() => void refetchDevices()}
-              className="rounded-md border border-red-300 px-2 py-1 font-medium text-red-800 hover:bg-red-100 dark:border-red-800 dark:text-red-200"
+              onClick={() => onSelectDevice(d.id, d.name, authKey, serverHost)}
+              className={`flex w-full items-center justify-between rounded-xl border p-3 text-left transition ${
+                isSelected
+                  ? "border-primary bg-primary/5 ring-2 ring-primary"
+                  : "border-border hover:bg-secondary/50"
+              }`}
             >
-              Újrapróbálás
-            </button>
-            <a href="/settings/shelly-cloud" className="rounded-md border border-red-300 px-2 py-1 font-medium text-red-800 hover:bg-red-100 dark:border-red-800 dark:text-red-200">
-              Beállítások ellenőrzése
-            </a>
-          </div>
-          <div className="mt-2 border-t border-red-200 pt-2 dark:border-red-900">
-            <p className="mb-1 font-medium text-red-800 dark:text-red-300">Vagy add meg kézzel a Device ID-t:</p>
-            <input
-              type="text"
-              value={deviceId}
-              onChange={(e) => onSelectDevice(e.target.value)}
-              placeholder="c8f09e8309f8"
-              className="w-full rounded-md border border-input bg-background px-2 py-1.5 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        </div>
-      )}
-
-      {!devicesLoading && !devicesError && devices && devices.length === 0 && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
-          Nincsenek elérhető eszközök. Ellenőrizd a Shelly Cloud fiókodat.
-        </p>
-      )}
-
-      {!devicesLoading && devices && devices.length > 0 && (
-        <div className="space-y-1.5">
-          {devices.map((d) => {
-            const isSelected = deviceId === d.id;
-            return (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => onSelectDevice(d.id, d.name)}
-                className={`flex w-full items-center justify-between rounded-xl border p-3 text-left transition ${
-                  isSelected
-                    ? "border-primary bg-primary/5 ring-2 ring-primary"
-                    : "border-border hover:bg-secondary/50"
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{d.name}</p>
+                <p className="font-mono text-[10px] text-muted-foreground">
+                  {d.id} · {d.type}
+                </p>
+              </div>
+              <span
+                className={`inline-flex h-2 w-2 shrink-0 rounded-full ${
+                  d.online ? "bg-emerald-500" : "bg-red-500"
                 }`}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{d.name}</p>
-                  <p className="font-mono text-[10px] text-muted-foreground">
-                    {d.id} · {d.code ?? d.type}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {d.emStatus?.total_act_power !== undefined && (
-                    <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                      {Math.round(d.emStatus.total_act_power)} W
-                    </span>
-                  )}
-                  <span
-                    className={`inline-flex h-2 w-2 rounded-full ${
-                      d.online ? "bg-emerald-500" : "bg-red-500"
-                    }`}
-                  />
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
+              />
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

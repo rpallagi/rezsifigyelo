@@ -43,6 +43,47 @@ async function shellyCloudRequest(
 }
 
 export const shellyCloudRouter = createTRPCRouter({
+  // Test credentials and return device list — does NOT save anything
+  connectShelly: landlordProcedure
+    .input(z.object({ authKey: z.string().min(1), serverHost: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const host = input.serverHost.replace(/^https?:\/\//, "").replace(/\/$/, "");
+      const url = `https://${host}/interface/device/list?auth_key=${input.authKey}`;
+
+      let res: Response;
+      try {
+        res = await fetch(url);
+      } catch (err) {
+        throw new Error(`Hálózati hiba: ${err instanceof Error ? err.message : "ismeretlen"}`);
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+
+      const data = (await res.json()) as {
+        isok?: boolean;
+        data?: {
+          devices?: Record<string, {
+            id: string;
+            name?: string;
+            type?: string;
+            cloud_online?: boolean;
+          }>;
+        };
+      };
+      if (!data.isok) throw new Error("Érvénytelen auth key vagy szerver");
+
+      const devs = data.data?.devices;
+      if (!devs || Object.keys(devs).length === 0) {
+        throw new Error("Nincs eszköz a fiókban");
+      }
+
+      return Object.entries(devs).map(([id, dev]) => ({
+        id,
+        name: dev.name ?? id,
+        type: dev.type ?? "unknown",
+        online: Boolean(dev.cloud_online),
+      }));
+    }),
+
   getSettings: landlordProcedure.query(async ({ ctx }) => {
     const creds = await getShellyCloudCredentials(ctx.db, ctx.dbUser.id);
     return {
@@ -92,13 +133,33 @@ export const shellyCloudRouter = createTRPCRouter({
   getLivePower: landlordProcedure
     .input(z.object({ deviceId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const creds = await getShellyCloudCredentials(ctx.db, ctx.dbUser.id);
-      if (!creds) return null;
+      // Try per-device credentials first (new approach)
+      const device = await ctx.db.query.smartMeterDevices.findFirst({
+        where: (d, { eq, and }) => and(
+          eq(d.source, "shelly_cloud"),
+          eq(d.shellyDeviceId, input.deviceId),
+        ),
+      });
+
+      let authKey: string | undefined;
+      let serverHost: string | undefined;
+      if (device?.shellyAuthKey && device.shellyServer) {
+        authKey = device.shellyAuthKey;
+        serverHost = device.shellyServer;
+      } else {
+        // Fallback: user-level credentials
+        const creds = await getShellyCloudCredentials(ctx.db, ctx.dbUser.id);
+        if (creds) {
+          authKey = creds.authKey;
+          serverHost = creds.serverHost;
+        }
+      }
+      if (!authKey || !serverHost) return null;
 
       try {
         const data = await shellyCloudRequest(
-          creds.serverHost,
-          creds.authKey,
+          serverHost,
+          authKey,
           "/v2/devices/api/get",
           { ids: [input.deviceId], select: ["status"] },
         );

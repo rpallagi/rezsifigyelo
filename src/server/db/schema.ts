@@ -942,6 +942,8 @@ export const smartMeterDevices = createTable(
     // Shelly Cloud
     shellyDeviceId: d.varchar({ length: 200 }),
     shellyChannel: d.integer().default(0),
+    shellyAuthKey: d.text(),
+    shellyServer: d.varchar({ length: 100 }),
     // Payload parsing
     valueField: d.varchar({ length: 100 }).notNull().default("meter_value"),
     multiplier: d.doublePrecision().notNull().default(1.0),

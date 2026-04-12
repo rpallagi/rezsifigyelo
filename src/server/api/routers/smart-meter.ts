@@ -37,6 +37,8 @@ export const smartMeterRouter = createTRPCRouter({
         ttnAppId: z.string().optional(),
         shellyDeviceId: z.string().optional(),
         shellyChannel: z.number().int().min(0).max(2).optional(),
+        shellyAuthKey: z.string().optional(),
+        shellyServer: z.string().optional(),
         valueField: z.string().default("meter_value"),
         multiplier: z.number().default(1.0),
         offset: z.number().default(0.0),

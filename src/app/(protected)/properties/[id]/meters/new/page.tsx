@@ -133,6 +133,8 @@ export default function NewMeterPage() {
   const [multiplier, setMultiplier] = useState(1);
   const [offset, setOffset] = useState(0);
   const [minInterval, setMinInterval] = useState(60);
+  const [shellyAuthKey, setShellyAuthKey] = useState("");
+  const [shellyServer, setShellyServer] = useState("");
   const [copiedWebhook, setCopiedWebhook] = useState(false);
 
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -223,9 +225,12 @@ export default function NewMeterPage() {
           name: deviceName || undefined,
           mqttTopic: smartSource === "mqtt" ? (mqttTopic || `rezsi/${deviceId}`) : undefined,
           ttnAppId: smartSource === "ttn" ? (ttnAppId || undefined) : undefined,
-          valueField,
-          multiplier,
-          offset,
+          shellyDeviceId: smartSource === "shelly_cloud" ? deviceId : undefined,
+          shellyAuthKey: smartSource === "shelly_cloud" ? shellyAuthKey : undefined,
+          shellyServer: smartSource === "shelly_cloud" ? shellyServer : undefined,
+          valueField: smartSource === "shelly_cloud" ? "total_act" : valueField,
+          multiplier: smartSource === "shelly_cloud" ? 0.001 : multiplier,
+          offset: smartSource === "shelly_cloud" ? 0 : offset,
           minIntervalMinutes: minInterval,
         });
       }
@@ -629,8 +634,10 @@ export default function NewMeterPage() {
             {smartSource === "shelly_cloud" ? (
               <ShellyCloudDevicePicker
                 deviceId={deviceId}
-                onSelectDevice={(id, name) => {
+                onSelectDevice={(id, name, authKey, serverHost) => {
                   setDeviceId(id);
+                  setShellyAuthKey(authKey);
+                  setShellyServer(serverHost);
                   if (name && !deviceName) setDeviceName(name);
                 }}
               />
