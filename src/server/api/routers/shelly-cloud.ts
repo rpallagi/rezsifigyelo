@@ -76,18 +76,17 @@ export const shellyCloudRouter = createTRPCRouter({
     const creds = await getShellyCloudCredentials(ctx.db, ctx.dbUser.id);
     if (!creds) throw new Error("Shelly Cloud nincs konfigurálva");
 
-    const data = await shellyCloudRequest(
-      creds.serverHost,
-      creds.authKey,
-      "/v2/devices/api/get",
-      { select: ["status"] },
-    );
-
-    const devices = data.data as Array<Record<string, unknown>> | undefined;
-    return {
-      success: true,
-      deviceCount: Array.isArray(devices) ? devices.length : 0,
+    const url = `https://${creds.serverHost}/interface/device/list?auth_key=${creds.authKey}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Hiba: ${res.status} ${res.statusText}`);
+    const data = (await res.json()) as {
+      isok?: boolean;
+      data?: { devices?: Record<string, unknown> };
     };
+    if (!data.isok) throw new Error("Érvénytelen API kulcs vagy szerver");
+
+    const deviceCount = data.data?.devices ? Object.keys(data.data.devices).length : 0;
+    return { success: true, deviceCount };
   }),
 
   getLivePower: landlordProcedure
@@ -132,32 +131,49 @@ export const shellyCloudRouter = createTRPCRouter({
     const creds = await getShellyCloudCredentials(ctx.db, ctx.dbUser.id);
     if (!creds) return [];
 
-    const data = await shellyCloudRequest(
-      creds.serverHost,
-      creds.authKey,
-      "/v2/devices/api/get",
-      { select: ["status"] },
-    );
+    // Fetch device list (with names) + status (with live power) in parallel
+    const [listRes, statusRes] = await Promise.all([
+      fetch(`https://${creds.serverHost}/interface/device/list?auth_key=${creds.authKey}`),
+      fetch(`https://${creds.serverHost}/device/all_status?auth_key=${creds.authKey}`),
+    ]);
 
-    const devices = data.data as Array<{
-      id: string;
-      type: string;
-      code: string;
-      name?: string;
-      online: number;
-      status?: Record<string, unknown>;
-    }> | undefined;
+    if (!listRes.ok) return [];
+    const listData = (await listRes.json()) as {
+      isok?: boolean;
+      data?: {
+        devices?: Record<string, {
+          id: string;
+          name?: string;
+          type?: string;
+          category?: string;
+          gen?: number;
+          cloud_online?: boolean;
+        }>;
+      };
+    };
+    if (!listData.isok || !listData.data?.devices) return [];
 
-    if (!Array.isArray(devices)) return [];
+    const statusData = statusRes.ok
+      ? ((await statusRes.json()) as {
+          data?: { devices_status?: Record<string, Record<string, unknown>> };
+        })
+      : null;
+    const devicesStatus = statusData?.data?.devices_status ?? {};
 
-    return devices.map((d) => ({
-      id: d.id,
-      type: d.type,
-      code: d.code,
-      name: d.name ?? d.id,
-      online: d.online === 1,
-      // Extract EM data if available
-      emStatus: d.status?.["em:0"] as Record<string, number> | undefined,
-    }));
+    return Object.entries(listData.data.devices).map(([id, dev]) => {
+      const status = devicesStatus[id];
+      const em0 = status?.["em:0"] as Record<string, number> | undefined;
+      const emeter0 = status?.["emeters"] as Array<Record<string, number>> | undefined;
+      const totalPower = em0?.total_act_power ?? emeter0?.[0]?.power;
+
+      return {
+        id,
+        type: dev.type ?? "unknown",
+        code: dev.type ?? "",
+        name: dev.name ?? id,
+        online: dev.cloud_online ?? false,
+        emStatus: totalPower !== undefined ? { total_act_power: totalPower } : undefined,
+      };
+    });
   }),
 });
