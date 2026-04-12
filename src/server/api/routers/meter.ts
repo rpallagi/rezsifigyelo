@@ -7,6 +7,20 @@ import { requireLandlordPropertyAccess } from "@/server/api/access";
 import { meterInfo, smartMeterDevices } from "@/server/db/schema";
 
 export const meterRouter = createTRPCRouter({
+  get: landlordProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const meter = await ctx.db.query.meterInfo.findFirst({
+        where: eq(meterInfo.id, input.id),
+        with: { tariffGroup: true },
+      });
+      if (!meter) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Mérő nem található" });
+      }
+      await requireLandlordPropertyAccess(ctx, meter.propertyId);
+      return meter;
+    }),
+
   list: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
     .query(async ({ ctx, input }) => {

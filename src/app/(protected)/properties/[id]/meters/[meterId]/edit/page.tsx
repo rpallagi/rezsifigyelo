@@ -1,0 +1,270 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { api } from "@/trpc/react";
+import { MultiPhotoUpload, type UploadedPhoto } from "@/components/shared/multi-photo-upload";
+import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
+import Link from "next/link";
+
+const utilityLabels: Record<string, string> = {
+  villany: "Villany",
+  viz: "Viz",
+  gaz: "Gaz",
+  csatorna: "Csatorna",
+  internet: "Internet",
+  kozos_koltseg: "Kozos koltseg",
+  egyeb: "Egyeb",
+};
+
+export default function EditMeterPage() {
+  const router = useRouter();
+  const params = useParams();
+  const propertyId = Number(params.id);
+  const meterId = Number(params.meterId);
+
+  const { data: meter, isLoading } = api.meter.get.useQuery({ id: meterId });
+  const { data: tariffGroups } = api.tariff.listGroups.useQuery();
+  const utils = api.useUtils();
+
+  const [location, setLocation] = useState("");
+  const [serialNumber, setSerialNumber] = useState("");
+  const [tariffGroupId, setTariffGroupId] = useState<string>("");
+  const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const updateMeter = api.meter.update.useMutation();
+  const deleteMeter = api.meter.delete.useMutation();
+
+  useEffect(() => {
+    if (meter) {
+      setLocation(meter.location ?? "");
+      setSerialNumber(meter.serialNumber ?? "");
+      setTariffGroupId(meter.tariffGroupId ? String(meter.tariffGroupId) : "");
+      if (Array.isArray(meter.photoUrls)) {
+        setPhotos(
+          (meter.photoUrls as string[]).map((url) => ({
+            url,
+            name: url.split("/").pop() ?? "photo",
+          })),
+        );
+      }
+    }
+  }, [meter]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateMeter.mutateAsync({
+        id: meterId,
+        location: location || undefined,
+        serialNumber: serialNumber || undefined,
+        tariffGroupId: tariffGroupId ? Number(tariffGroupId) : null,
+        photoUrls: photos.map((p) => p.url),
+      });
+      await utils.property.get.invalidate({ id: propertyId });
+      router.push(`/properties/${propertyId}`);
+    } catch {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteMeter.mutateAsync({ id: meterId });
+      await utils.property.get.invalidate({ id: propertyId });
+      router.push(`/properties/${propertyId}`);
+    } catch {
+      setDeleting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!meter) {
+    return (
+      <div className="mx-auto max-w-lg py-12 text-center">
+        <p className="text-muted-foreground">Mero nem talalhato.</p>
+        <Link href={`/properties/${propertyId}`} className="mt-4 inline-block text-primary hover:underline">
+          Vissza
+        </Link>
+      </div>
+    );
+  }
+
+  // Find the effective tariff for this meter's utility type from the selected group
+  const selectedGroup = tariffGroups?.find((g) => String(g.id) === tariffGroupId);
+  const matchingTariff = selectedGroup?.tariffs
+    ?.filter((t) => t.utilityType === meter.utilityType)
+    .sort((a, b) => String(b.validFrom).localeCompare(String(a.validFrom)))[0];
+
+  return (
+    <div className="mx-auto max-w-lg space-y-6 pb-10">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Link
+          href={`/properties/${propertyId}`}
+          className="rounded-full p-2 transition hover:bg-secondary"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <div>
+          <h1 className="text-xl font-semibold">Meroora szerkesztes</h1>
+          <p className="text-sm text-muted-foreground">
+            {utilityLabels[meter.utilityType] ?? meter.utilityType}
+          </p>
+        </div>
+      </div>
+
+      {/* Form */}
+      <div className="space-y-5 rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border/60">
+        {/* Utility type (read-only) */}
+        <div>
+          <label className="text-sm font-medium text-muted-foreground">Kozmu tipus</label>
+          <p className="mt-1 font-medium">{utilityLabels[meter.utilityType] ?? meter.utilityType}</p>
+        </div>
+
+        {/* Serial number */}
+        <div>
+          <label htmlFor="serialNumber" className="text-sm font-medium">
+            Gyari szam
+          </label>
+          <input
+            id="serialNumber"
+            type="text"
+            value={serialNumber}
+            onChange={(e) => setSerialNumber(e.target.value)}
+            placeholder="pl. 12345678"
+            className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+        </div>
+
+        {/* Location */}
+        <div>
+          <label htmlFor="location" className="text-sm font-medium">
+            Helyszin
+          </label>
+          <input
+            id="location"
+            type="text"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="pl. Pince, szekrenyben"
+            className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+        </div>
+
+        {/* Tariff group selector */}
+        <div>
+          <label htmlFor="tariffGroupId" className="text-sm font-medium">
+            Tarifa csoport
+          </label>
+          <select
+            id="tariffGroupId"
+            value={tariffGroupId}
+            onChange={(e) => setTariffGroupId(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          >
+            <option value="">Ingatlan alapertelmezese</option>
+            {tariffGroups?.map((group) => (
+              <option key={group.id} value={String(group.id)}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+          {/* Show matching tariff preview */}
+          {tariffGroupId && (
+            <div className="mt-2 rounded-lg bg-secondary/50 px-3 py-2 text-xs">
+              {matchingTariff ? (
+                <p>
+                  Aktiv tarifa: <span className="font-semibold">{matchingTariff.rateHuf} Ft/{matchingTariff.unit}</span>
+                  <span className="text-muted-foreground"> (erv. {matchingTariff.validFrom})</span>
+                </p>
+              ) : (
+                <p className="text-muted-foreground">
+                  Nincs {utilityLabels[meter.utilityType]?.toLowerCase() ?? meter.utilityType} tarifa ebben a csoportban.
+                </p>
+              )}
+            </div>
+          )}
+          {!tariffGroupId && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ha nem valasztasz, az ingatlanhoz rendelt tarifa csoport ervenyes.
+            </p>
+          )}
+        </div>
+
+        {/* Photos */}
+        <MultiPhotoUpload
+          photos={photos}
+          onChange={setPhotos}
+          folder={`meters/${meterId}`}
+          maxPhotos={5}
+          label="Merofotok"
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
+        >
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+          Mentes
+        </button>
+        <Link
+          href={`/properties/${propertyId}`}
+          className="flex items-center justify-center rounded-full bg-secondary px-4 py-3 text-sm font-medium transition hover:bg-secondary/80"
+        >
+          Megse
+        </Link>
+      </div>
+
+      {/* Delete */}
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+        {!confirmDelete ? (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="flex items-center gap-2 text-sm text-destructive hover:underline"
+          >
+            <Trash2 className="h-4 w-4" />
+            Meroora torlese
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-destructive">
+              Biztosan torlod ezt a merorat? A hozzatartozo okos mero kapcsolat is torlodik.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => void handleDelete()}
+                disabled={deleting}
+                className="flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-50"
+              >
+                {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Igen, torles
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium transition hover:bg-secondary/80"
+              >
+                Megse
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

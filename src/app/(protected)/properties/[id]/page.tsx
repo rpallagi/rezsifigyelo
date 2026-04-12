@@ -760,9 +760,8 @@ export default async function PropertyDetailPage({
                 : `/properties/${property.id}/readings/new`;
 
               return (
-                <Link
+                <div
                   key={meter.id}
-                  href={meterHref}
                   className="group rounded-[24px] bg-background/80 p-4 ring-1 ring-border/50 transition hover:ring-border hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -818,10 +817,21 @@ export default async function PropertyDetailPage({
                       </div>
                     )}
                   </div>
-                  <span className="mt-3 block text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
-                    {smartDevice?.isActive ? "Részletek →" : "Leolvasás →"}
-                  </span>
-                </Link>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Link
+                      href={meterHref}
+                      className="flex-1 text-center text-xs font-medium text-primary hover:underline"
+                    >
+                      {smartDevice?.isActive ? "Részletek →" : "Leolvasás →"}
+                    </Link>
+                    <Link
+                      href={`/properties/${property.id}/meters/${meter.id}/edit`}
+                      className="rounded-lg bg-secondary px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition hover:bg-secondary/80 hover:text-foreground"
+                    >
+                      Szerkesztés
+                    </Link>
+                  </div>
+                </div>
               );
             })}
           </div>
