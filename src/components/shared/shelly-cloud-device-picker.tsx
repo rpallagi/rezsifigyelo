@@ -106,16 +106,31 @@ export function ShellyCloudDevicePicker({ deviceId, onSelectDevice }: ShellyClou
       )}
 
       {devicesError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs dark:border-red-900 dark:bg-red-950/30">
+        <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs dark:border-red-900 dark:bg-red-950/30">
           <p className="font-semibold text-red-800 dark:text-red-300">Hiba a Shelly Cloud kapcsolatkor</p>
-          <p className="mt-1 text-red-700 dark:text-red-400">{devicesError.message}</p>
-          <button
-            type="button"
-            onClick={() => void refetchDevices()}
-            className="mt-2 rounded-md border border-red-300 px-2 py-1 font-medium text-red-800 hover:bg-red-100 dark:border-red-800 dark:text-red-200"
-          >
-            Újrapróbálás
-          </button>
+          <p className="text-red-700 dark:text-red-400">{devicesError.message || "Ismeretlen hiba"}</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void refetchDevices()}
+              className="rounded-md border border-red-300 px-2 py-1 font-medium text-red-800 hover:bg-red-100 dark:border-red-800 dark:text-red-200"
+            >
+              Újrapróbálás
+            </button>
+            <a href="/settings/shelly-cloud" className="rounded-md border border-red-300 px-2 py-1 font-medium text-red-800 hover:bg-red-100 dark:border-red-800 dark:text-red-200">
+              Beállítások ellenőrzése
+            </a>
+          </div>
+          <div className="mt-2 border-t border-red-200 pt-2 dark:border-red-900">
+            <p className="mb-1 font-medium text-red-800 dark:text-red-300">Vagy add meg kézzel a Device ID-t:</p>
+            <input
+              type="text"
+              value={deviceId}
+              onChange={(e) => onSelectDevice(e.target.value)}
+              placeholder="c8f09e8309f8"
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
         </div>
       )}
 
