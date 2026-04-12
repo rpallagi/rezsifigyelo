@@ -32,6 +32,7 @@ export const meterRouter = createTRPCRouter({
         ]),
         location: z.string().optional(),
         serialNumber: z.string().optional(),
+        photoUrls: z.array(z.string()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -48,6 +49,7 @@ export const meterRouter = createTRPCRouter({
         location: z.string().optional(),
         serialNumber: z.string().optional(),
         tariffGroupId: z.number().nullable().optional(),
+        photoUrls: z.array(z.string()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

@@ -26,7 +26,13 @@ export const wifiRouter = createTRPCRouter({
         securityType: z.string().default("WPA2"),
         location: z.string().optional(),
         isPrimary: z.boolean().default(false),
+        routerIp: z.string().optional(),
+        routerUser: z.string().optional(),
+        routerPassword: z.string().optional(),
+        tailscaleIp: z.string().optional(),
+        tailscaleDns: z.string().optional(),
         notes: z.string().optional(),
+        photoUrls: z.array(z.string()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -37,6 +43,36 @@ export const wifiRouter = createTRPCRouter({
         .values(input)
         .returning();
       return wifi;
+    }),
+
+  update: landlordProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        ssid: z.string().min(1).optional(),
+        password: z.string().optional(),
+        securityType: z.string().optional(),
+        location: z.string().optional(),
+        isPrimary: z.boolean().optional(),
+        routerIp: z.string().optional(),
+        routerUser: z.string().optional(),
+        routerPassword: z.string().optional(),
+        tailscaleIp: z.string().optional(),
+        tailscaleDns: z.string().optional(),
+        notes: z.string().optional(),
+        photoUrls: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input;
+      const wifi = await ctx.db.query.wifiNetworks.findFirst({
+        where: eq(wifiNetworks.id, id),
+      });
+      if (!wifi) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "WiFi not found" });
+      }
+      await requireLandlordPropertyAccess(ctx, wifi.propertyId);
+      await ctx.db.update(wifiNetworks).set(data).where(eq(wifiNetworks.id, id));
     }),
 
   delete: landlordProcedure

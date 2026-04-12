@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import { ShellyCloudDevicePicker } from "@/components/shared/shelly-cloud-device-picker";
+import { MultiPhotoUpload, type UploadedPhoto } from "@/components/shared/multi-photo-upload";
 import {
   Zap,
   Droplets,
@@ -124,6 +125,7 @@ export default function NewMeterPage() {
   const [serialNumber, setSerialNumber] = useState("");
   const [location, setLocation] = useState("");
   const [meterNotes, setMeterNotes] = useState("");
+  const [meterLocationPhotos, setMeterLocationPhotos] = useState<UploadedPhoto[]>([]);
   const [initialReading, setInitialReading] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | undefined>();
   const [photoPreview, setPhotoPreview] = useState<string | undefined>();
@@ -222,6 +224,7 @@ export default function NewMeterPage() {
         utilityType,
         serialNumber: serialNumber || undefined,
         location: location || undefined,
+        photoUrls: meterLocationPhotos.length > 0 ? meterLocationPhotos.map((p) => p.url) : undefined,
       });
 
       // 2. If smart: create smart meter device
@@ -488,6 +491,14 @@ export default function NewMeterPage() {
             className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
+
+        {/* Meter location photos (multi) */}
+        <MultiPhotoUpload
+          photos={meterLocationPhotos}
+          onChange={setMeterLocationPhotos}
+          folder="meter-locations"
+          label="Mérő helye (fotók)"
+        />
 
         {/* Photo upload */}
         <div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
+import { MultiPhotoUpload, type UploadedPhoto } from "@/components/shared/multi-photo-upload";
 
 export default function NewWifiPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function NewWifiPage() {
   const [ssid, setSsid] = useState("");
   const [password, setPassword] = useState("");
   const [location, setLocation] = useState("");
+  const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
 
   const createWifi = api.wifi.create.useMutation({
     onSuccess: () => {
@@ -27,6 +29,7 @@ export default function NewWifiPage() {
       ssid,
       password: password || undefined,
       location: location || undefined,
+      photoUrls: photos.length > 0 ? photos.map((p) => p.url) : undefined,
     });
   };
 
@@ -68,6 +71,13 @@ export default function NewWifiPage() {
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
+
+        <MultiPhotoUpload
+          photos={photos}
+          onChange={setPhotos}
+          folder="wifi"
+          label="Router fotók (opcionális)"
+        />
 
         <div className="flex gap-3">
           <button

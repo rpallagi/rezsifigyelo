@@ -463,6 +463,7 @@ export const meterInfo = createTable(
     serialNumber: d.varchar({ length: 100 }),
     location: d.varchar({ length: 200 }),
     notes: d.text(),
+    photoUrls: d.jsonb().$type<string[]>(),
     // Optional per-meter tariff group override (falls back to property's tariff group)
     tariffGroupId: d.integer().references(() => tariffGroups.id, { onDelete: "set null" }),
     createdAt: d
@@ -1015,7 +1016,13 @@ export const wifiNetworks = createTable(
     securityType: d.varchar({ length: 20 }).notNull().default("WPA2"),
     location: d.varchar({ length: 200 }),
     isPrimary: d.boolean().notNull().default(false),
+    routerIp: d.varchar({ length: 100 }),
+    routerUser: d.varchar({ length: 100 }),
+    routerPassword: d.varchar({ length: 200 }),
+    tailscaleIp: d.varchar({ length: 100 }),
+    tailscaleDns: d.varchar({ length: 200 }),
     notes: d.text(),
+    photoUrls: d.jsonb().$type<string[]>(),
     createdAt: d
       .timestamp({ withTimezone: true })
       .$defaultFn(() => new Date())
