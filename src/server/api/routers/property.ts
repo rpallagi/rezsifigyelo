@@ -84,7 +84,11 @@ export const propertyRouter = createTRPCRouter({
         ),
         with: {
           tenancies: { with: { tenant: true } },
-          meterInfo: true,
+          meterInfo: {
+            with: {
+              tariffGroup: { with: { tariffs: true } },
+            },
+          },
           readings: {
             orderBy: (r, { desc }) => [desc(r.readingDate)],
             limit: 20,

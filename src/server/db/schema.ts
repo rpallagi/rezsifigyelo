@@ -463,6 +463,8 @@ export const meterInfo = createTable(
     serialNumber: d.varchar({ length: 100 }),
     location: d.varchar({ length: 200 }),
     notes: d.text(),
+    // Optional per-meter tariff group override (falls back to property's tariff group)
+    tariffGroupId: d.integer().references(() => tariffGroups.id, { onDelete: "set null" }),
     createdAt: d
       .timestamp({ withTimezone: true })
       .$defaultFn(() => new Date())
@@ -1173,6 +1175,10 @@ export const meterInfoRelations = relations(meterInfo, ({ one }) => ({
   property: one(properties, {
     fields: [meterInfo.propertyId],
     references: [properties.id],
+  }),
+  tariffGroup: one(tariffGroups, {
+    fields: [meterInfo.tariffGroupId],
+    references: [tariffGroups.id],
   }),
 }));
 

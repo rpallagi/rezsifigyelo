@@ -126,12 +126,24 @@ export const readingRouter = createTRPCRouter({
         },
       });
 
+      // Prefer meter-specific tariff group, fallback to property's
+      let effectiveTariffGroupId: number | null = property?.tariffGroupId ?? null;
+      if (input.meterInfoId) {
+        const meter = await ctx.db.query.meterInfo.findFirst({
+          where: eq(meterInfo.id, input.meterInfoId),
+          columns: { tariffGroupId: true },
+        });
+        if (meter?.tariffGroupId) {
+          effectiveTariffGroupId = meter.tariffGroupId;
+        }
+      }
+
       let costHuf: number | null = null;
       let tariffId: number | null = null;
-      if (property?.tariffGroupId && consumption !== null && consumption >= 0) {
+      if (effectiveTariffGroupId && consumption !== null && consumption >= 0) {
         const activeTariff = await ctx.db.query.tariffs.findFirst({
           where: and(
-            eq(tariffs.tariffGroupId, property.tariffGroupId),
+            eq(tariffs.tariffGroupId, effectiveTariffGroupId),
             eq(tariffs.utilityType, input.utilityType),
             lte(tariffs.validFrom, input.readingDate),
           ),

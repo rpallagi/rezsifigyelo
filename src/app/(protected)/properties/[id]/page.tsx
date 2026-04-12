@@ -748,10 +748,12 @@ export default async function PropertyDetailPage({
                       .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0]
                   : null;
 
-              // Find applicable tariff (from property's tariff group)
-              const applicableTariff = property.tariffGroup?.tariffs
+              // Find applicable tariff — prefer meter's own tariff group, fallback to property's
+              const effectiveTariffGroup = meter.tariffGroup ?? property.tariffGroup;
+              const applicableTariff = effectiveTariffGroup?.tariffs
                 ?.filter((t) => t.utilityType === meter.utilityType)
                 .sort((a, b) => String(b.validFrom).localeCompare(String(a.validFrom)))[0];
+              const tariffSource = meter.tariffGroupId ? "mérő" : "ingatlan";
 
               const meterHref = smartDevice?.isActive
                 ? `/readings?property=${property.id}`
@@ -801,15 +803,20 @@ export default async function PropertyDetailPage({
                       )}
                     </div>
                   )}
-                  <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-secondary/50 px-2 py-1 text-[11px]">
-                    <span className="text-muted-foreground">Tarifa:</span>
-                    <span className="font-medium tabular-nums">
-                      {applicableTariff
-                        ? `${applicableTariff.rateHuf} Ft/${applicableTariff.unit}`
-                        : property.tariffGroup
-                          ? "Nincs tarifa a csoportban"
-                          : "Nincs csoport"}
-                    </span>
+                  <div className="mt-2 rounded-lg bg-secondary/50 px-2 py-1 text-[11px]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Tarifa:</span>
+                      <span className="font-medium tabular-nums">
+                        {applicableTariff
+                          ? `${applicableTariff.rateHuf} Ft/${applicableTariff.unit}`
+                          : "Nincs"}
+                      </span>
+                    </div>
+                    {effectiveTariffGroup && (
+                      <div className="mt-0.5 text-[10px] text-muted-foreground">
+                        {effectiveTariffGroup.name} · {tariffSource}
+                      </div>
+                    )}
                   </div>
                   <span className="mt-3 block text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
                     {smartDevice?.isActive ? "Részletek →" : "Leolvasás →"}
