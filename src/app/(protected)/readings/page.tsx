@@ -2,6 +2,7 @@ import { api } from "@/trpc/server";
 import Link from "next/link";
 import { Zap, Droplets, Flame, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { Sparkline } from "@/components/shared/sparkline";
+import { ClickableRow, ClickableCard } from "./reading-row";
 import { NewReadingDropdown } from "./new-reading-dropdown";
 
 const utilityLabels: Record<string, string> = {
@@ -337,8 +338,9 @@ export default async function AllReadingsPage({
                   {readings.map((r) => {
                     const colors = utilityColor(r.utilityType);
                     return (
-                      <div
+                      <ClickableCard
                         key={r.id}
+                        readingId={r.id}
                         className="rounded-[22px] bg-background/80 p-4 ring-1 ring-border/50"
                       >
                         <div className="flex items-start justify-between gap-4">
@@ -385,7 +387,7 @@ export default async function AllReadingsPage({
                             </p>
                           </div>
                         </div>
-                      </div>
+                      </ClickableCard>
                     );
                   })}
                 </div>
@@ -408,7 +410,7 @@ export default async function AllReadingsPage({
                       {readings.map((r) => {
                         const colors = utilityColor(r.utilityType);
                         return (
-                          <tr key={r.id} className="border-b border-border/50">
+                          <ClickableRow key={r.id} readingId={r.id}>
                             <td className="py-3">
                               <div className="flex items-center gap-2">
                                 <span
@@ -445,7 +447,7 @@ export default async function AllReadingsPage({
                                 {sourceLabel(r.source)}
                               </span>
                             </td>
-                          </tr>
+                          </ClickableRow>
                         );
                       })}
                     </tbody>

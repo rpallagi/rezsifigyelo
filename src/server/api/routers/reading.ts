@@ -213,6 +213,88 @@ export const readingRouter = createTRPCRouter({
       return reading;
     }),
 
+  get: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const reading = await ctx.db.query.meterReadings.findFirst({
+        where: eq(meterReadings.id, input.id),
+        with: {
+          recorder: true,
+          tariff: true,
+          meterInfo: true,
+          property: { columns: { id: true, name: true, landlordId: true } },
+        },
+      });
+      if (!reading) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Reading not found" });
+      }
+      await requirePropertyAccess(ctx, reading.propertyId);
+      return reading;
+    }),
+
+  update: landlordProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        value: z.number().optional(),
+        readingDate: z.string().optional(),
+        notes: z.string().nullable().optional(),
+        photoUrls: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.meterReadings.findFirst({
+        where: eq(meterReadings.id, input.id),
+      });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Reading not found" });
+      }
+      await requirePropertyAccess(ctx, existing.propertyId);
+
+      // If value changed, recalc consumption + cost
+      const newValue = input.value ?? existing.value;
+      const newDate = input.readingDate ?? existing.readingDate;
+
+      let consumption: number | null = existing.consumption;
+      let costHuf: number | null = existing.costHuf;
+      if (input.value !== undefined || input.readingDate !== undefined) {
+        const prevConditions = [
+          eq(meterReadings.propertyId, existing.propertyId),
+          eq(meterReadings.utilityType, existing.utilityType),
+          lt(meterReadings.readingDate, newDate),
+        ];
+        if (existing.meterInfoId) {
+          prevConditions.push(eq(meterReadings.meterInfoId, existing.meterInfoId));
+        }
+        const prev = await ctx.db.query.meterReadings.findFirst({
+          where: and(...prevConditions),
+          orderBy: [desc(meterReadings.readingDate)],
+        });
+        const prevValue = prev?.value ?? null;
+        consumption = prevValue !== null ? newValue - prevValue : null;
+        if (existing.tariffId && consumption !== null && consumption >= 0) {
+          const tariff = await ctx.db.query.tariffs.findFirst({
+            where: eq(tariffs.id, existing.tariffId),
+          });
+          if (tariff) costHuf = consumption * tariff.rateHuf;
+        }
+      }
+
+      const [updated] = await ctx.db
+        .update(meterReadings)
+        .set({
+          value: newValue,
+          readingDate: newDate,
+          notes: input.notes === null ? null : (input.notes ?? existing.notes),
+          photoUrls: input.photoUrls ?? existing.photoUrls,
+          consumption,
+          costHuf,
+        })
+        .where(eq(meterReadings.id, input.id))
+        .returning();
+      return updated;
+    }),
+
   delete: landlordProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
