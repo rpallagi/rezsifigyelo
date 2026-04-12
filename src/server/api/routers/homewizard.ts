@@ -53,9 +53,15 @@ export const homewizardRouter = createTRPCRouter({
           .values({ key, value })
           .onConflictDoUpdate({ target: appSettings.key, set: { value } });
       }
-      // Verify credentials work
-      await getToken(input.email, input.password);
-      return { success: true };
+      // Verify credentials work (non-blocking — save even if test fails)
+      let verified = false;
+      try {
+        await getToken(input.email, input.password);
+        verified = true;
+      } catch {
+        // Credentials saved but couldn't verify — might be a network issue
+      }
+      return { success: true, verified };
     }),
 
   /** Test connection with saved credentials */
