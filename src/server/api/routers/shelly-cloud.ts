@@ -43,6 +43,158 @@ async function shellyCloudRequest(
 }
 
 export const shellyCloudRouter = createTRPCRouter({
+  // Import historical monthly consumption data from Shelly Cloud
+  importHistory: landlordProcedure
+    .input(z.object({
+      smartMeterId: z.number(),
+      yearsBack: z.number().int().min(1).max(10).default(3),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Get smart meter device
+      const device = await ctx.db.query.smartMeterDevices.findFirst({
+        where: (d, { eq }) => eq(d.id, input.smartMeterId),
+      });
+      if (!device) throw new Error("Eszköz nem található");
+      if (device.source !== "shelly_cloud" || !device.shellyDeviceId || !device.shellyAuthKey || !device.shellyServer) {
+        throw new Error("Csak Shelly Cloud eszközhöz használható");
+      }
+
+      const host = device.shellyServer.replace(/^https?:\/\//, "").replace(/\/$/, "");
+      const currentYear = new Date().getFullYear();
+      const startYear = currentYear - input.yearsBack;
+
+      // Determine reversed phases — compute per-channel and flip signs
+      const reversed = new Set((device.shellyReversedPhases ?? "").split(",").map(s => s.trim().toUpperCase()).filter(Boolean));
+      const hasReversedPhases = reversed.size > 0;
+
+      const allMonthly = new Map<string, number>();
+
+      for (let year = startYear; year <= currentYear; year++) {
+        const dateFrom = `${year}-01-01`;
+        const dateTo = year === currentYear
+          ? new Date().toISOString().split("T")[0]
+          : `${year}-12-31`;
+
+        // Iterate per-channel if device has reversed phases; otherwise use sum
+        const channels: Array<{ ch: number; phase: "A" | "B" | "C" }> = hasReversedPhases
+          ? [{ ch: 0, phase: "A" }, { ch: 1, phase: "B" }, { ch: 2, phase: "C" }]
+          : [{ ch: 0, phase: "A" }]; // channel 0 returns sum for 3-phase devices
+
+        for (const { ch, phase } of channels) {
+          const url = `https://${host}/v2/statistics/power-consumption/em-3p?id=${device.shellyDeviceId}&channel=${ch}&date_range=custom&date_from=${dateFrom}&date_to=${dateTo}&auth_key=${device.shellyAuthKey}`;
+
+          try {
+            const res = await fetch(url);
+            if (!res.ok) continue;
+            const data = (await res.json()) as {
+              history?: Array<Array<{ datetime: string; consumption?: number; reversed?: number; missing?: boolean }>>;
+              sum?: Array<{ datetime: string; consumption: number; reversed?: number }>;
+            };
+
+            // When querying per-channel, use history[0] (the requested channel)
+            // When using sum mode, use sum if available
+            const source = hasReversedPhases
+              ? (data.history?.[0] ?? [])
+              : (data.sum && data.sum.length > 0 ? data.sum : (data.history?.[0] ?? []));
+
+            for (const rawEntry of source) {
+              const entry = rawEntry as { datetime: string; consumption?: number; reversed?: number; missing?: boolean };
+              if (entry.missing) continue;
+
+              // For reversed phase, use 'reversed' field (what was "returned" to grid
+              // is actually what was consumed); for normal phase, use consumption
+              const wh = hasReversedPhases && reversed.has(phase)
+                ? (entry.reversed ?? 0)
+                : (entry.consumption ?? 0);
+
+              if (wh <= 0) continue;
+              const monthKey = entry.datetime.split(" ")[0]!;
+              const kwh = Math.round((wh / 1000) * 100) / 100;
+              const existing = allMonthly.get(monthKey) ?? 0;
+              allMonthly.set(monthKey, existing + kwh);
+            }
+          } catch {
+            // skip channel on error
+          }
+
+          await new Promise((r) => setTimeout(r, 200));
+        }
+      }
+
+      if (allMonthly.size === 0) {
+        return { imported: 0, message: "Nincs elérhető historikus adat." };
+      }
+
+      // Clear existing readings for this property+utility before inserting
+      // (only auto-imported ones to avoid deleting manual entries)
+      const { meterReadings } = await import("@/server/db/schema");
+      const { eq, and, like } = await import("drizzle-orm");
+      await ctx.db.delete(meterReadings).where(and(
+        eq(meterReadings.propertyId, device.propertyId),
+        eq(meterReadings.utilityType, device.utilityType),
+        like(meterReadings.notes, "Shelly Cloud: %"),
+      ));
+
+      // Get current device total (for cumulative value)
+      let currentTotalKwh = 0;
+      try {
+        const statusRes = await fetch(
+          `https://${host}/v2/devices/api/get?auth_key=${device.shellyAuthKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: [device.shellyDeviceId], select: ["status"] }),
+          },
+        );
+        if (statusRes.ok) {
+          const statusData = (await statusRes.json()) as Array<{
+            status?: {
+              "emdata:0"?: { total_act?: number };
+              total?: number; // Gen1
+              emeters?: Array<{ total?: number }>;
+            };
+          }>;
+          const s = statusData[0]?.status;
+          const gen2Total = s?.["emdata:0"]?.total_act;
+          const gen1Total = s?.emeters?.reduce((sum, e) => sum + (e.total ?? 0), 0);
+          currentTotalKwh = (gen2Total ?? gen1Total ?? 0) / 1000;
+        }
+      } catch {
+        // use sum of monthly as fallback
+      }
+
+      const sortedMonths = [...allMonthly.entries()].sort(([a], [b]) => a.localeCompare(b));
+      const totalMonthlyKwh = sortedMonths.reduce((s, [, kwh]) => s + kwh, 0);
+
+      // If we don't have current total, use sum of monthly as total
+      const realTotal = currentTotalKwh > 0 ? currentTotalKwh : totalMonthlyKwh;
+      let cumulative = realTotal - totalMonthlyKwh;
+
+      let prevValue: number | null = null;
+      for (const [date, kwh] of sortedMonths) {
+        cumulative += kwh;
+        const val = Math.round(cumulative * 100) / 100;
+        await ctx.db.insert(meterReadings).values({
+          propertyId: device.propertyId,
+          utilityType: device.utilityType,
+          value: val,
+          prevValue,
+          consumption: kwh,
+          readingDate: date,
+          source: "smart_mqtt",
+          notes: `Shelly Cloud: ${date.slice(0, 7)}`,
+        });
+        prevValue = val;
+      }
+
+      return {
+        imported: sortedMonths.length,
+        firstMonth: sortedMonths[0]?.[0],
+        lastMonth: sortedMonths[sortedMonths.length - 1]?.[0],
+        totalKwh: Math.round(totalMonthlyKwh * 10) / 10,
+      };
+    }),
+
   // Test credentials and return device list — does NOT save anything
   connectShelly: landlordProcedure
     .input(z.object({ authKey: z.string().min(1), serverHost: z.string().min(1) }))
@@ -170,30 +322,44 @@ export const shellyCloudRouter = createTRPCRouter({
               status?: Record<string, unknown>;
             }>
           | undefined;
-        const device = devices?.[0];
-        if (!device || device.online !== 1) return null;
+        const apiDevice = devices?.[0];
+        if (!apiDevice || apiDevice.online !== 1) return null;
+
+        // Determine which phases are physically reversed (CT flipped)
+        const reversed = new Set((device?.shellyReversedPhases ?? "").split(",").map((s: string) => s.trim().toUpperCase()).filter(Boolean));
+        const fix = (val: number | undefined, phase: "A" | "B" | "C") => {
+          if (val === undefined || val === null) return null;
+          return reversed.has(phase) ? Math.abs(val) : val;
+        };
 
         // Gen2 (Shelly Pro 3EM): em:0 object with a/b/c fields
-        const em = device.status?.["em:0"] as Record<string, number> | undefined;
+        const em = apiDevice.status?.["em:0"] as Record<string, number> | undefined;
         if (em) {
+          const pA = fix(em.a_act_power, "A");
+          const pB = fix(em.b_act_power, "B");
+          const pC = fix(em.c_act_power, "C");
+          const total = (pA ?? 0) + (pB ?? 0) + (pC ?? 0);
           return {
-            totalPower: em.total_act_power ?? null,
-            phaseA: { power: em.a_act_power ?? null, voltage: em.a_voltage ?? null, current: em.a_current ?? null },
-            phaseB: { power: em.b_act_power ?? null, voltage: em.b_voltage ?? null, current: em.b_current ?? null },
-            phaseC: { power: em.c_act_power ?? null, voltage: em.c_voltage ?? null, current: em.c_current ?? null },
+            totalPower: reversed.size > 0 ? total : (em.total_act_power ?? null),
+            phaseA: { power: pA, voltage: em.a_voltage ?? null, current: em.a_current ?? null },
+            phaseB: { power: pB, voltage: em.b_voltage ?? null, current: em.b_current ?? null },
+            phaseC: { power: pC, voltage: em.c_voltage ?? null, current: em.c_current ?? null },
             timestamp: new Date().toISOString(),
           };
         }
 
         // Gen1 (Shelly EM/3EM): total_power + emeters[] array
-        const totalPower = device.status?.total_power as number | undefined;
-        const emeters = device.status?.emeters as Array<{ power?: number; voltage?: number; current?: number }> | undefined;
-        if (totalPower !== undefined || emeters) {
+        const emeters = apiDevice.status?.emeters as Array<{ power?: number; voltage?: number; current?: number }> | undefined;
+        if (emeters) {
+          const pA = fix(emeters[0]?.power, "A");
+          const pB = fix(emeters[1]?.power, "B");
+          const pC = fix(emeters[2]?.power, "C");
+          const total = (pA ?? 0) + (pB ?? 0) + (pC ?? 0);
           return {
-            totalPower: totalPower ?? null,
-            phaseA: { power: emeters?.[0]?.power ?? null, voltage: emeters?.[0]?.voltage ?? null, current: emeters?.[0]?.current ?? null },
-            phaseB: { power: emeters?.[1]?.power ?? null, voltage: emeters?.[1]?.voltage ?? null, current: emeters?.[1]?.current ?? null },
-            phaseC: { power: emeters?.[2]?.power ?? null, voltage: emeters?.[2]?.voltage ?? null, current: emeters?.[2]?.current ?? null },
+            totalPower: total,
+            phaseA: { power: pA, voltage: emeters[0]?.voltage ?? null, current: emeters[0]?.current ?? null },
+            phaseB: { power: pB, voltage: emeters[1]?.voltage ?? null, current: emeters[1]?.current ?? null },
+            phaseC: { power: pC, voltage: emeters[2]?.voltage ?? null, current: emeters[2]?.current ?? null },
             timestamp: new Date().toISOString(),
           };
         }

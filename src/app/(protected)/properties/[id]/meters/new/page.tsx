@@ -151,6 +151,8 @@ export default function NewMeterPage() {
   const createMeter = api.meter.create.useMutation();
   const createSmartMeter = api.smartMeter.create.useMutation();
   const recordReading = api.reading.record.useMutation();
+  const importShellyHistory = api.shellyCloud.importHistory.useMutation();
+  const [importResult, setImportResult] = useState<{ imported: number; firstMonth?: string; lastMonth?: string; totalKwh?: number } | null>(null);
 
   const isSaving =
     createMeter.isPending ||
@@ -223,8 +225,9 @@ export default function NewMeterPage() {
       });
 
       // 2. If smart: create smart meter device
+      let createdSmartMeterId: number | undefined;
       if (meterKind === "smart") {
-        await createSmartMeter.mutateAsync({
+        const result = await createSmartMeter.mutateAsync({
           propertyId,
           utilityType,
           deviceId,
@@ -240,6 +243,21 @@ export default function NewMeterPage() {
           offset: smartSource === "shelly_cloud" ? 0 : offset,
           minIntervalMinutes: minInterval,
         });
+        createdSmartMeterId = result?.id;
+      }
+
+      // 2b. If Shelly Cloud: import historical data automatically
+      if (smartSource === "shelly_cloud" && createdSmartMeterId) {
+        try {
+          const res = await importShellyHistory.mutateAsync({
+            smartMeterId: createdSmartMeterId,
+            yearsBack: 3,
+          });
+          setImportResult(res);
+        } catch (err) {
+          console.error("Shelly history import failed:", err);
+          setImportResult({ imported: 0 });
+        }
       }
 
       // 3. If manual + initial reading

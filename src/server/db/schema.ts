@@ -944,6 +944,7 @@ export const smartMeterDevices = createTable(
     shellyChannel: d.integer().default(0),
     shellyAuthKey: d.text(),
     shellyServer: d.varchar({ length: 100 }),
+    shellyReversedPhases: d.varchar({ length: 10 }), // "A", "B", "C" or combo like "B,C"
     // Payload parsing
     valueField: d.varchar({ length: 100 }).notNull().default("meter_value"),
     multiplier: d.doublePrecision().notNull().default(1.0),
