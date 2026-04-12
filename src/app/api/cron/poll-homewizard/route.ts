@@ -80,7 +80,10 @@ export async function GET(req: NextRequest) {
         hwType,
       );
 
-      const consumption = history.total?.import ?? 0;
+      // Some energymeters report consumption as export (reversed CT wiring)
+      const imp = history.total?.import ?? 0;
+      const exp = history.total?.export ?? 0;
+      const consumption = Math.max(imp, exp);
       if (consumption <= 0) {
         // Update last seen even if no consumption
         await db

@@ -139,10 +139,14 @@ export async function fetchMonthlyHistory(
         type,
       );
       if (data.total) {
+        const imp = data.total.import ?? 0;
+        const exp = data.total.export ?? 0;
         results.push({
           month: `${yyyy}-${mm}`,
-          importKwh: data.total.import ?? 0,
-          exportKwh: data.total.export ?? 0,
+          // Some energymeters report consumption as export (reversed CT)
+          // Use whichever is larger as the actual consumption
+          importKwh: Math.max(imp, exp),
+          exportKwh: Math.min(imp, exp),
         });
       }
     } catch {
