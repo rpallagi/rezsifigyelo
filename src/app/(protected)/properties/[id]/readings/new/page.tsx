@@ -86,6 +86,7 @@ export default function NewReadingPage() {
   /* ---- wizard state ---- */
   const [step, setStep] = useState(0);
   const [utilityType, setUtilityType] = useState<UtilityType | null>(null);
+  const [selectedMeterId, setSelectedMeterId] = useState<number | null>(null);
   const [value, setValue] = useState("");
   const [readingDate, setReadingDate] = useState(
     new Date().toISOString().split("T")[0]!,
@@ -125,15 +126,22 @@ export default function NewReadingPage() {
 
   const prevReading = useMemo(() => {
     if (!utilityType || !property?.readings) return null;
-    const sorted = property.readings
-      .filter((r) => r.utilityType === utilityType)
-      .sort(
-        (a, b) =>
-          new Date(b.readingDate).getTime() -
-          new Date(a.readingDate).getTime(),
-      );
+    const filtered = property.readings.filter((r) => {
+      // Prefer meter-specific lookup if meter is selected
+      if (selectedMeterId != null) return r.meterInfoId === selectedMeterId;
+      return r.utilityType === utilityType;
+    });
+    const sorted = filtered.sort(
+      (a, b) =>
+        new Date(b.readingDate).getTime() - new Date(a.readingDate).getTime(),
+    );
     return sorted[0] ?? null;
-  }, [utilityType, property?.readings]);
+  }, [utilityType, selectedMeterId, property?.readings]);
+
+  const selectedMeter = useMemo(() => {
+    if (!selectedMeterId) return null;
+    return property?.meterInfo.find((m) => m.id === selectedMeterId) ?? null;
+  }, [selectedMeterId, property?.meterInfo]);
 
   const prevValue = prevReading ? Number(prevReading.value) : 0;
 
@@ -241,6 +249,7 @@ export default function NewReadingPage() {
     createReading.mutate({
       propertyId,
       utilityType,
+      meterInfoId: selectedMeterId ?? undefined,
       value: Number(value),
       readingDate,
       photoUrl,
@@ -322,7 +331,7 @@ export default function NewReadingPage() {
               const Icon = m.icon;
 
               const lastReading = property?.readings
-                ?.filter((r) => r.utilityType === ut)
+                ?.filter((r) => r.meterInfoId === meter.id)
                 .sort(
                   (a, b) =>
                     new Date(b.readingDate).getTime() -
@@ -335,6 +344,7 @@ export default function NewReadingPage() {
                   type="button"
                   onClick={() => {
                     setUtilityType(ut);
+                    setSelectedMeterId(meter.id);
                     setStep(1);
                   }}
                   className={`flex items-center gap-4 rounded-[24px] border border-border/60 bg-card/90 p-5 text-left ring-1 ring-border/60 transition-colors hover:bg-secondary/50 ${m.borderColor}`}
@@ -395,6 +405,12 @@ export default function NewReadingPage() {
           </div>
           <div>
             <h1 className="text-lg font-bold">{meta.label}</h1>
+            {selectedMeter && (
+              <p className="text-xs text-muted-foreground">
+                {selectedMeter.serialNumber ?? "—"}
+                {selectedMeter.location ? ` · ${selectedMeter.location}` : ""}
+              </p>
+            )}
             {prevReading && (
               <p className="text-xs text-muted-foreground">
                 Előző: {fmtNum(prevValue)} {meta.unit} (

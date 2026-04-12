@@ -730,19 +730,23 @@ export default async function PropertyDetailPage({
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {property.meterInfo.map((meter) => {
               const smartDevice = property.smartMeters.find(
-                (sm) => sm.utilityType === meter.utilityType,
+                (sm) => sm.meterInfoId === meter.id,
+              ) ?? property.smartMeters.find(
+                (sm) => sm.utilityType === meter.utilityType && !sm.meterInfoId,
               );
-              // Count how many meters exist for this utility on this property
+              // Use meter-specific readings if any reading has meterInfoId
+              // Fallback to utility-wide if no meter-specific readings (for legacy data)
+              const meterSpecificReadings = property.readings.filter((r) => r.meterInfoId === meter.id);
               const sameUtilityCount = property.meterInfo.filter(
                 (m) => m.utilityType === meter.utilityType,
               ).length;
-              // Only show the reading value if this is the ONLY meter for this utility
-              // (otherwise we can't know which meter the reading belongs to)
-              const lastReading = sameUtilityCount === 1
-                ? property.readings
-                    .filter((r) => r.utilityType === meter.utilityType)
-                    .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0]
-                : null;
+              const lastReading = meterSpecificReadings.length > 0
+                ? meterSpecificReadings.sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0]
+                : sameUtilityCount === 1
+                  ? property.readings
+                      .filter((r) => r.utilityType === meter.utilityType)
+                      .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0]
+                  : null;
 
               const meterHref = smartDevice?.isActive
                 ? `/readings?property=${property.id}`

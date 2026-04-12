@@ -153,11 +153,15 @@ export async function GET(req: NextRequest) {
       // Only create a new reading once per month (on the 1st, or if no reading yet this month)
       const today = new Date();
       const currentMonth = today.toISOString().slice(0, 7); // YYYY-MM
+      const existingConditions = [
+        eq(meterReadings.propertyId, device.propertyId),
+        eq(meterReadings.utilityType, device.utilityType),
+      ];
+      if (device.meterInfoId) {
+        existingConditions.push(eq(meterReadings.meterInfoId, device.meterInfoId));
+      }
       const existingThisMonth = await db.query.meterReadings.findFirst({
-        where: and(
-          eq(meterReadings.propertyId, device.propertyId),
-          eq(meterReadings.utilityType, device.utilityType),
-        ),
+        where: and(...existingConditions),
         orderBy: [desc(meterReadings.readingDate), desc(meterReadings.id)],
       });
 
@@ -189,6 +193,7 @@ export async function GET(req: NextRequest) {
         .values({
           propertyId: device.propertyId,
           utilityType: device.utilityType,
+          meterInfoId: device.meterInfoId,
           value: finalValue,
           prevValue,
           consumption,

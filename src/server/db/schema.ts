@@ -484,6 +484,7 @@ export const meterReadings = createTable(
       .notNull()
       .references(() => properties.id, { onDelete: "cascade" }),
     utilityType: utilityTypeEnum().notNull(),
+    meterInfoId: d.integer().references(() => meterInfo.id, { onDelete: "set null" }),
     value: d.doublePrecision().notNull(),
     prevValue: d.doublePrecision(),
     consumption: d.doublePrecision(),
@@ -503,6 +504,7 @@ export const meterReadings = createTable(
     index("meter_reading_property_id_idx").on(t.propertyId),
     index("meter_reading_date_idx").on(t.readingDate),
     index("meter_reading_utility_idx").on(t.propertyId, t.utilityType),
+    index("meter_reading_meter_info_idx").on(t.meterInfoId, t.readingDate),
   ],
 );
 
@@ -1186,6 +1188,10 @@ export const meterReadingsRelations = relations(meterReadings, ({ one }) => ({
   recorder: one(users, {
     fields: [meterReadings.recordedBy],
     references: [users.id],
+  }),
+  meterInfo: one(meterInfo, {
+    fields: [meterReadings.meterInfoId],
+    references: [meterInfo.id],
   }),
 }));
 

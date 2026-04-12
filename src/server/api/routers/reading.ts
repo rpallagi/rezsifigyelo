@@ -8,16 +8,19 @@ import {
   protectedProcedure,
 } from "@/server/api/trpc";
 import { requirePropertyAccess } from "@/server/api/access";
-import { meterReadings, properties, tariffs } from "@/server/db/schema";
+import { meterReadings, meterInfo, properties, tariffs } from "@/server/db/schema";
 
 export const readingRouter = createTRPCRouter({
   listAll: landlordProcedure.query(async ({ ctx }) => {
-    return ctx.db
+    const rows = await ctx.db
       .select({
         id: meterReadings.id,
         propertyId: meterReadings.propertyId,
         propertyName: properties.name,
         utilityType: meterReadings.utilityType,
+        meterInfoId: meterReadings.meterInfoId,
+        meterSerialNumber: meterInfo.serialNumber,
+        meterLocation: meterInfo.location,
         value: meterReadings.value,
         consumption: meterReadings.consumption,
         costHuf: meterReadings.costHuf,
@@ -26,9 +29,11 @@ export const readingRouter = createTRPCRouter({
       })
       .from(meterReadings)
       .innerJoin(properties, eq(meterReadings.propertyId, properties.id))
+      .leftJoin(meterInfo, eq(meterReadings.meterInfoId, meterInfo.id))
       .where(eq(properties.landlordId, ctx.dbUser.id))
       .orderBy(desc(meterReadings.readingDate))
-      .limit(200); // cap at 200 most-recent readings for the readings overview page
+      .limit(200);
+    return rows;
   }),
 
   list: protectedProcedure
@@ -46,6 +51,7 @@ export const readingRouter = createTRPCRouter({
             "egyeb",
           ])
           .optional(),
+        meterInfoId: z.number().optional(),
         limit: z.number().min(1).max(200).default(50),
       }),
     )
@@ -56,12 +62,15 @@ export const readingRouter = createTRPCRouter({
       if (input.utilityType) {
         conditions.push(eq(meterReadings.utilityType, input.utilityType));
       }
+      if (input.meterInfoId !== undefined) {
+        conditions.push(eq(meterReadings.meterInfoId, input.meterInfoId));
+      }
 
       return ctx.db.query.meterReadings.findMany({
         where: and(...conditions),
         orderBy: [desc(meterReadings.readingDate)],
         limit: input.limit,
-        with: { recorder: true, tariff: true },
+        with: { recorder: true, tariff: true, meterInfo: true },
       });
     }),
 
@@ -78,6 +87,7 @@ export const readingRouter = createTRPCRouter({
           "kozos_koltseg",
           "egyeb",
         ]),
+        meterInfoId: z.number().optional(),
         value: z.number(),
         readingDate: z.string(),
         photoUrl: z.string().optional(),
@@ -90,13 +100,18 @@ export const readingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       await requirePropertyAccess(ctx, input.propertyId);
 
-      // Get previous reading for consumption calc
+      // Get previous reading for consumption calc — prefer meter-specific lookup
+      const prevReadingConditions = [
+        eq(meterReadings.propertyId, input.propertyId),
+        eq(meterReadings.utilityType, input.utilityType),
+        lt(meterReadings.readingDate, input.readingDate),
+      ];
+      if (input.meterInfoId !== undefined) {
+        prevReadingConditions.push(eq(meterReadings.meterInfoId, input.meterInfoId));
+      }
+
       const prevReading = await ctx.db.query.meterReadings.findFirst({
-        where: and(
-          eq(meterReadings.propertyId, input.propertyId),
-          eq(meterReadings.utilityType, input.utilityType),
-          lt(meterReadings.readingDate, input.readingDate),
-        ),
+        where: and(...prevReadingConditions),
         orderBy: [desc(meterReadings.readingDate)],
       });
 
@@ -134,6 +149,7 @@ export const readingRouter = createTRPCRouter({
         .values({
           propertyId: input.propertyId,
           utilityType: input.utilityType,
+          meterInfoId: input.meterInfoId,
           value: input.value,
           prevValue: prevValue,
           consumption,
@@ -166,6 +182,7 @@ export const readingRouter = createTRPCRouter({
           await ctx.db.insert(meterReadings).values({
             propertyId: input.propertyId,
             utilityType: "csatorna",
+            meterInfoId: input.meterInfoId,
             value: input.value,
             prevValue,
             consumption,

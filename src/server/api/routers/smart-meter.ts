@@ -4,7 +4,7 @@ import { eq, desc } from "drizzle-orm";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import { requireLandlordPropertyAccess } from "@/server/api/access";
-import { smartMeterDevices, smartMeterLogs } from "@/server/db/schema";
+import { smartMeterDevices, smartMeterLogs, meterInfo } from "@/server/db/schema";
 
 export const smartMeterRouter = createTRPCRouter({
   list: landlordProcedure
@@ -49,9 +49,37 @@ export const smartMeterRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       await requireLandlordPropertyAccess(ctx, input.propertyId);
 
+      // Auto-create meterInfo if there's no matching one for this property+utility
+      const existingMeters = await ctx.db.query.meterInfo.findMany({
+        where: (m, { eq, and }) => and(
+          eq(m.propertyId, input.propertyId),
+          eq(m.utilityType, input.utilityType),
+        ),
+      });
+
+      let meterInfoId: number | undefined;
+      if (existingMeters.length === 0) {
+        // No meter yet — create one named after the smart device
+        const [newMeter] = await ctx.db
+          .insert(meterInfo)
+          .values({
+            propertyId: input.propertyId,
+            utilityType: input.utilityType,
+            serialNumber: input.deviceId,
+            location: input.name ?? null,
+            notes: "Auto-created by smart meter",
+          })
+          .returning();
+        meterInfoId = newMeter?.id;
+      } else if (existingMeters.length === 1) {
+        // Single existing meter — link to it
+        meterInfoId = existingMeters[0]!.id;
+      }
+      // If multiple meters exist, landlord must manually link later
+
       const [device] = await ctx.db
         .insert(smartMeterDevices)
-        .values(input)
+        .values({ ...input, meterInfoId })
         .returning();
       return device;
     }),

@@ -125,15 +125,18 @@ export const shellyCloudRouter = createTRPCRouter({
         return { imported: 0, message: "Nincs elérhető historikus adat." };
       }
 
-      // Clear existing readings for this property+utility before inserting
-      // (only auto-imported ones to avoid deleting manual entries)
+      // Clear existing Shelly-imported readings for THIS specific meter
       const { meterReadings } = await import("@/server/db/schema");
       const { eq, and, like } = await import("drizzle-orm");
-      await ctx.db.delete(meterReadings).where(and(
+      const deleteConditions = [
         eq(meterReadings.propertyId, device.propertyId),
         eq(meterReadings.utilityType, device.utilityType),
         like(meterReadings.notes, "Shelly Cloud: %"),
-      ));
+      ];
+      if (device.meterInfoId) {
+        deleteConditions.push(eq(meterReadings.meterInfoId, device.meterInfoId));
+      }
+      await ctx.db.delete(meterReadings).where(and(...deleteConditions));
 
       // Get current device total (for cumulative value)
       let currentTotalKwh = 0;
@@ -177,6 +180,7 @@ export const shellyCloudRouter = createTRPCRouter({
         await ctx.db.insert(meterReadings).values({
           propertyId: device.propertyId,
           utilityType: device.utilityType,
+          meterInfoId: device.meterInfoId,
           value: val,
           prevValue,
           consumption: kwh,

@@ -94,6 +94,9 @@ type Reading = {
   propertyId: number;
   propertyName: string | null;
   utilityType: string;
+  meterInfoId: number | null;
+  meterSerialNumber: string | null;
+  meterLocation: string | null;
   value: number;
   consumption: number | null;
   costHuf: number | null;
@@ -393,6 +396,7 @@ export default async function AllReadingsPage({
                     <thead>
                       <tr className="border-b border-border/70 text-left text-muted-foreground">
                         <th className="pb-3 font-medium">Közmű</th>
+                        <th className="pb-3 font-medium">Mérő</th>
                         <th className="pb-3 font-medium">Dátum</th>
                         <th className="pb-3 font-medium">Állás</th>
                         <th className="pb-3 font-medium">Fogyasztás</th>
@@ -417,6 +421,16 @@ export default async function AllReadingsPage({
                                     r.utilityType}
                                 </span>
                               </div>
+                            </td>
+                            <td className="py-3 text-xs text-muted-foreground">
+                              {r.meterSerialNumber ? (
+                                <div>
+                                  <p className="font-mono">{r.meterSerialNumber}</p>
+                                  {r.meterLocation && <p className="text-[10px] opacity-70">{r.meterLocation}</p>}
+                                </div>
+                              ) : (
+                                "—"
+                              )}
                             </td>
                             <td className="py-3">{formatDate(r.readingDate)}</td>
                             <td className="py-3 font-mono">{r.value}</td>

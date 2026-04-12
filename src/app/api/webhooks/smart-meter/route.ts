@@ -127,12 +127,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Get previous reading for consumption
+  // Get previous reading for consumption — prefer meter-specific lookup
+  const prevReadingConditions = [
+    eq(meterReadings.propertyId, device.propertyId),
+    eq(meterReadings.utilityType, device.utilityType),
+  ];
+  if (device.meterInfoId) {
+    prevReadingConditions.push(eq(meterReadings.meterInfoId, device.meterInfoId));
+  }
   const prevReading = await db.query.meterReadings.findFirst({
-    where: and(
-      eq(meterReadings.propertyId, device.propertyId),
-      eq(meterReadings.utilityType, device.utilityType),
-    ),
+    where: and(...prevReadingConditions),
     orderBy: [desc(meterReadings.readingDate), desc(meterReadings.id)],
   });
 
@@ -147,6 +151,7 @@ export async function POST(req: NextRequest) {
     .values({
       propertyId: device.propertyId,
       utilityType: device.utilityType,
+      meterInfoId: device.meterInfoId,
       value: finalValue,
       prevValue,
       consumption,
