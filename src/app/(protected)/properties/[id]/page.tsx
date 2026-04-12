@@ -732,9 +732,17 @@ export default async function PropertyDetailPage({
               const smartDevice = property.smartMeters.find(
                 (sm) => sm.utilityType === meter.utilityType,
               );
-              const lastReading = property.readings
-                .filter((r) => r.utilityType === meter.utilityType)
-                .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0];
+              // Count how many meters exist for this utility on this property
+              const sameUtilityCount = property.meterInfo.filter(
+                (m) => m.utilityType === meter.utilityType,
+              ).length;
+              // Only show the reading value if this is the ONLY meter for this utility
+              // (otherwise we can't know which meter the reading belongs to)
+              const lastReading = sameUtilityCount === 1
+                ? property.readings
+                    .filter((r) => r.utilityType === meter.utilityType)
+                    .sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0]
+                : null;
 
               const meterHref = smartDevice?.isActive
                 ? `/readings?property=${property.id}`
