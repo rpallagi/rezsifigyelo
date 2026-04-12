@@ -37,8 +37,8 @@ export async function POST(req: NextRequest) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 256,
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 128,
         messages: [
           {
             role: "user",
@@ -53,16 +53,26 @@ export async function POST(req: NextRequest) {
               },
               {
                 type: "text",
-                text: `This is a photo of a utility meter (gas, water, or electricity).
-Extract ONLY the numeric meter reading value.
-Rules:
-- Return ONLY the number, nothing else
-- Use a dot as decimal separator if there are decimals
-- Ignore any text, units, or labels
-- If you see red/black digit wheels, read all digits including the decimal ones
-- If you cannot read the meter, return "ERROR"
+                text: `You are reading a utility meter (electricity / gas / water) from a photo.
 
-Example valid responses: "12345", "12345.678", "0.450"`,
+CRITICAL: Return ONLY the meter value, nothing else. No explanation, no unit, no prefix.
+
+Rules:
+1. Read ALL visible digits on the main counter display (left to right).
+2. If the meter has mechanical wheels with RED digits at the end, those are DECIMAL digits — include them after a dot.
+   Example: black "12345" + red "678" → "12345.678"
+3. If digits are LCD/digital, read them as shown. A decimal point on the display is a dot.
+4. Ignore any prefix zeros only if the meter is clearly showing less than full width (keep them if uncertain).
+5. Ignore tariff indicators (T1/T2/HT/NT), serial numbers, barcodes, QR codes, power indicators.
+6. If the photo is blurry, obstructed, or no meter is visible: return ONLY the word: ERROR
+
+Examples of valid output:
+12345
+12345.678
+0.450
+987654.3
+
+Your output:`,
               },
             ],
           },
