@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/poll-shelly",
-      "schedule": "0 6 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }

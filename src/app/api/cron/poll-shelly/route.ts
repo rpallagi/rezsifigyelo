@@ -90,15 +90,6 @@ export async function GET(req: NextRequest) {
 
   for (const device of devices) {
     try {
-      // Deduplication: check min interval
-      if (device.lastSeenAt) {
-        const elapsed = (Date.now() - new Date(device.lastSeenAt).getTime()) / 1000 / 60;
-        if (elapsed < device.minIntervalMinutes) {
-          results.push({ deviceId: device.deviceId, status: "skipped" });
-          continue;
-        }
-      }
-
       // Get property to find owner
       const property = await db.query.properties.findFirst({
         where: eq(properties.id, device.propertyId),
@@ -147,45 +138,22 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Extract energy value (total_act from emdata in Wh)
-      // emdata:0.total_act is cumulative energy in Wh
-      // em:0.total_act_power is current power in W
-      let rawValue: number | undefined;
-
-      if (shellyData.emdataStatus?.total_act !== undefined) {
-        // Cumulative energy in Wh — this is a meter reading
-        rawValue = shellyData.emdataStatus.total_act;
-      } else if (shellyData.emStatus?.total_act_power !== undefined) {
-        // Current power in W — not a cumulative reading, skip for meter readings
-        // We could store this separately but for now we need cumulative data
+      // ALWAYS update live power (lastRawValue) — this feeds the live widget
+      const livePower = shellyData.emStatus?.total_act_power;
+      if (livePower !== undefined) {
         await db.update(smartMeterDevices)
           .set({
             lastSeenAt: new Date(),
-            lastRawValue: shellyData.emStatus.total_act_power,
+            lastRawValue: livePower,
             lastError: null,
           })
           .where(eq(smartMeterDevices.id, device.id));
-        results.push({
-          deviceId: device.deviceId,
-          status: "power_only",
-          value: shellyData.emStatus.total_act_power,
-        });
-        continue;
       }
 
-      if (rawValue === undefined) {
-        await db.update(smartMeterDevices)
-          .set({ lastError: "No EM data in response" })
-          .where(eq(smartMeterDevices.id, device.id));
-        results.push({ deviceId: device.deviceId, status: "no_em_data" });
-        continue;
-      }
-
-      // Apply multiplier + offset (default: Wh → kWh = multiplier 0.001)
-      const finalValue = rawValue * device.multiplier + device.offset;
-
-      // Get previous reading for consumption
-      const prevReading = await db.query.meterReadings.findFirst({
+      // Only create a new reading once per month (on the 1st, or if no reading yet this month)
+      const today = new Date();
+      const currentMonth = today.toISOString().slice(0, 7); // YYYY-MM
+      const existingThisMonth = await db.query.meterReadings.findFirst({
         where: and(
           eq(meterReadings.propertyId, device.propertyId),
           eq(meterReadings.utilityType, device.utilityType),
@@ -193,11 +161,29 @@ export async function GET(req: NextRequest) {
         orderBy: [desc(meterReadings.readingDate), desc(meterReadings.id)],
       });
 
-      const prevValue = prevReading?.value ?? null;
+      const isFirstOfMonth = today.getDate() === 1;
+      const latestReadingMonth = existingThisMonth?.readingDate?.slice(0, 7);
+      const shouldCreateReading = isFirstOfMonth && latestReadingMonth !== currentMonth;
+
+      if (!shouldCreateReading) {
+        results.push({ deviceId: device.deviceId, status: "power_only", value: livePower });
+        continue;
+      }
+
+      // Extract cumulative energy for monthly reading
+      const rawValue = shellyData.emdataStatus?.total_act;
+      if (rawValue === undefined) {
+        results.push({ deviceId: device.deviceId, status: "no_em_data" });
+        continue;
+      }
+
+      // Apply multiplier + offset (default: Wh → kWh = multiplier 0.001)
+      const finalValue = rawValue * device.multiplier + device.offset;
+
+      const prevValue = existingThisMonth?.value ?? null;
       const consumption = prevValue !== null ? finalValue - prevValue : null;
 
-      // Create reading
-      const today = new Date().toISOString().split("T")[0]!;
+      const readingDate = `${currentMonth}-01`;
       const [reading] = await db
         .insert(meterReadings)
         .values({
@@ -206,20 +192,11 @@ export async function GET(req: NextRequest) {
           value: finalValue,
           prevValue,
           consumption,
-          readingDate: today,
-          source: "smart_mqtt", // reuse existing source — webhook handler uses this
+          readingDate,
+          source: "smart_mqtt",
           notes: `Auto: Shelly Cloud · ${device.name ?? device.deviceId}`,
         })
         .returning();
-
-      // Update device state
-      await db.update(smartMeterDevices)
-        .set({
-          lastSeenAt: new Date(),
-          lastRawValue: rawValue,
-          lastError: null,
-        })
-        .where(eq(smartMeterDevices.id, device.id));
 
       // Log
       await db.insert(smartMeterLogs).values({
