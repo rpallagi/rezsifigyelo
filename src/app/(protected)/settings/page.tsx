@@ -155,6 +155,15 @@ export default function SettingsPage() {
             </p>
           </Link>
           <Link
+            href="/settings/homewizard"
+            className="rounded-lg border border-border p-4 hover:bg-secondary/50"
+          >
+            <h3 className="font-medium">HomeWizard Energy</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              P1 mérő, watermeter, energymeter — cloud API
+            </p>
+          </Link>
+          <Link
             href="/settings/smart-meters"
             className="rounded-lg border border-border p-4 hover:bg-secondary/50"
           >

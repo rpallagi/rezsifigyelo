@@ -112,6 +112,7 @@ export const smartMeterSourceEnum = pgEnum("rezsi_smart_meter_source", [
   "mqtt",
   "home_assistant",
   "shelly_cloud",
+  "homewizard",
 ]);
 
 export const taxModeEnum = pgEnum("rezsi_tax_mode", [

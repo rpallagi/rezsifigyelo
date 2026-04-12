@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import { ShellyCloudDevicePicker } from "@/components/shared/shelly-cloud-device-picker";
+import { HomeWizardDevicePicker } from "@/components/shared/homewizard-device-picker";
 import { MultiPhotoUpload, type UploadedPhoto } from "@/components/shared/multi-photo-upload";
 import {
   Zap,
@@ -99,7 +100,7 @@ interface Preset {
 
 const PRESETS: Preset[] = [
   { id: "shelly_cloud", label: "Shelly Cloud", source: "shelly_cloud" as SmartSource, valueField: "total_act", multiplier: 0.001, icon: Cloud },
-  { id: "homewizard", label: "HomeWizard P1", source: "mqtt", valueField: "total_power_import_kwh", multiplier: 1, icon: Plug },
+  { id: "homewizard", label: "HomeWizard Energy", source: "homewizard" as SmartSource, valueField: "total_power_import_kwh", multiplier: 1, icon: Plug },
   { id: "esp32_mqtt", label: "ESP32 MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: Cpu },
   { id: "zigbee2mqtt", label: "Zigbee2MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: Wifi },
   { id: "ttn_lora", label: "TTN LoRaWAN", source: "ttn", valueField: "meter_value", multiplier: 1, icon: Radio },
@@ -696,6 +697,13 @@ export default function NewMeterPage() {
                   setShellyAuthKey(authKey);
                   setShellyServer(serverHost);
                   if (name && !deviceName) setDeviceName(name);
+                }}
+              />
+            ) : smartSource === ("homewizard" as SmartSource) ? (
+              <HomeWizardDevicePicker
+                onSelectDevice={({ deviceId: id, name, locationName }) => {
+                  setDeviceId(id);
+                  if (name && !deviceName) setDeviceName(`${name} (${locationName})`);
                 }}
               />
             ) : (

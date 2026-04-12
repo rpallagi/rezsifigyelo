@@ -31,7 +31,7 @@ export const smartMeterRouter = createTRPCRouter({
           "egyeb",
         ]),
         deviceId: z.string().min(1),
-        source: z.enum(["ttn", "mqtt", "home_assistant", "shelly_cloud"]).default("mqtt"),
+        source: z.enum(["ttn", "mqtt", "home_assistant", "shelly_cloud", "homewizard"]).default("mqtt"),
         name: z.string().optional(),
         mqttTopic: z.string().optional(),
         ttnAppId: z.string().optional(),
