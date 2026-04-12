@@ -167,22 +167,38 @@ export const shellyCloudRouter = createTRPCRouter({
           | Array<{
               id: string;
               online: number;
-              status?: { "em:0"?: Record<string, number> };
+              status?: Record<string, unknown>;
             }>
           | undefined;
         const device = devices?.[0];
         if (!device || device.online !== 1) return null;
 
-        const em = device.status?.["em:0"];
-        if (!em) return null;
+        // Gen2 (Shelly Pro 3EM): em:0 object with a/b/c fields
+        const em = device.status?.["em:0"] as Record<string, number> | undefined;
+        if (em) {
+          return {
+            totalPower: em.total_act_power ?? null,
+            phaseA: { power: em.a_act_power ?? null, voltage: em.a_voltage ?? null, current: em.a_current ?? null },
+            phaseB: { power: em.b_act_power ?? null, voltage: em.b_voltage ?? null, current: em.b_current ?? null },
+            phaseC: { power: em.c_act_power ?? null, voltage: em.c_voltage ?? null, current: em.c_current ?? null },
+            timestamp: new Date().toISOString(),
+          };
+        }
 
-        return {
-          totalPower: em.total_act_power ?? null,
-          phaseA: { power: em.a_act_power ?? null, voltage: em.a_voltage ?? null, current: em.a_current ?? null },
-          phaseB: { power: em.b_act_power ?? null, voltage: em.b_voltage ?? null, current: em.b_current ?? null },
-          phaseC: { power: em.c_act_power ?? null, voltage: em.c_voltage ?? null, current: em.c_current ?? null },
-          timestamp: new Date().toISOString(),
-        };
+        // Gen1 (Shelly EM/3EM): total_power + emeters[] array
+        const totalPower = device.status?.total_power as number | undefined;
+        const emeters = device.status?.emeters as Array<{ power?: number; voltage?: number; current?: number }> | undefined;
+        if (totalPower !== undefined || emeters) {
+          return {
+            totalPower: totalPower ?? null,
+            phaseA: { power: emeters?.[0]?.power ?? null, voltage: emeters?.[0]?.voltage ?? null, current: emeters?.[0]?.current ?? null },
+            phaseB: { power: emeters?.[1]?.power ?? null, voltage: emeters?.[1]?.voltage ?? null, current: emeters?.[1]?.current ?? null },
+            phaseC: { power: emeters?.[2]?.power ?? null, voltage: emeters?.[2]?.voltage ?? null, current: emeters?.[2]?.current ?? null },
+            timestamp: new Date().toISOString(),
+          };
+        }
+
+        return null;
       } catch {
         return null;
       }

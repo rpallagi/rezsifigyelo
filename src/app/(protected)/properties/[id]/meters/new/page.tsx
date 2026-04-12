@@ -20,6 +20,13 @@ import {
   Loader2,
   Copy,
   CheckCheck,
+  Cloud,
+  Plug,
+  Cpu,
+  Radio,
+  Home,
+  Settings,
+  type LucideIcon,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -86,17 +93,17 @@ interface Preset {
   source: SmartSource;
   valueField: string;
   multiplier: number;
-  icon: string;
+  icon: LucideIcon;
 }
 
 const PRESETS: Preset[] = [
-  { id: "shelly_cloud", label: "Shelly Cloud Key", source: "shelly_cloud" as SmartSource, valueField: "total_act", multiplier: 0.001, icon: "🔑" },
-  { id: "homewizard", label: "HomeWizard P1", source: "mqtt", valueField: "total_power_import_kwh", multiplier: 1, icon: "🔌" },
-  { id: "esp32_mqtt", label: "ESP32 MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: "📡" },
-  { id: "zigbee2mqtt", label: "Zigbee2MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: "📶" },
-  { id: "ttn_lora", label: "TTN LoRaWAN", source: "ttn", valueField: "meter_value", multiplier: 1, icon: "📻" },
-  { id: "home_assistant", label: "Home Assistant", source: "home_assistant", valueField: "state", multiplier: 1, icon: "🏠" },
-  { id: "custom", label: "Egyéni konfig", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: "⚙️" },
+  { id: "shelly_cloud", label: "Shelly Cloud", source: "shelly_cloud" as SmartSource, valueField: "total_act", multiplier: 0.001, icon: Cloud },
+  { id: "homewizard", label: "HomeWizard P1", source: "mqtt", valueField: "total_power_import_kwh", multiplier: 1, icon: Plug },
+  { id: "esp32_mqtt", label: "ESP32 MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: Cpu },
+  { id: "zigbee2mqtt", label: "Zigbee2MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: Wifi },
+  { id: "ttn_lora", label: "TTN LoRaWAN", source: "ttn", valueField: "meter_value", multiplier: 1, icon: Radio },
+  { id: "home_assistant", label: "Home Assistant", source: "home_assistant", valueField: "state", multiplier: 1, icon: Home },
+  { id: "custom", label: "Egyéni konfig", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: Settings },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -600,17 +607,20 @@ export default function NewMeterPage() {
               Válaszd ki az eszközöd típusát:
             </p>
             <div className="grid grid-cols-2 gap-3">
-              {PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => handlePresetSelect(preset)}
-                  className="flex flex-col items-center gap-2 rounded-[24px] border border-border/60 bg-card/90 p-4 ring-1 ring-border/60 transition-all hover:scale-[1.02] hover:bg-secondary/50"
-                >
-                  <span className="text-2xl">{preset.icon}</span>
-                  <span className="text-xs font-semibold">{preset.label}</span>
-                </button>
-              ))}
+              {PRESETS.map((preset) => {
+                const PresetIcon = preset.icon;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => handlePresetSelect(preset)}
+                    className="flex flex-col items-center gap-2 rounded-[24px] border border-border/60 bg-card/90 p-4 ring-1 ring-border/60 transition-all hover:scale-[1.02] hover:bg-secondary/50"
+                  >
+                    <PresetIcon className="h-6 w-6 text-muted-foreground" />
+                    <span className="text-xs font-semibold">{preset.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </>
         )}
@@ -620,7 +630,10 @@ export default function NewMeterPage() {
           <>
             {/* Selected preset indicator */}
             <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-secondary/50 p-3">
-              <span className="text-xl">{selectedPreset.icon}</span>
+              {(() => {
+                const Icon = selectedPreset.icon;
+                return <Icon className="h-5 w-5 text-muted-foreground" />;
+              })()}
               <span className="text-sm font-semibold">{selectedPreset.label}</span>
               <button
                 type="button"
@@ -941,8 +954,12 @@ export default function NewMeterPage() {
               <>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Eszköz</span>
-                  <span className="text-sm font-semibold">
-                    {selectedPreset.icon} {selectedPreset.label}
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    {(() => {
+                      const Icon = selectedPreset.icon;
+                      return <Icon className="h-4 w-4 text-muted-foreground" />;
+                    })()}
+                    {selectedPreset.label}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
