@@ -155,6 +155,9 @@ export default function NewMeterPage() {
   const recordReading = api.reading.record.useMutation();
   const importShellyHistory = api.shellyCloud.importHistory.useMutation();
   const [importResult, setImportResult] = useState<{ imported: number; firstMonth?: string; lastMonth?: string; totalKwh?: number } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isSaving =
     createMeter.isPending ||
