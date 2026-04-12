@@ -8,10 +8,12 @@ import {
   Gauge,
   Home,
   MessageSquare,
+  Moon,
   Receipt,
   Settings,
   SlidersHorizontal,
   SquareCheckBig,
+  Sun,
   Users,
   Wrench,
 } from "lucide-react";
@@ -19,6 +21,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { useTheme } from "next-themes";
 import type { LucideIcon } from "lucide-react";
 import {
   LANDLORD_PROFILE_SCOPE_COOKIE,
@@ -133,6 +136,32 @@ function profileDotColor(color: string | null) {
   };
 
   return map[color ?? ""] ?? map.slate;
+}
+
+function ThemeToggle() {
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+
+  function cycle() {
+    if (theme === "system") {
+      setTheme(isDark ? "light" : "dark");
+    } else if (theme === "dark") {
+      setTheme("light");
+    } else {
+      setTheme("dark");
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={cycle}
+      title={isDark ? "Világos mód" : "Sötét mód"}
+      className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground transition hover:text-foreground"
+    >
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
+  );
 }
 
 export function ProtectedNavigation({
@@ -306,7 +335,10 @@ export function ProtectedNavigation({
               <p className="text-sm font-medium">Profil</p>
               <p className="mt-1 text-xs text-muted-foreground">Clerk account</p>
             </div>
-            <LazyUserButton />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <LazyUserButton />
+            </div>
           </div>
         </div>
       </aside>
@@ -316,7 +348,10 @@ export function ProtectedNavigation({
           <Link href="/dashboard" className="text-base font-semibold tracking-tight">
             {appName}
           </Link>
-          <LazyUserButton />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <LazyUserButton />
+          </div>
         </div>
         {landlordProfiles.length > 0 && (
           <div className="flex gap-2 overflow-x-auto px-4 pb-3">
