@@ -684,6 +684,21 @@ export default function NewMeterPage() {
               </div>
             </div>
 
+            {/* Shelly Cloud setup callout */}
+            {smartSource === "shelly_cloud" && (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                  ☁️ Shelly Cloud beállítás
+                </p>
+                <ol className="mt-2 space-y-1.5 text-xs text-blue-800 dark:text-blue-300">
+                  <li>1. Először add meg a Shelly Cloud API kulcsot: <a href="/settings/shelly-cloud" className="font-medium underline">Beállítások → Shelly Cloud</a></li>
+                  <li>2. Az API kulcsot a <a href="https://my.shelly.cloud" target="_blank" rel="noopener noreferrer" className="font-medium underline">my.shelly.cloud</a> oldalon találod: User Settings → Authorization Cloud Key</li>
+                  <li>3. A Device ID a Shelly mérő MAC címe (12 karakter, pl. <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">c8f09e8309f8</code>) — Shelly app → eszköz → Settings → Device Information</li>
+                  <li>4. Preset beállítás: <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">total_act</code> érték mező, 0.001 szorzó (Wh → kWh)</li>
+                </ol>
+              </div>
+            )}
+
             {/* MQTT topic — only if mqtt */}
             {smartSource === "mqtt" && (
               <div>

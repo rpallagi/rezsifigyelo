@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Zap, Droplets, Flame, Waves } from "lucide-react";
 import { ConsumptionChart } from "@/components/shared/consumption-chart";
 import { Sparkline } from "@/components/shared/sparkline";
+import { LivePowerBadge } from "@/components/shared/live-power-badge";
 import { api } from "@/trpc/server";
 import { CommonFeeCalendar } from "./common-fee-calendar";
 
@@ -709,19 +710,12 @@ export default async function PropertyDetailPage({
                     )}
                   </div>
 
-                  {/* Live power from smart meter */}
-                  {smartDevice?.isActive && smartDevice.lastRawValue != null && (
-                    <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2 py-1 dark:bg-emerald-950/30">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                      <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                        Élő: {Math.round(smartDevice.lastRawValue).toLocaleString("hu-HU")} W
-                      </span>
-                      {smartDevice.lastSeenAt && (
-                        <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70">
-                          · {new Date(smartDevice.lastSeenAt).toLocaleString("hu-HU", { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      )}
-                    </div>
+                  {/* Live power from Shelly Cloud (polls every 5s) */}
+                  {smartDevice?.isActive && smartDevice.source === "shelly_cloud" && (
+                    <LivePowerBadge
+                      deviceId={smartDevice.shellyDeviceId ?? smartDevice.deviceId}
+                      initialPower={smartDevice.lastRawValue}
+                    />
                   )}
                 </Link>
               );

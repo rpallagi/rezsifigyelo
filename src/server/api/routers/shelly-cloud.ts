@@ -90,6 +90,44 @@ export const shellyCloudRouter = createTRPCRouter({
     };
   }),
 
+  getLivePower: landlordProcedure
+    .input(z.object({ deviceId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const creds = await getShellyCloudCredentials(ctx.db, ctx.dbUser.id);
+      if (!creds) return null;
+
+      try {
+        const data = await shellyCloudRequest(
+          creds.serverHost,
+          creds.authKey,
+          "/v2/devices/api/get",
+          { ids: [input.deviceId], select: ["status"] },
+        );
+        const devices = (Array.isArray(data) ? data : (data as { data?: unknown }).data) as
+          | Array<{
+              id: string;
+              online: number;
+              status?: { "em:0"?: Record<string, number> };
+            }>
+          | undefined;
+        const device = devices?.[0];
+        if (!device || device.online !== 1) return null;
+
+        const em = device.status?.["em:0"];
+        if (!em) return null;
+
+        return {
+          totalPower: em.total_act_power ?? null,
+          phaseA: { power: em.a_act_power ?? null, voltage: em.a_voltage ?? null, current: em.a_current ?? null },
+          phaseB: { power: em.b_act_power ?? null, voltage: em.b_voltage ?? null, current: em.b_current ?? null },
+          phaseC: { power: em.c_act_power ?? null, voltage: em.c_voltage ?? null, current: em.c_current ?? null },
+          timestamp: new Date().toISOString(),
+        };
+      } catch {
+        return null;
+      }
+    }),
+
   listDevices: landlordProcedure.query(async ({ ctx }) => {
     const creds = await getShellyCloudCredentials(ctx.db, ctx.dbUser.id);
     if (!creds) return [];
