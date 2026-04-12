@@ -44,9 +44,11 @@ export default function EditPropertyPage() {
   const [avatarError, setAvatarError] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [buildingPropertyId, setBuildingPropertyId] = useState<string>("");
+  const [tariffGroupId, setTariffGroupId] = useState<string>("");
 
   const { data: allProperties } = api.property.list.useQuery();
   const { data: landlordProfiles } = api.landlordProfile.list.useQuery();
+  const { data: tariffGroups } = api.tariff.listGroups.useQuery();
   const utils = api.useUtils();
 
   useEffect(() => {
@@ -82,6 +84,7 @@ export default function EditPropertyPage() {
       setNotes(property.notes ?? "");
       setAvatarUrl(property.avatarUrl ?? "");
       setBuildingPropertyId(property.buildingPropertyId?.toString() ?? "");
+      setTariffGroupId(property.tariffGroupId?.toString() ?? "");
     }
   }, [property]);
 
@@ -121,6 +124,7 @@ export default function EditPropertyPage() {
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
       notes: notes || undefined,
       buildingPropertyId: buildingPropertyId ? Number(buildingPropertyId) : undefined,
+      tariffGroupId: tariffGroupId ? Number(tariffGroupId) : undefined,
       avatarUrl: avatarUrl || undefined,
     });
     router.push(`/properties/${propertyId}`);
@@ -489,6 +493,26 @@ export default function EditPropertyPage() {
           </select>
           <p className="mt-1 text-xs text-muted-foreground">
             Ha ez egy lakás egy épületben, válaszd ki a szülő épületet
+          </p>
+        </div>
+
+        {/* Tariff group */}
+        <div>
+          <label className="block text-sm font-medium">Tarifa csoport</label>
+          <select
+            value={tariffGroupId}
+            onChange={(e) => setTariffGroupId(e.target.value)}
+            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Nincs</option>
+            {tariffGroups?.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name} ({g.tariffs.length} tarifa)
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            A tarifa csoport határozza meg, milyen árfolyamokat használjon a költség-számításhoz. Tarifákat a <a href="/tariffs" className="underline">Tarifák</a> oldalon kezelheted.
           </p>
         </div>
 
