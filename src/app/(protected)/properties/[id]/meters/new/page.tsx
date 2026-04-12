@@ -90,11 +90,9 @@ interface Preset {
 
 const PRESETS: Preset[] = [
   { id: "shelly_cloud", label: "Shelly Cloud (auto)", source: "shelly_cloud" as SmartSource, valueField: "total_act", multiplier: 0.001, icon: "☁️" },
-  { id: "shelly_http", label: "Shelly 3EM Pro (webhook)", source: "mqtt", valueField: "total", multiplier: 0.001, icon: "⚡" },
   { id: "homewizard", label: "HomeWizard P1", source: "mqtt", valueField: "total_power_import_kwh", multiplier: 1, icon: "🔌" },
   { id: "esp32_mqtt", label: "ESP32 MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: "📡" },
   { id: "zigbee2mqtt", label: "Zigbee2MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: "📶" },
-  { id: "shelly_mqtt", label: "Shelly MQTT", source: "mqtt", valueField: "total", multiplier: 0.001, icon: "🔋" },
   { id: "ttn_lora", label: "TTN LoRaWAN", source: "ttn", valueField: "meter_value", multiplier: 1, icon: "📻" },
   { id: "home_assistant", label: "Home Assistant", source: "home_assistant", valueField: "state", multiplier: 1, icon: "🏠" },
   { id: "custom", label: "Egyéni konfig", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: "⚙️" },
