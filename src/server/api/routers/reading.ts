@@ -91,6 +91,7 @@ export const readingRouter = createTRPCRouter({
         value: z.number(),
         readingDate: z.string(),
         photoUrl: z.string().optional(),
+        photoUrls: z.array(z.string()).optional(),
         notes: z.string().optional(),
         source: z
           .enum(["manual", "tenant", "smart_ttn", "smart_mqtt", "home_assistant"])
@@ -167,7 +168,8 @@ export const readingRouter = createTRPCRouter({
           consumption,
           tariffId,
           costHuf,
-          photoUrl: input.photoUrl,
+          photoUrl: input.photoUrl ?? input.photoUrls?.[0],
+          photoUrls: input.photoUrls,
           readingDate: input.readingDate,
           notes: input.notes,
           source: ctx.dbUser.role === "tenant" ? "tenant" : input.source,

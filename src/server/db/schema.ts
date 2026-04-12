@@ -493,6 +493,7 @@ export const meterReadings = createTable(
     tariffId: d.integer().references(() => tariffs.id, { onDelete: "set null" }),
     costHuf: d.doublePrecision(),
     photoUrl: d.text(),
+    photoUrls: d.jsonb().$type<string[]>(),
     readingDate: d.date().notNull(),
     notes: d.text(),
     source: readingSourceEnum().notNull().default("manual"),

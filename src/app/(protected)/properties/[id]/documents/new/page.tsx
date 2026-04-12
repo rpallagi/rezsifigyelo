@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
+import { MultiPhotoUpload, type UploadedPhoto } from "@/components/shared/multi-photo-upload";
 
 const categoryLabels: Record<string, string> = {
   szerzodes: "Szerződés",
@@ -16,55 +17,37 @@ export default function NewDocumentPage() {
   const params = useParams();
   const propertyId = Number(params.id);
 
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<UploadedPhoto[]>([]);
   const [category, setCategory] = useState("egyeb");
   const [notes, setNotes] = useState("");
-  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const createDocument = api.document.create.useMutation({
-    onSuccess: () => {
-      router.push(`/properties/${propertyId}`);
-      router.refresh();
-    },
-  });
+  const createDocument = api.document.create.useMutation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) return;
+    if (files.length === 0) return;
 
-    setUploading(true);
+    setSubmitting(true);
     setError("");
-
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Upload failed");
+      // Create one document record per uploaded file
+      for (const f of files) {
+        await createDocument.mutateAsync({
+          propertyId,
+          filename: f.name,
+          storedUrl: f.url,
+          category: category as "egyeb",
+          notes: notes || undefined,
+        });
       }
-
-      const data = await res.json();
-
-      createDocument.mutate({
-        propertyId,
-        filename: data.filename,
-        storedUrl: data.url,
-        category: category as "egyeb",
-        notes: notes || undefined,
-        fileSize: data.size,
-        mimeType: data.type,
-      });
+      router.push(`/properties/${propertyId}`);
+      router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Feltöltési hiba");
+      setError(err instanceof Error ? err.message : "Hiba");
     } finally {
-      setUploading(false);
+      setSubmitting(false);
     }
   };
 
@@ -73,17 +56,14 @@ export default function NewDocumentPage() {
       <h1 className="text-2xl font-bold">Dokumentum feltöltés</h1>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-        <div>
-          <label className="block text-sm font-medium">
-            Fájl <span className="text-destructive">*</span>
-          </label>
-          <input
-            type="file"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="mt-1 w-full text-sm"
-          />
-          <p className="mt-1 text-xs text-muted-foreground">Max 10 MB</p>
-        </div>
+        <MultiPhotoUpload
+          photos={files}
+          onChange={setFiles}
+          folder="documents"
+          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+          label="Fájlok *"
+        />
+        <p className="text-xs text-muted-foreground">Képek, PDF vagy Office fájlok — max 10 MB / db</p>
 
         <div>
           <label className="block text-sm font-medium">Kategória</label>
@@ -118,14 +98,10 @@ export default function NewDocumentPage() {
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={!file || uploading || createDocument.isPending}
+            disabled={files.length === 0 || submitting}
             className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {uploading
-              ? "Feltöltés..."
-              : createDocument.isPending
-                ? "Mentés..."
-                : "Feltöltés"}
+            {submitting ? "Mentés..." : `Mentés (${files.length})`}
           </button>
           <button
             type="button"

@@ -15,6 +15,7 @@ import {
   Check,
   Loader2,
 } from "lucide-react";
+import { MultiPhotoUpload, type UploadedPhoto } from "@/components/shared/multi-photo-upload";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -94,6 +95,7 @@ export default function NewReadingPage() {
   const [notes, setNotes] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | undefined>();
   const [photoPreview, setPhotoPreview] = useState<string | undefined>();
+  const [extraPhotos, setExtraPhotos] = useState<UploadedPhoto[]>([]);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -246,6 +248,10 @@ export default function NewReadingPage() {
   /* ---- submit ---- */
   const handleSubmit = () => {
     if (!utilityType) return;
+    const allPhotoUrls = [
+      ...(photoUrl ? [photoUrl] : []),
+      ...extraPhotos.map((p) => p.url),
+    ];
     createReading.mutate({
       propertyId,
       utilityType,
@@ -253,6 +259,7 @@ export default function NewReadingPage() {
       value: Number(value),
       readingDate,
       photoUrl,
+      photoUrls: allPhotoUrls.length > 0 ? allPhotoUrls : undefined,
       notes: notes || undefined,
     });
   };
@@ -488,7 +495,7 @@ export default function NewReadingPage() {
           </button>
         </div>
 
-        {/* Photo preview */}
+        {/* Photo preview (main OCR photo) */}
         {photoPreview && (
           <div className="overflow-hidden rounded-2xl border border-border">
             <img
@@ -502,6 +509,14 @@ export default function NewReadingPage() {
         {ocrError && (
           <p className="text-xs text-destructive">{ocrError}</p>
         )}
+
+        {/* Additional photos (multi-upload) */}
+        <MultiPhotoUpload
+          photos={extraPhotos}
+          onChange={setExtraPhotos}
+          folder="meter-readings"
+          label="További fotók (opcionális)"
+        />
 
         {/* Fogyasztás preview card */}
         {consumption > 0 && (
