@@ -24,10 +24,11 @@ Ez a javasolt beállítás minden Shelly eszközhöz. Teljesen automatikus, ninc
 ### Beállítási lépések
 
 1. **API kulcs megszerzése:**
-   - Jelentkezz be a [my.shelly.cloud](https://my.shelly.cloud) oldalra
-   - User Settings → **Authorization Cloud Key**
-   - Másold ki a kulcsot (hosszú base64-szerű string)
-   - Jegyezd meg a szervert is (pl. `shelly-63-eu.shelly.cloud`)
+   - Jelentkezz be a [control.shelly.cloud](https://control.shelly.cloud) oldalra
+   - Bal alul / jobb felül → **User Settings**
+   - Bal oldali menü: **Access And Permissions**
+   - Görgess le: **Authorization cloud key** szekció
+   - Másold ki a **Server** címet (pl. `shelly-63-eu.shelly.cloud`) és a kulcsot
 
 2. **Kulcs bevitele az app-ba:**
    - Beállítások → Shelly Cloud (`/settings/shelly-cloud`)

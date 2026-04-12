@@ -37,17 +37,27 @@ export default function ShellyCloudSettingsPage() {
       <div className="mt-6 space-y-4 rounded-lg border border-border p-6">
         <h3 className="font-semibold">Kapcsolat beállítása</h3>
 
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs dark:border-blue-900 dark:bg-blue-950/30">
+          <p className="font-semibold text-blue-900 dark:text-blue-200">Hol találod az adatokat?</p>
+          <ol className="mt-1.5 space-y-1 text-blue-800 dark:text-blue-300">
+            <li>1. Nyisd meg: <a href="https://control.shelly.cloud" target="_blank" rel="noopener noreferrer" className="font-medium underline">control.shelly.cloud</a></li>
+            <li>2. Bal alul / jobb felül: <strong>User Settings</strong></li>
+            <li>3. <strong>Access And Permissions</strong> → lent: <strong>Authorization cloud key</strong></li>
+            <li>4. Ott látod a Server-t és a kulcsot — másold be őket ide</li>
+          </ol>
+        </div>
+
         <div>
           <label className="block text-sm font-medium">Szerver</label>
           <input
             type="text"
             value={effectiveServerHost}
             onChange={(e) => setServerHost(e.target.value)}
-            placeholder="shelly-103-eu.shelly.cloud"
+            placeholder="shelly-63-eu.shelly.cloud"
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            Shelly app → User Settings → megtalálod a szerver címét
+            Csak a host rész (https:// nélkül)
           </p>
         </div>
 
@@ -60,11 +70,6 @@ export default function ShellyCloudSettingsPage() {
             placeholder={settings?.hasAuthKey ? "••••••••" : "MTAx..."}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
-          <p className="mt-1 text-xs text-muted-foreground">
-            Shelly app → User Settings → Authorization Cloud Key.
-            Ha nem találod, keresd a &quot;Cloud Key&quot; opciót a beállításokban,
-            vagy POST https://shelly-103-eu.shelly.cloud/auth/login email + jelszóval.
-          </p>
         </div>
 
         <div className="flex gap-2">

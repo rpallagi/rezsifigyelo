@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
+import { ShellyCloudDevicePicker } from "@/components/shared/shelly-cloud-device-picker";
 import {
   Zap,
   Droplets,
@@ -89,7 +90,7 @@ interface Preset {
 }
 
 const PRESETS: Preset[] = [
-  { id: "shelly_cloud", label: "Shelly Cloud (auto)", source: "shelly_cloud" as SmartSource, valueField: "total_act", multiplier: 0.001, icon: "☁️" },
+  { id: "shelly_cloud", label: "Shelly Cloud Key", source: "shelly_cloud" as SmartSource, valueField: "total_act", multiplier: 0.001, icon: "🔑" },
   { id: "homewizard", label: "HomeWizard P1", source: "mqtt", valueField: "total_power_import_kwh", multiplier: 1, icon: "🔌" },
   { id: "esp32_mqtt", label: "ESP32 MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: "📡" },
   { id: "zigbee2mqtt", label: "Zigbee2MQTT", source: "mqtt", valueField: "meter_value", multiplier: 1, icon: "📶" },
@@ -625,21 +626,62 @@ export default function NewMeterPage() {
               </button>
             </div>
 
-            {/* Device ID */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">
-                Eszköz ID <span className="text-destructive">*</span>
-              </label>
-              <input
-                type="text"
-                value={deviceId}
-                onChange={(e) => setDeviceId(e.target.value)}
-                placeholder="pl. shelly3em-001"
-                className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            {smartSource === "shelly_cloud" ? (
+              <ShellyCloudDevicePicker
+                deviceId={deviceId}
+                onSelectDevice={(id, name) => {
+                  setDeviceId(id);
+                  if (name && !deviceName) setDeviceName(name);
+                }}
               />
-            </div>
+            ) : (
+              <>
+                {/* Device ID */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium">
+                    Eszköz ID <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={deviceId}
+                    onChange={(e) => setDeviceId(e.target.value)}
+                    placeholder="pl. shelly3em-001"
+                    className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
 
-            {/* Device name */}
+                {/* Source selector (non-Shelly) */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium">Forrás</label>
+                  <div className="flex gap-2">
+                    {(["mqtt", "ttn", "home_assistant"] as const).map((src) => {
+                      const labels: Record<SmartSource, string> = {
+                        mqtt: "MQTT",
+                        ttn: "TTN",
+                        home_assistant: "Home Assistant",
+                        shelly_cloud: "Shelly Cloud",
+                      };
+                      return (
+                        <button
+                          key={src}
+                          type="button"
+                          onClick={() => setSmartSource(src)}
+                          className={`rounded-2xl border px-4 py-2 text-sm font-medium transition-colors ${
+                            smartSource === src
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border hover:bg-secondary"
+                          }`}
+                        >
+                          {labels[src]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Device name (optional for all) */}
             <div>
               <label className="mb-1.5 block text-sm font-medium">
                 Eszköz neve
@@ -652,50 +694,6 @@ export default function NewMeterPage() {
                 className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
-
-            {/* Source */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Forrás</label>
-              <div className="flex gap-2">
-                {(["mqtt", "ttn", "home_assistant"] as const).map((src) => {
-                  const labels: Record<SmartSource, string> = {
-                    mqtt: "MQTT",
-                    ttn: "TTN",
-                    home_assistant: "Home Assistant",
-                    shelly_cloud: "Shelly Cloud",
-                  };
-                  return (
-                    <button
-                      key={src}
-                      type="button"
-                      onClick={() => setSmartSource(src)}
-                      className={`rounded-2xl border px-4 py-2 text-sm font-medium transition-colors ${
-                        smartSource === src
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border hover:bg-secondary"
-                      }`}
-                    >
-                      {labels[src]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Shelly Cloud setup callout */}
-            {smartSource === "shelly_cloud" && (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-                <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
-                  ☁️ Shelly Cloud beállítás
-                </p>
-                <ol className="mt-2 space-y-1.5 text-xs text-blue-800 dark:text-blue-300">
-                  <li>1. Először add meg a Shelly Cloud API kulcsot: <a href="/settings/shelly-cloud" className="font-medium underline">Beállítások → Shelly Cloud</a></li>
-                  <li>2. Az API kulcsot a <a href="https://my.shelly.cloud" target="_blank" rel="noopener noreferrer" className="font-medium underline">my.shelly.cloud</a> oldalon találod: User Settings → Authorization Cloud Key</li>
-                  <li>3. A Device ID a Shelly mérő MAC címe (12 karakter, pl. <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">c8f09e8309f8</code>) — Shelly app → eszköz → Settings → Device Information</li>
-                  <li>4. Preset beállítás: <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">total_act</code> érték mező, 0.001 szorzó (Wh → kWh)</li>
-                </ol>
-              </div>
-            )}
 
             {/* MQTT topic — only if mqtt */}
             {smartSource === "mqtt" && (
@@ -729,78 +727,85 @@ export default function NewMeterPage() {
               </div>
             )}
 
-            {/* Value field */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">
-                Érték mező
-              </label>
-              <input
-                type="text"
-                value={valueField}
-                onChange={(e) => setValueField(e.target.value)}
-                className="w-full rounded-2xl border border-input bg-background px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
+            {/* Advanced config — hidden for shelly_cloud */}
+            {smartSource !== "shelly_cloud" && (
+              <>
+                {/* Value field */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium">
+                    Érték mező
+                  </label>
+                  <input
+                    type="text"
+                    value={valueField}
+                    onChange={(e) => setValueField(e.target.value)}
+                    className="w-full rounded-2xl border border-input bg-background px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
 
-            {/* Multiplier + Offset side by side */}
-            <div className="grid grid-cols-2 gap-3">
+                {/* Multiplier + Offset side by side */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium">Szorzó</label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={multiplier}
+                      onChange={(e) => setMultiplier(Number(e.target.value))}
+                      className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium">Eltolás</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={offset}
+                      onChange={(e) => setOffset(Number(e.target.value))}
+                      className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+
+                {/* Min interval */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium">
+                    Min. intervallum (perc)
+                  </label>
+                  <input
+                    type="number"
+                    value={minInterval}
+                    onChange={(e) => setMinInterval(Number(e.target.value))}
+                    className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Webhook URL — not shown for Shelly Cloud (uses cloud API, not webhooks) */}
+            {smartSource !== "shelly_cloud" ? (
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Szorzó</label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={multiplier}
-                  onChange={(e) => setMultiplier(Number(e.target.value))}
-                  className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+                <label className="mb-1.5 block text-sm font-medium">
+                  Webhook URL
+                </label>
+                <div className="flex items-center gap-2 rounded-2xl border border-border bg-muted/50 px-4 py-3">
+                  <code className="min-w-0 flex-1 truncate text-xs">
+                    {webhookUrl}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => void copyWebhook()}
+                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                  >
+                    {copiedWebhook ? (
+                      <CheckCheck className="h-4 w-4 text-emerald-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Eltolás</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={offset}
-                  onChange={(e) => setOffset(Number(e.target.value))}
-                  className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-            </div>
-
-            {/* Min interval */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">
-                Min. intervallum (perc)
-              </label>
-              <input
-                type="number"
-                value={minInterval}
-                onChange={(e) => setMinInterval(Number(e.target.value))}
-                className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-
-            {/* Webhook URL */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">
-                Webhook URL
-              </label>
-              <div className="flex items-center gap-2 rounded-2xl border border-border bg-muted/50 px-4 py-3">
-                <code className="min-w-0 flex-1 truncate text-xs">
-                  {webhookUrl}
-                </code>
-                <button
-                  type="button"
-                  onClick={() => void copyWebhook()}
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                >
-                  {copiedWebhook ? (
-                    <CheckCheck className="h-4 w-4 text-emerald-500" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-            </div>
+            ) : null}
           </>
         )}
 
