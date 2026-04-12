@@ -177,6 +177,34 @@ export default async function PropertiesPage({
     return 0;
   });
 
+  // Group items by address — only creates sub-groups when 2+ properties share an address
+  function groupByAddress<T extends { address: string | null }>(items: T[]) {
+    const map = new Map<string, T[]>();
+    for (const p of items) {
+      const key = (p.address ?? "").trim().toLowerCase();
+      if (!key) continue; // skip empty addresses
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(p);
+    }
+    const hasMulti = [...map.values()].some((arr) => arr.length > 1);
+    if (!hasMulti) return null;
+
+    // Collect grouped (2+) and ungrouped (1 or no address) items
+    const grouped: { address: string; items: T[] }[] = [];
+    const ungrouped: T[] = [];
+    const seen = new Set<T>();
+    for (const [, props] of map) {
+      if (props.length > 1) {
+        grouped.push({ address: props[0]!.address!, items: props });
+        props.forEach((p) => seen.add(p));
+      }
+    }
+    for (const p of items) {
+      if (!seen.has(p)) ungrouped.push(p);
+    }
+    return { grouped, ungrouped };
+  }
+
   // Group by profile for list/table when no filter active
   const groupedByProfile = !profileFilter
     ? (() => {
@@ -375,32 +403,62 @@ export default async function PropertiesPage({
         )}
 
         {/* List view — rows with small thumbnail */}
-        {view === "list" && (
-          <div className="mt-6 space-y-2">
-            {groupedByProfile ? (
-              groupedByProfile.map((group) => (
-                <div key={group.profile?.id ?? "none"}>
-                  <div className="flex items-center gap-3 px-1 py-2">
-                    {group.profile && (
-                      <span className={`h-2.5 w-2.5 rounded-full ${profileDotColor(group.profile.color)}`} />
-                    )}
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      {group.profile?.displayName ?? "Profil nélkül"}
-                    </span>
-                    <span className="h-px flex-1 bg-border" />
-                  </div>
-                  {group.items.map((property) => (
-                    <ListRow key={property.id} property={property} m={m} />
-                  ))}
-                </div>
-              ))
-            ) : (
-              filteredProperties.map((property) => (
+        {view === "list" && (() => {
+          const renderAddressSubGroups = (items: typeof sortedProperties) => {
+            const addrGroups = groupByAddress(items);
+            if (!addrGroups) {
+              return items.map((property) => (
                 <ListRow key={property.id} property={property} m={m} />
-              ))
-            )}
-          </div>
-        )}
+              ));
+            }
+            return (
+              <>
+                {addrGroups.grouped.map((ag) => (
+                  <div key={ag.address} className="ml-4">
+                    <div className="flex items-center gap-2 px-1 py-1.5">
+                      <span className="text-[11px] font-medium text-muted-foreground/80">
+                        {ag.address}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/50">
+                        ({ag.items.length})
+                      </span>
+                      <span className="h-px flex-1 bg-border/40" />
+                    </div>
+                    {ag.items.map((property) => (
+                      <ListRow key={property.id} property={property} m={m} />
+                    ))}
+                  </div>
+                ))}
+                {addrGroups.ungrouped.map((property) => (
+                  <ListRow key={property.id} property={property} m={m} />
+                ))}
+              </>
+            );
+          };
+
+          return (
+            <div className="mt-6 space-y-2">
+              {groupedByProfile ? (
+                groupedByProfile.map((group) => (
+                  <div key={group.profile?.id ?? "none"}>
+                    <div className="flex items-center gap-3 px-1 py-2">
+                      {group.profile && (
+                        <span className={`h-2.5 w-2.5 rounded-full ${profileDotColor(group.profile.color)}`} />
+                      )}
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {group.profile?.displayName ?? "Profil nélkül"}
+                      </span>
+                      <span className="h-px flex-1 bg-border" />
+                    </div>
+                    {renderAddressSubGroups(group.items)}
+                  </div>
+                ))
+              ) : (
+                renderAddressSubGroups(filteredProperties)
+              )}
+            </div>
+          );
+        })()}
 
         {/* Table view */}
         {view === "table" && (() => {
@@ -494,28 +552,58 @@ export default async function PropertiesPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {groupedByProfile ? (
-                    groupedByProfile.map((group) => (
-                      <React.Fragment key={group.profile?.id ?? "none"}>
-                        <tr>
-                          <td colSpan={7} className="px-4 pb-1 pt-4">
-                            <div className="flex items-center gap-2">
-                              {group.profile && (
-                                <span className={`h-2.5 w-2.5 rounded-full ${profileDotColor(group.profile.color)}`} />
-                              )}
-                              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                {group.profile?.displayName ?? "Profil nélkül"}
-                              </span>
-                              <span className="h-px flex-1 bg-border" />
-                            </div>
-                          </td>
-                        </tr>
-                        {group.items.map(renderTableRow)}
-                      </React.Fragment>
-                    ))
-                  ) : (
-                    sortedProperties.map(renderTableRow)
-                  )}
+                  {(() => {
+                    const renderAddressRows = (items: typeof sortedProperties) => {
+                      const addrGroups = groupByAddress(items);
+                      if (!addrGroups) return items.map(renderTableRow);
+                      return (
+                        <>
+                          {addrGroups.grouped.map((ag) => (
+                            <React.Fragment key={ag.address}>
+                              <tr>
+                                <td colSpan={7} className="px-4 pb-0.5 pt-2">
+                                  <div className="ml-4 flex items-center gap-2">
+                                    <span className="text-[11px] font-medium text-muted-foreground/80">
+                                      {ag.address}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground/50">
+                                      ({ag.items.length})
+                                    </span>
+                                    <span className="h-px flex-1 bg-border/40" />
+                                  </div>
+                                </td>
+                              </tr>
+                              {ag.items.map(renderTableRow)}
+                            </React.Fragment>
+                          ))}
+                          {addrGroups.ungrouped.map(renderTableRow)}
+                        </>
+                      );
+                    };
+
+                    return groupedByProfile ? (
+                      groupedByProfile.map((group) => (
+                        <React.Fragment key={group.profile?.id ?? "none"}>
+                          <tr>
+                            <td colSpan={7} className="px-4 pb-1 pt-4">
+                              <div className="flex items-center gap-2">
+                                {group.profile && (
+                                  <span className={`h-2.5 w-2.5 rounded-full ${profileDotColor(group.profile.color)}`} />
+                                )}
+                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                  {group.profile?.displayName ?? "Profil nélkül"}
+                                </span>
+                                <span className="h-px flex-1 bg-border" />
+                              </div>
+                            </td>
+                          </tr>
+                          {renderAddressRows(group.items)}
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      renderAddressRows(sortedProperties)
+                    );
+                  })()}
                 </tbody>
               </table>
             </div>

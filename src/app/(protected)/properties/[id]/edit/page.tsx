@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import { PropertyCoverImage } from "@/components/properties/property-cover-image";
+import { AddressInput } from "@/components/shared/address-input";
 
 export default function EditPropertyPage() {
   const router = useRouter();
@@ -194,12 +195,13 @@ export default function EditPropertyPage() {
 
         <div>
           <label className="block text-sm font-medium">Cím</label>
-          <input
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
+          <div className="mt-1">
+            <AddressInput
+              value={address}
+              onChange={setAddress}
+              existingAddresses={[...new Set((allProperties ?? []).map((p) => p.address).filter(Boolean) as string[])]}
+            />
+          </div>
         </div>
 
         <fieldset className="rounded-lg border border-border p-4">

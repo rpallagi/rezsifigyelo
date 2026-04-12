@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/trpc/react";
+import { AddressInput } from "@/components/shared/address-input";
 
 export default function NewPropertyPage() {
   const router = useRouter();
@@ -198,13 +199,13 @@ export default function NewPropertyPage() {
         {/* Address */}
         <div>
           <label className="block text-sm font-medium">Cím</label>
-          <input
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="pl. 1234 Budapest, Kossuth u. 1."
-            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
+          <div className="mt-1">
+            <AddressInput
+              value={address}
+              onChange={setAddress}
+              existingAddresses={[...new Set((existingProperties ?? []).map((p) => p.address).filter(Boolean) as string[])]}
+            />
+          </div>
         </div>
 
         {/* Contact */}
