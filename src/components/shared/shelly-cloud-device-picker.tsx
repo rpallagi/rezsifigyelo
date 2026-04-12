@@ -9,8 +9,8 @@ interface ShellyCloudDevicePickerProps {
 }
 
 export function ShellyCloudDevicePicker({ deviceId, onSelectDevice }: ShellyCloudDevicePickerProps) {
-  const { data: settings, refetch: refetchSettings } = api.shellyCloud.getSettings.useQuery();
-  const { data: devices, isLoading: devicesLoading, refetch: refetchDevices } =
+  const { data: settings, isLoading: settingsLoading, refetch: refetchSettings } = api.shellyCloud.getSettings.useQuery();
+  const { data: devices, isLoading: devicesLoading, error: devicesError, refetch: refetchDevices } =
     api.shellyCloud.listDevices.useQuery(undefined, {
       enabled: !!settings?.hasAuthKey,
     });
@@ -27,6 +27,15 @@ export function ShellyCloudDevicePicker({ deviceId, onSelectDevice }: ShellyClou
     },
     onError: (err) => setSaveError(err.message),
   });
+
+  // Still loading — show skeleton
+  if (settingsLoading) {
+    return (
+      <div className="rounded-2xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+        Shelly Cloud beállítások betöltése...
+      </div>
+    );
+  }
 
   // No credentials yet → show inline form
   if (!settings?.hasAuthKey) {
