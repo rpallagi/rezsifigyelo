@@ -145,6 +145,62 @@ export default function MarketingPage() {
     });
   };
 
+  const handleUploadFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    setUploadError("");
+    setUploading(true);
+
+    try {
+      for (const uploadFile of files) {
+        const formData = new FormData();
+        formData.append("file", uploadFile);
+        formData.append("folder", `marketing/${propertyId}/${shotDate}`);
+
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+        const uploadPayload: unknown = await uploadRes.json();
+
+        if (!uploadRes.ok) {
+          if (uploadPayload && typeof uploadPayload === "object" && "error" in uploadPayload && typeof uploadPayload.error === "string") {
+            throw new Error(uploadPayload.error);
+          }
+          throw new Error("A feltöltés nem sikerült.");
+        }
+
+        if (!uploadPayload || typeof uploadPayload !== "object" || !("url" in uploadPayload) || typeof uploadPayload.url !== "string" || !("filename" in uploadPayload) || typeof uploadPayload.filename !== "string") {
+          throw new Error("Érvénytelen feltöltési válasz.");
+        }
+
+        const metadata = {
+          kind: uploadKind,
+          room: roomLabel || undefined,
+          view: viewLabel || undefined,
+          shotDate,
+        };
+
+        await createDocument.mutateAsync({
+          propertyId,
+          filename: uploadPayload.filename,
+          storedUrl: uploadPayload.url,
+          category: "marketing",
+          notes: JSON.stringify(metadata),
+          fileSize: "size" in uploadPayload && typeof uploadPayload.size === "number" ? uploadPayload.size : undefined,
+          mimeType: "type" in uploadPayload && typeof uploadPayload.type === "string" ? uploadPayload.type : undefined,
+        });
+      }
+
+      setUploadFiles([]);
+      setLocalPreviewUrl("");
+      setRoomLabel("");
+      setViewLabel("");
+      setShotDate(todayString());
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "A feltöltés nem sikerült.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleUpload = async () => {
     if (uploadFiles.length === 0) return;
 
@@ -381,6 +437,8 @@ export default function MarketingPage() {
                   const first = files[0];
                   setLocalPreviewUrl(first && first.type.startsWith("image/") ? URL.createObjectURL(first) : "");
                   if (fileInputRef.current) fileInputRef.current.value = "";
+                  // Auto-upload immediately
+                  void handleUploadFiles(files);
                 }}
                 className="hidden"
               />
