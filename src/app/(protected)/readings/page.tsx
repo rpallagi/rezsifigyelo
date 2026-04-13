@@ -1,3 +1,4 @@
+import React from "react";
 import { api } from "@/trpc/server";
 import Link from "next/link";
 import { Zap, Droplets, Flame, TrendingDown, TrendingUp, Minus } from "lucide-react";
@@ -363,47 +364,78 @@ export default async function AllReadingsPage({
         }
         const monthRows = [...monthMap.values()].sort((a, b) => b.month.localeCompare(a.month) || a.propertyName.localeCompare(b.propertyName));
 
+        // Group rows by month for section headers
+        const monthSections: { month: string; rows: typeof monthRows; totalCost: number }[] = [];
+        let currentMonth = "";
+        for (const row of monthRows) {
+          if (row.month !== currentMonth) {
+            currentMonth = row.month;
+            monthSections.push({ month: row.month, rows: [], totalCost: 0 });
+          }
+          const section = monthSections[monthSections.length - 1]!;
+          section.rows.push(row);
+          section.totalCost += row.costHuf;
+        }
+
+        const monthLabel = (m: string) => {
+          const [y, mo] = m.split("-");
+          const months = ["", "Január", "Február", "Március", "Április", "Május", "Június", "Július", "Augusztus", "Szeptember", "Október", "November", "December"];
+          return `${y}. ${months[Number(mo)]}`;
+        };
+
         return monthRows.length === 0 ? (
           <div className="rounded-[24px] bg-card/90 p-8 text-center ring-1 ring-border/60">
             <p className="text-sm text-muted-foreground">Nincs havi adat.</p>
           </div>
         ) : (
           <>
-          {/* Mobile cards */}
-          <div className="space-y-3 md:hidden">
-            {monthRows.map((row) => {
-              const colors = utilityColor(row.utilityType);
-              return (
-                <Link
-                  key={`${row.propertyId}-${row.month}-${row.utilityType}`}
-                  href={`/readings?property=${row.propertyId}`}
-                  className="block rounded-[22px] bg-background/80 p-4 ring-1 ring-border/50 transition hover:bg-secondary/40"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className={`inline-flex rounded-xl p-2 ${colors.bg} ${colors.text}`}>
-                        {utilityIcon(row.utilityType)}
-                      </span>
-                      <div>
-                        <p className="font-semibold">{row.month}</p>
-                        {!activePropertyId && <p className="text-xs text-muted-foreground">{row.propertyName}</p>}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-mono font-bold">{row.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })} {utilityUnits[row.utilityType] ?? ""}</p>
-                      {row.costHuf > 0 && <p className="text-xs text-muted-foreground">{formatCurrency(row.costHuf)}</p>}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+          {/* Mobile cards — grouped by month */}
+          <div className="space-y-6 md:hidden">
+            {monthSections.map((section) => (
+              <div key={section.month}>
+                <div className="flex items-center justify-between px-1 pb-2">
+                  <h3 className="text-sm font-semibold">{monthLabel(section.month)}</h3>
+                  {section.totalCost > 0 && (
+                    <span className="text-xs font-medium text-muted-foreground">{formatCurrency(section.totalCost)}</span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {section.rows.map((row) => {
+                    const colors = utilityColor(row.utilityType);
+                    return (
+                      <Link
+                        key={`${row.propertyId}-${row.month}-${row.utilityType}`}
+                        href={`/readings?property=${row.propertyId}`}
+                        className="block rounded-[22px] bg-background/80 p-4 ring-1 ring-border/50 transition hover:bg-secondary/40"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className={`inline-flex rounded-xl p-2 ${colors.bg} ${colors.text}`}>
+                              {utilityIcon(row.utilityType)}
+                            </span>
+                            <div>
+                              <p className="font-semibold">{!activePropertyId ? row.propertyName : (utilityLabels[row.utilityType] ?? row.utilityType)}</p>
+                              {!activePropertyId && <p className="text-xs text-muted-foreground">{utilityLabels[row.utilityType] ?? row.utilityType}</p>}
+                              {row.isVirtual && <span className="inline-block mt-0.5 rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 text-[9px] font-semibold">Számított</span>}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-mono font-bold ${row.isVirtual ? "text-purple-700 dark:text-purple-300" : ""}`}>{row.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })} {utilityUnits[row.utilityType] ?? ""}</p>
+                            {row.costHuf > 0 && <p className={`text-xs ${row.isVirtual ? "text-purple-500" : "text-muted-foreground"}`}>{formatCurrency(row.costHuf)}</p>}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
-          {/* Desktop table */}
+          {/* Desktop table — grouped by month */}
           <div className="hidden overflow-auto rounded-[16px] border border-border/60 md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-3 font-semibold">Hónap</th>
                   {!activePropertyId && <th className="px-4 py-3 font-semibold">Ingatlan</th>}
                   <th className="px-4 py-3 font-semibold">Közműtípus</th>
                   <th className="px-4 py-3 font-semibold">Fogyasztás</th>
@@ -412,43 +444,55 @@ export default async function AllReadingsPage({
                 </tr>
               </thead>
               <tbody>
-                {monthRows.map((row) => {
-                  const colors = utilityColor(row.utilityType);
-                  return (
-                    <tr
-                      key={`${row.propertyId}-${row.month}-${row.utilityType}`}
-                      className="border-b last:border-b-0 transition hover:bg-secondary/30"
-                    >
-                      <td className="px-4 py-3 font-medium">
-                        <Link href={`/readings?property=${row.propertyId}`} className="hover:text-primary hover:underline">
-                          {row.month}
-                        </Link>
-                      </td>
-                      {!activePropertyId && <td className="px-4 py-3 text-muted-foreground">{row.propertyName}</td>}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-flex rounded-lg p-1.5 ${colors.bg} ${colors.text}`}>
-                            {utilityIcon(row.utilityType)}
+                {monthSections.map((section) => (
+                  <React.Fragment key={section.month}>
+                    <tr>
+                      <td colSpan={activePropertyId ? 4 : 5} className="px-4 pb-1 pt-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            {monthLabel(section.month)}
                           </span>
-                          {utilityLabels[row.utilityType] ?? row.utilityType}
+                          {section.totalCost > 0 && (
+                            <span className="text-xs font-medium text-muted-foreground">{formatCurrency(section.totalCost)}</span>
+                          )}
                         </div>
-                      </td>
-                      <td className={`px-4 py-3 font-mono font-medium ${row.isVirtual ? "text-purple-700 dark:text-purple-300" : ""}`}>
-                        {row.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })} {utilityUnits[row.utilityType] ?? ""}
-                      </td>
-                      <td className={`px-4 py-3 font-medium ${row.isVirtual ? "text-purple-700 dark:text-purple-300" : ""}`}>
-                        {row.costHuf > 0 ? formatCurrency(row.costHuf) : "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {row.isVirtual ? (
-                          <span className="rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 text-xs">Számított</span>
-                        ) : (
-                          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">Okos mérő</span>
-                        )}
+                        <span className="mt-1 block h-px bg-border" />
                       </td>
                     </tr>
-                  );
-                })}
+                    {section.rows.map((row) => {
+                      const colors = utilityColor(row.utilityType);
+                      return (
+                        <tr
+                          key={`${row.propertyId}-${row.month}-${row.utilityType}`}
+                          className="border-b last:border-b-0 transition hover:bg-secondary/30"
+                        >
+                          {!activePropertyId && <td className="px-4 py-3 text-muted-foreground">{row.propertyName}</td>}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-flex rounded-lg p-1.5 ${colors.bg} ${colors.text}`}>
+                                {utilityIcon(row.utilityType)}
+                              </span>
+                              {utilityLabels[row.utilityType] ?? row.utilityType}
+                            </div>
+                          </td>
+                          <td className={`px-4 py-3 font-mono font-medium ${row.isVirtual ? "text-purple-700 dark:text-purple-300" : ""}`}>
+                            {row.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })} {utilityUnits[row.utilityType] ?? ""}
+                          </td>
+                          <td className={`px-4 py-3 font-medium ${row.isVirtual ? "text-purple-700 dark:text-purple-300" : ""}`}>
+                            {row.costHuf > 0 ? formatCurrency(row.costHuf) : "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {row.isVirtual ? (
+                              <span className="rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 text-xs">Számított</span>
+                            ) : (
+                              <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">Okos mérő</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
               </tbody>
             </table>
           </div>
