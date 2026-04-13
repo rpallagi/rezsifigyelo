@@ -15,7 +15,11 @@ export function ClickableRow({
   const router = useRouter();
   return (
     <tr
-      onClick={() => router.push(`/readings/${readingId}`)}
+      onClick={(e) => {
+        // Don't navigate if clicking a link inside the row
+        if ((e.target as HTMLElement).closest("a")) return;
+        router.push(`/readings/${readingId}`);
+      }}
       className={`cursor-pointer border-b border-border/50 transition hover:bg-secondary/40 ${className ?? ""}`}
     >
       {children}
