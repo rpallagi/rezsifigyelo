@@ -430,11 +430,22 @@ export default async function AllReadingsPage({
                               </div>
                             </td>
                             <td className="py-3 text-xs text-muted-foreground">
-                              {r.meterSerialNumber ? (
-                                <div>
-                                  <p className="font-mono">{r.meterSerialNumber}</p>
-                                  {r.meterLocation && <p className="text-[10px] opacity-70">{r.meterLocation}</p>}
-                                </div>
+                              {r.meterInfoId ? (
+                                <Link
+                                  href={`/properties/${r.propertyId}/meters/${r.meterInfoId}/edit`}
+                                  className="hover:text-primary hover:underline"
+                                >
+                                  {r.meterSerialNumber ? (
+                                    <div>
+                                      <p className="font-mono">{r.meterSerialNumber}</p>
+                                      {r.meterLocation && <p className="text-[10px] opacity-70">{r.meterLocation}</p>}
+                                    </div>
+                                  ) : r.meterLocation ? (
+                                    <p>{r.meterLocation}</p>
+                                  ) : (
+                                    <p className="italic">Szerkesztés</p>
+                                  )}
+                                </Link>
                               ) : (
                                 "—"
                               )}
