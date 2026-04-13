@@ -201,10 +201,25 @@ export default async function PropertiesPage({
       }
     }
 
-    // 2) Remaining items: group by exact address match
+    // 2) Remaining items: try to merge into existing groups by address match
+    //    (e.g. Shoebox has same address as Bubbles which is already in a parent group)
     const remaining = items.filter((p) => !seen.has(p.id));
-    const addrMap = new Map<string, typeof sortedProperties>();
     for (const p of remaining) {
+      const addr = (p.address ?? "").trim().toLowerCase();
+      if (!addr) continue;
+      const matchingGroup = grouped.find((g) =>
+        g.items.some((gi) => (gi.address ?? "").trim().toLowerCase() === addr),
+      );
+      if (matchingGroup) {
+        matchingGroup.items.push(p);
+        seen.add(p.id);
+      }
+    }
+
+    // 3) Still remaining: group by exact address match (new groups)
+    const stillRemaining = items.filter((p) => !seen.has(p.id));
+    const addrMap = new Map<string, typeof sortedProperties>();
+    for (const p of stillRemaining) {
       const key = (p.address ?? "").trim().toLowerCase();
       if (!key) continue;
       if (!addrMap.has(key)) addrMap.set(key, []);
