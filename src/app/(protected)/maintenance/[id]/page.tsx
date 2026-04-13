@@ -159,18 +159,22 @@ export default function MaintenanceDetailPage() {
     updateMutation.isPending;
 
   const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !log) return;
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0 || !log) return;
     setUploadingDoc(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("folder", "maintenance");
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
-      const payload = (await res.json()) as { url: string };
+      const urls: string[] = [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", "maintenance");
+        const res = await fetch("/api/upload", { method: "POST", body: formData });
+        if (!res.ok) throw new Error("Upload failed");
+        const payload = (await res.json()) as { url: string };
+        urls.push(payload.url);
+      }
       const currentDocs = (log as Record<string, unknown>).documentUrls as string[] ?? [];
-      updateMutation.mutate({ id, documentUrls: [...currentDocs, payload.url] });
+      updateMutation.mutate({ id, documentUrls: [...currentDocs, ...urls] });
     } catch {
       // upload error silently ignored
     } finally {
@@ -540,6 +544,7 @@ export default function MaintenanceDetailPage() {
           <input
             ref={docInputRef}
             type="file"
+            multiple
             className="hidden"
             onChange={handleDocUpload}
           />

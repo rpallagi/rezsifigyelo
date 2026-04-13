@@ -461,9 +461,10 @@ export default function NewReadingPage() {
             ref={galleryRef}
             type="file"
             accept="image/*"
+            multiple
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void handleFileSelected(f);
+              const files = Array.from(e.target.files ?? []);
+              for (const f of files) void handleFileSelected(f);
             }}
             className="hidden"
           />

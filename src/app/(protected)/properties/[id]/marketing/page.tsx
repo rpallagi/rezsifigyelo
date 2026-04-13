@@ -84,7 +84,7 @@ export default function MarketingPage() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
 
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadKind, setUploadKind] = useState<"photo" | "floorplan">("photo");
   const [roomLabel, setRoomLabel] = useState("");
   const [viewLabel, setViewLabel] = useState("");
@@ -145,12 +145,13 @@ export default function MarketingPage() {
   };
 
   const handleUpload = async () => {
-    if (!uploadFile) return;
+    if (uploadFiles.length === 0) return;
 
     setUploadError("");
     setUploading(true);
 
     try {
+      for (const uploadFile of uploadFiles) {
       const formData = new FormData();
       formData.append("file", uploadFile);
       formData.append("folder", `marketing/${propertyId}/${shotDate}`);
@@ -207,8 +208,9 @@ export default function MarketingPage() {
             ? uploadPayload.type
             : undefined,
       });
+      } // end for loop
 
-      setUploadFile(null);
+      setUploadFiles([]);
       setLocalPreviewUrl("");
       setRoomLabel("");
       setViewLabel("");
@@ -370,10 +372,12 @@ export default function MarketingPage() {
                 <input
                   type="file"
                   accept={uploadKind === "photo" ? "image/*" : ".pdf,image/*"}
+                  multiple
                   onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    setUploadFile(file);
-                    setLocalPreviewUrl(file && file.type.startsWith("image/") ? URL.createObjectURL(file) : "");
+                    const files = Array.from(e.target.files ?? []);
+                    setUploadFiles(files);
+                    const first = files[0];
+                    setLocalPreviewUrl(first && first.type.startsWith("image/") ? URL.createObjectURL(first) : "");
                   }}
                   className="hidden"
                 />
@@ -386,7 +390,7 @@ export default function MarketingPage() {
                           {uploadKind === "photo" ? "Fotó" : "Alaprajz"}
                         </div>
                       </div>
-                      <p className="mt-3 text-center text-sm font-medium">{uploadFile?.name}</p>
+                      <p className="mt-3 text-center text-sm font-medium">{uploadFiles.length > 1 ? `${uploadFiles.length} fájl kiválasztva` : uploadFiles[0]?.name}</p>
                     </div>
                   ) : (
                     <div className="text-center">
@@ -441,7 +445,7 @@ export default function MarketingPage() {
             <button
               type="button"
               onClick={() => void handleUpload()}
-              disabled={!uploadFile || uploading || createDocument.isPending}
+              disabled={uploadFiles.length === 0 || uploading || createDocument.isPending}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {uploading || createDocument.isPending ? (
