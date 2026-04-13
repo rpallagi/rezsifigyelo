@@ -163,17 +163,17 @@ export default function EditMeterPage() {
           />
         </div>
 
-        {/* Location */}
+        {/* Location / Name */}
         <div>
           <label htmlFor="location" className="text-sm font-medium">
-            Helyszín
+            Mérő neve / helyszín
           </label>
           <input
             id="location"
             type="text"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            placeholder="pl. Pince, szekrenyben"
+            placeholder={meterType === "virtual" ? "pl. Shoebox villany (számított)" : "pl. Pince, szekrényben"}
             className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
