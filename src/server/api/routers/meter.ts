@@ -195,7 +195,15 @@ export const meterRouter = createTRPCRouter({
       }
 
       await requireLandlordPropertyAccess(ctx, meter.propertyId);
-      await ctx.db.update(meterInfo).set(data).where(eq(meterInfo.id, id));
+
+      // Build update data — explicitly include virtual meter fields even when null
+      const updateData: Record<string, unknown> = { ...data };
+      if ("primaryMeterId" in input) updateData.primaryMeterId = input.primaryMeterId;
+      if ("subtractMeterIds" in input) updateData.subtractMeterIds = input.subtractMeterIds;
+      if ("meterType" in input) updateData.meterType = input.meterType;
+      if ("formulaType" in input) updateData.formulaType = input.formulaType;
+
+      await ctx.db.update(meterInfo).set(updateData).where(eq(meterInfo.id, id));
     }),
 
   delete: landlordProcedure
