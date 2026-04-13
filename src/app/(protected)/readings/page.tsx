@@ -361,7 +361,38 @@ export default async function AllReadingsPage({
             <p className="text-sm text-muted-foreground">Nincs havi adat.</p>
           </div>
         ) : (
-          <div className="overflow-auto rounded-[16px] border border-border/60">
+          <>
+          {/* Mobile cards */}
+          <div className="space-y-3 md:hidden">
+            {monthRows.map((row) => {
+              const colors = utilityColor(row.utilityType);
+              return (
+                <Link
+                  key={`${row.propertyId}-${row.month}-${row.utilityType}`}
+                  href={`/readings?property=${row.propertyId}`}
+                  className="block rounded-[22px] bg-background/80 p-4 ring-1 ring-border/50 transition hover:bg-secondary/40"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className={`inline-flex rounded-xl p-2 ${colors.bg} ${colors.text}`}>
+                        {utilityIcon(row.utilityType)}
+                      </span>
+                      <div>
+                        <p className="font-semibold">{row.month}</p>
+                        {!activePropertyId && <p className="text-xs text-muted-foreground">{row.propertyName}</p>}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono font-bold">{row.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })} {utilityUnits[row.utilityType] ?? ""}</p>
+                      {row.costHuf > 0 && <p className="text-xs text-muted-foreground">{formatCurrency(row.costHuf)}</p>}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden overflow-auto rounded-[16px] border border-border/60 md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
@@ -376,8 +407,15 @@ export default async function AllReadingsPage({
                 {monthRows.map((row) => {
                   const colors = utilityColor(row.utilityType);
                   return (
-                    <tr key={`${row.propertyId}-${row.month}-${row.utilityType}`} className="border-b last:border-b-0 transition hover:bg-secondary/30">
-                      <td className="px-4 py-3 font-medium">{row.month}</td>
+                    <tr
+                      key={`${row.propertyId}-${row.month}-${row.utilityType}`}
+                      className="border-b last:border-b-0 transition hover:bg-secondary/30"
+                    >
+                      <td className="px-4 py-3 font-medium">
+                        <Link href={`/readings?property=${row.propertyId}`} className="hover:text-primary hover:underline">
+                          {row.month}
+                        </Link>
+                      </td>
                       {!activePropertyId && <td className="px-4 py-3 text-muted-foreground">{row.propertyName}</td>}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -399,6 +437,7 @@ export default async function AllReadingsPage({
               </tbody>
             </table>
           </div>
+          </>
         );
       })()}
 

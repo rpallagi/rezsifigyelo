@@ -372,7 +372,7 @@ export default function MarketingPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept={uploadKind === "photo" ? "image/*" : ".pdf,image/*"}
+                accept={uploadKind === "photo" ? "image/jpeg,image/png,image/heic,image/heif,image/webp" : ".pdf,image/jpeg,image/png,image/heic,image/heif,image/webp"}
                 multiple
                 onChange={(e) => {
                   const files = Array.from(e.target.files ?? []);
