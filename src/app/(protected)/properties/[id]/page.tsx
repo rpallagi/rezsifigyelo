@@ -10,6 +10,7 @@ import { LivePowerBadge } from "@/components/shared/live-power-badge";
 import { api } from "@/trpc/server";
 import { CommonFeeCalendar } from "./common-fee-calendar";
 import { VirtualMeterConsumption } from "@/components/shared/virtual-meter-card";
+import { VirtualReadingsNote } from "@/components/shared/virtual-readings-table";
 
 const UTILITY_META: Record<string, { label: string; unit: string; color: string; icon: typeof Zap }> = {
   villany: { label: "Villany", unit: "kWh", color: "#eab308", icon: Zap },
@@ -896,6 +897,21 @@ export default async function PropertyDetailPage({
                     <div>
                       <p className="text-muted-foreground">Fogyasztás</p>
                       <p className="mt-1 font-medium">{reading.consumption ?? "—"}</p>
+                      {(() => {
+                        const virtualMeter = property.meterInfo.find(
+                          (m) => m.meterType === "virtual" && (m.id === reading.meterInfoId || (!reading.meterInfoId && m.utilityType === reading.utilityType)),
+                        );
+                        if (!virtualMeter) return null;
+                        const tariff = virtualMeter.tariffGroup?.tariffs?.find((t) => t.utilityType === reading.utilityType);
+                        return (
+                          <VirtualReadingsNote
+                            meterId={virtualMeter.id}
+                            readingDate={reading.readingDate}
+                            originalConsumption={reading.consumption}
+                            costPerUnit={tariff?.rateHuf ?? null}
+                          />
+                        );
+                      })()}
                     </div>
                     <div>
                       <p className="text-muted-foreground">Költség</p>
@@ -941,7 +957,24 @@ export default async function PropertyDetailPage({
                         </span>
                       </td>
                       <td className="py-3">{reading.value}</td>
-                      <td className="py-3">{reading.consumption ?? "—"}</td>
+                      <td className="py-3">
+                        {reading.consumption ?? "—"}
+                        {(() => {
+                          const virtualMeter = property.meterInfo.find(
+                            (m) => m.meterType === "virtual" && (m.id === reading.meterInfoId || (!reading.meterInfoId && m.utilityType === reading.utilityType)),
+                          );
+                          if (!virtualMeter) return null;
+                          const tariff = virtualMeter.tariffGroup?.tariffs?.find((t) => t.utilityType === reading.utilityType);
+                          return (
+                            <VirtualReadingsNote
+                              meterId={virtualMeter.id}
+                              readingDate={reading.readingDate}
+                              originalConsumption={reading.consumption}
+                              costPerUnit={tariff?.rateHuf ?? null}
+                            />
+                          );
+                        })()}
+                      </td>
                       <td className="py-3">{formatCurrency(reading.costHuf)}</td>
                       <td className="py-3">
                         {reading.photoUrl ? (
