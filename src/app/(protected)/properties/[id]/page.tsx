@@ -9,6 +9,7 @@ import { Sparkline } from "@/components/shared/sparkline";
 import { LivePowerBadge } from "@/components/shared/live-power-badge";
 import { api } from "@/trpc/server";
 import { CommonFeeCalendar } from "./common-fee-calendar";
+import { VirtualMeterConsumption } from "@/components/shared/virtual-meter-card";
 
 const UTILITY_META: Record<string, { label: string; unit: string; color: string; icon: typeof Zap }> = {
   villany: { label: "Villany", unit: "kWh", color: "#eab308", icon: Zap },
@@ -823,47 +824,9 @@ export default async function PropertyDetailPage({
                     )}
                   </div>
                   {/* Virtual meter: show calculated consumption */}
-                  {meter.meterType === "virtual" && meter.primaryMeterId && (() => {
-                    // Find primary meter's latest reading
-                    const primaryReadings = property.readings.filter(
-                      (r) => r.meterInfoId === meter.primaryMeterId || (
-                        !r.meterInfoId && property.meterInfo.find((m) => m.id === meter.primaryMeterId)?.utilityType === r.utilityType
-                      ),
-                    );
-                    const primaryLatest = primaryReadings.sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0];
-                    const primaryConsumption = primaryLatest?.consumption ?? 0;
-
-                    // Sum subtract meters' consumption
-                    const subtractIds = Array.isArray(meter.subtractMeterIds) ? (meter.subtractMeterIds as number[]) : [];
-                    let subtractTotal = 0;
-                    for (const sid of subtractIds) {
-                      const subReadings = property.readings.filter((r) => r.meterInfoId === sid);
-                      const subLatest = subReadings.sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0];
-                      subtractTotal += subLatest?.consumption ?? 0;
-                    }
-
-                    const calculated = Math.max(0, primaryConsumption - subtractTotal);
-                    const primaryMeterName = meter.primaryMeter?.property?.name ?? "Főmérő";
-
-                    return (
-                      <div className="mt-2 rounded-lg bg-purple-50 dark:bg-purple-950/20 px-2 py-1.5 text-[11px]">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-purple-600 dark:text-purple-400">Számított:</span>
-                          <span className="font-bold tabular-nums text-purple-700 dark:text-purple-300">
-                            {calculated.toLocaleString("hu-HU", { maximumFractionDigits: 1 })} kWh
-                          </span>
-                        </div>
-                        <p className="mt-0.5 text-[10px] text-muted-foreground">
-                          = {primaryMeterName} ({primaryConsumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })})
-                          {subtractIds.map((sid) => {
-                            const subName = property.meterInfo.find((m) => m.id === sid)?.location ?? "almérő";
-                            const subReading = property.readings.filter((r) => r.meterInfoId === sid).sort((a, b) => b.readingDate.localeCompare(a.readingDate))[0];
-                            return ` - ${subName} (${(subReading?.consumption ?? 0).toLocaleString("hu-HU", { maximumFractionDigits: 1 })})`;
-                          })}
-                        </p>
-                      </div>
-                    );
-                  })()}
+                  {meter.meterType === "virtual" && meter.primaryMeterId && (
+                    <VirtualMeterConsumption meterId={meter.id} />
+                  )}
                   <div className="mt-3 flex items-center gap-2">
                     <Link
                       href={meterHref}

@@ -4,7 +4,8 @@ import { eq, and, inArray } from "drizzle-orm";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import { requireLandlordPropertyAccess } from "@/server/api/access";
-import { meterInfo, smartMeterDevices, properties } from "@/server/db/schema";
+import { meterInfo, meterReadings, smartMeterDevices, properties } from "@/server/db/schema";
+import { desc } from "drizzle-orm";
 
 export const meterRouter = createTRPCRouter({
   get: landlordProcedure
@@ -103,6 +104,70 @@ export const meterRouter = createTRPCRouter({
         with: { property: { columns: { id: true, name: true } } },
       });
       return meters;
+    }),
+
+  /** Get calculated consumption for a virtual meter */
+  virtualConsumption: landlordProcedure
+    .input(z.object({ meterId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const meter = await ctx.db.query.meterInfo.findFirst({
+        where: eq(meterInfo.id, input.meterId),
+      });
+      if (!meter || meter.meterType !== "virtual" || !meter.primaryMeterId) return null;
+      await requireLandlordPropertyAccess(ctx, meter.propertyId);
+
+      const subtractIds = Array.isArray(meter.subtractMeterIds) ? (meter.subtractMeterIds as number[]) : [];
+
+      // Get last 12 months of readings for primary meter
+      const primaryReadings = await ctx.db.query.meterReadings.findMany({
+        where: eq(meterReadings.meterInfoId, meter.primaryMeterId),
+        orderBy: [desc(meterReadings.readingDate)],
+        limit: 12,
+      });
+
+      // Get subtract meter readings
+      const subtractReadingsMap = new Map<string, number>(); // date → total subtract
+      for (const sid of subtractIds) {
+        const subReadings = await ctx.db.query.meterReadings.findMany({
+          where: eq(meterReadings.meterInfoId, sid),
+          orderBy: [desc(meterReadings.readingDate)],
+          limit: 12,
+        });
+        for (const r of subReadings) {
+          const date = r.readingDate;
+          subtractReadingsMap.set(date, (subtractReadingsMap.get(date) ?? 0) + (r.consumption ?? 0));
+        }
+      }
+
+      // Calculate per-month
+      const months = primaryReadings.map((pr) => {
+        const subtracted = subtractReadingsMap.get(pr.readingDate) ?? 0;
+        const calculated = Math.max(0, (pr.consumption ?? 0) - subtracted);
+        return {
+          readingDate: pr.readingDate,
+          primaryConsumption: pr.consumption ?? 0,
+          subtractConsumption: subtracted,
+          calculatedConsumption: Math.round(calculated * 100) / 100,
+        };
+      });
+
+      // Get subtract meter names
+      const subtractNames: string[] = [];
+      for (const sid of subtractIds) {
+        const sm = await ctx.db.query.meterInfo.findFirst({
+          where: eq(meterInfo.id, sid),
+          with: { property: { columns: { name: true } } },
+        });
+        subtractNames.push(sm?.property?.name ?? sm?.location ?? "almérő");
+      }
+
+      return {
+        months,
+        latestCalculated: months[0]?.calculatedConsumption ?? null,
+        latestPrimary: months[0]?.primaryConsumption ?? null,
+        latestSubtract: months[0]?.subtractConsumption ?? null,
+        subtractNames,
+      };
     }),
 
   update: landlordProcedure
