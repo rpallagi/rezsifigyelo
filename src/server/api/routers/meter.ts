@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import { requireLandlordPropertyAccess } from "@/server/api/access";
@@ -85,6 +85,18 @@ export const meterRouter = createTRPCRouter({
         columns: { id: true },
       });
       children.forEach((c) => siblingIds.add(c.id));
+
+      // Also find siblings by address match (same landlord, same address)
+      if (property.address) {
+        const addrSiblings = await ctx.db.query.properties.findMany({
+          where: and(
+            eq(properties.landlordId, ctx.dbUser.id),
+            eq(properties.address, property.address),
+          ),
+          columns: { id: true },
+        });
+        addrSiblings.forEach((s) => siblingIds.add(s.id));
+      }
 
       const meters = await ctx.db.query.meterInfo.findMany({
         where: inArray(meterInfo.propertyId, [...siblingIds]),

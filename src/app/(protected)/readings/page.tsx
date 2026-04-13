@@ -434,6 +434,7 @@ export default async function AllReadingsPage({
                                 <Link
                                   href={`/properties/${r.propertyId}/meters/${r.meterInfoId}/edit`}
                                   className="hover:text-primary hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   {r.meterSerialNumber ? (
                                     <div>
