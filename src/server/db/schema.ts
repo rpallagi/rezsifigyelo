@@ -467,6 +467,11 @@ export const meterInfo = createTable(
     photoUrls: d.jsonb().$type<string[]>(),
     // Optional per-meter tariff group override (falls back to property's tariff group)
     tariffGroupId: d.integer().references(() => tariffGroups.id, { onDelete: "set null" }),
+    // Virtual meter support: calculate consumption from other meters
+    meterType: d.varchar({ length: 20 }).notNull().default("physical"), // 'physical' | 'virtual'
+    formulaType: d.varchar({ length: 50 }), // 'subtraction' (main - sub)
+    primaryMeterId: d.integer(), // FK to meterInfo.id — the main meter to read from
+    subtractMeterIds: d.jsonb().$type<number[]>(), // array of meterInfo.id to subtract
     createdAt: d
       .timestamp({ withTimezone: true })
       .$defaultFn(() => new Date())
@@ -1188,6 +1193,11 @@ export const meterInfoRelations = relations(meterInfo, ({ one }) => ({
   tariffGroup: one(tariffGroups, {
     fields: [meterInfo.tariffGroupId],
     references: [tariffGroups.id],
+  }),
+  primaryMeter: one(meterInfo, {
+    fields: [meterInfo.primaryMeterId],
+    references: [meterInfo.id],
+    relationName: "primaryMeter",
   }),
 }));
 

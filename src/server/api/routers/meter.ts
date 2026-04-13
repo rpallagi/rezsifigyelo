@@ -1,10 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import { requireLandlordPropertyAccess } from "@/server/api/access";
-import { meterInfo, smartMeterDevices } from "@/server/db/schema";
+import { meterInfo, smartMeterDevices, properties } from "@/server/db/schema";
 
 export const meterRouter = createTRPCRouter({
   get: landlordProcedure
@@ -12,7 +12,7 @@ export const meterRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const meter = await ctx.db.query.meterInfo.findFirst({
         where: eq(meterInfo.id, input.id),
-        with: { tariffGroup: true },
+        with: { tariffGroup: true, primaryMeter: true },
       });
       if (!meter) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Mérő nem található" });
@@ -56,6 +56,42 @@ export const meterRouter = createTRPCRouter({
       return meter;
     }),
 
+  /** List all meters across a building group (same address / parent) */
+  listByBuilding: landlordProcedure
+    .input(z.object({ propertyId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+      // Find sibling properties (same buildingPropertyId or same address)
+      const property = await ctx.db.query.properties.findFirst({
+        where: eq(properties.id, input.propertyId),
+        columns: { id: true, buildingPropertyId: true, address: true },
+      });
+      if (!property) return [];
+
+      // Collect property IDs in the building group
+      const siblingIds = new Set<number>([input.propertyId]);
+      if (property.buildingPropertyId) {
+        siblingIds.add(property.buildingPropertyId);
+        const siblings = await ctx.db.query.properties.findMany({
+          where: eq(properties.buildingPropertyId, property.buildingPropertyId),
+          columns: { id: true },
+        });
+        siblings.forEach((s) => siblingIds.add(s.id));
+      }
+      // Also check if this property IS a parent
+      const children = await ctx.db.query.properties.findMany({
+        where: eq(properties.buildingPropertyId, input.propertyId),
+        columns: { id: true },
+      });
+      children.forEach((c) => siblingIds.add(c.id));
+
+      const meters = await ctx.db.query.meterInfo.findMany({
+        where: inArray(meterInfo.propertyId, [...siblingIds]),
+        with: { property: { columns: { id: true, name: true } } },
+      });
+      return meters;
+    }),
+
   update: landlordProcedure
     .input(
       z.object({
@@ -64,6 +100,10 @@ export const meterRouter = createTRPCRouter({
         serialNumber: z.string().optional(),
         tariffGroupId: z.number().nullable().optional(),
         photoUrls: z.array(z.string()).optional(),
+        meterType: z.enum(["physical", "virtual"]).optional(),
+        formulaType: z.string().nullable().optional(),
+        primaryMeterId: z.number().nullable().optional(),
+        subtractMeterIds: z.array(z.number()).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

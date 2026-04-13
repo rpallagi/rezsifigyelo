@@ -31,6 +31,14 @@ export default function EditMeterPage() {
   const [serialNumber, setSerialNumber] = useState("");
   const [tariffGroupId, setTariffGroupId] = useState<string>("");
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
+  const [meterType, setMeterType] = useState<"physical" | "virtual">("physical");
+  const [primaryMeterId, setPrimaryMeterId] = useState<string>("");
+  const [subtractMeterIds, setSubtractMeterIds] = useState<number[]>([]);
+
+  const { data: buildingMeters } = api.meter.listByBuilding.useQuery(
+    { propertyId },
+    { enabled: meterType === "virtual" },
+  );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -43,6 +51,9 @@ export default function EditMeterPage() {
       setLocation(meter.location ?? "");
       setSerialNumber(meter.serialNumber ?? "");
       setTariffGroupId(meter.tariffGroupId ? String(meter.tariffGroupId) : "");
+      setMeterType((meter.meterType as "physical" | "virtual") ?? "physical");
+      setPrimaryMeterId(meter.primaryMeterId ? String(meter.primaryMeterId) : "");
+      setSubtractMeterIds(Array.isArray(meter.subtractMeterIds) ? meter.subtractMeterIds as number[] : []);
       if (Array.isArray(meter.photoUrls)) {
         setPhotos(
           (meter.photoUrls as string[]).map((url) => ({
@@ -63,6 +74,10 @@ export default function EditMeterPage() {
         serialNumber: serialNumber || undefined,
         tariffGroupId: tariffGroupId ? Number(tariffGroupId) : null,
         photoUrls: photos.map((p) => p.url),
+        meterType,
+        formulaType: meterType === "virtual" ? "subtraction" : null,
+        primaryMeterId: meterType === "virtual" && primaryMeterId ? Number(primaryMeterId) : null,
+        subtractMeterIds: meterType === "virtual" && subtractMeterIds.length > 0 ? subtractMeterIds : null,
       });
       await utils.property.get.invalidate({ id: propertyId });
       router.push(`/properties/${propertyId}`);
@@ -200,6 +215,93 @@ export default function EditMeterPage() {
             <p className="mt-1 text-xs text-muted-foreground">
               Ha nem valasztasz, az ingatlanhoz rendelt tarifa csoport ervenyes.
             </p>
+          )}
+        </div>
+
+        {/* Virtual meter (calculated consumption) */}
+        <div className="rounded-lg border border-border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">Szamitott fogyasztas</label>
+            <button
+              type="button"
+              onClick={() => setMeterType(meterType === "virtual" ? "physical" : "virtual")}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                meterType === "virtual" ? "bg-primary" : "bg-secondary"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                  meterType === "virtual" ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Fogyasztas = fomero - almero(k). Hasznos ha egy fomero alatt tobb unit van es az egyiknek van sajat meroje.
+          </p>
+
+          {meterType === "virtual" && (
+            <div className="space-y-3 pt-2">
+              {/* Primary meter (main meter) */}
+              <div>
+                <label className="text-sm font-medium">Fomero</label>
+                <select
+                  value={primaryMeterId}
+                  onChange={(e) => setPrimaryMeterId(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="">Valassz fomerot...</option>
+                  {buildingMeters
+                    ?.filter((m) => m.id !== meterId && m.utilityType === meter?.utilityType)
+                    .map((m) => (
+                      <option key={m.id} value={String(m.id)}>
+                        {m.property?.name} — {m.utilityType} {m.serialNumber ? `(${m.serialNumber})` : ""} {m.location ?? ""}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Subtract meters */}
+              <div>
+                <label className="text-sm font-medium">Levonando almero(k)</label>
+                <div className="mt-1 space-y-1.5">
+                  {buildingMeters
+                    ?.filter((m) => m.id !== meterId && m.id !== Number(primaryMeterId) && m.utilityType === meter?.utilityType)
+                    .map((m) => {
+                      const checked = subtractMeterIds.includes(m.id);
+                      return (
+                        <label key={m.id} className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2 text-sm cursor-pointer hover:bg-secondary/80">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setSubtractMeterIds(
+                                checked
+                                  ? subtractMeterIds.filter((id) => id !== m.id)
+                                  : [...subtractMeterIds, m.id],
+                              )
+                            }
+                            className="rounded"
+                          />
+                          {m.property?.name} — {m.utilityType} {m.serialNumber ? `(${m.serialNumber})` : ""} {m.location ?? ""}
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Formula preview */}
+              {primaryMeterId && (
+                <div className="rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs">
+                  <span className="font-medium">Keplet: </span>
+                  {buildingMeters?.find((m) => m.id === Number(primaryMeterId))?.property?.name ?? "Fomero"}
+                  {subtractMeterIds.map((sid) => {
+                    const sm = buildingMeters?.find((m) => m.id === sid);
+                    return ` - ${sm?.property?.name ?? "Almero"}`;
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
 

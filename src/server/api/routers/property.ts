@@ -87,6 +87,7 @@ export const propertyRouter = createTRPCRouter({
           meterInfo: {
             with: {
               tariffGroup: { with: { tariffs: true } },
+              primaryMeter: { with: { property: { columns: { id: true, name: true } } } },
             },
           },
           readings: {
