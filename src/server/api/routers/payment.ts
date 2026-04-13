@@ -90,5 +90,6 @@ export const paymentRouter = createTRPCRouter({
 
       await requireLandlordPropertyAccess(ctx, payment.propertyId);
       await ctx.db.delete(payments).where(eq(payments.id, input.id));
+      return { success: true };
     }),
 });

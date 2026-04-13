@@ -15,7 +15,7 @@ export default function NewPropertyTaxPage() {
   const [bankAccount, setBankAccount] = useState("");
   const [recipient, setRecipient] = useState("");
   const [paymentMemo, setPaymentMemo] = useState("");
-  const [notes, setNotes] = useState("");
+  const [notes, _setNotes] = useState("");
 
   const create = api.propertyTax.create.useMutation({
     onSuccess: () => {

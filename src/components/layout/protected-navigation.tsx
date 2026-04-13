@@ -167,7 +167,7 @@ function ThemeToggle() {
 export function ProtectedNavigation({
   appName,
   sections,
-  createPropertyLabel,
+  createPropertyLabel: _createPropertyLabel,
   landlordProfiles,
   activeLandlordProfileIds,
 }: ProtectedNavigationProps) {

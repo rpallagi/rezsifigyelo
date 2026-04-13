@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 
 import { env } from "@/env";
 import { db } from "@/server/db";
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
 
   switch (event.type) {
     case "checkout.session.completed": {
-      const session = event.data.object as Stripe.Checkout.Session;
+      const session = event.data.object;
       if (session.subscription) {
         const sub = await stripe.subscriptions.retrieve(
           session.subscription as string,
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     }
     case "customer.subscription.created":
     case "customer.subscription.updated":
-      await upsertSubscription(event.data.object as Stripe.Subscription);
+      await upsertSubscription(event.data.object);
       break;
     case "customer.subscription.deleted":
       await db

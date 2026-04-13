@@ -103,10 +103,6 @@ function statusBadge(status: MaintenanceStatus) {
   }
 }
 
-function formatCurrencyHu(value: number) {
-  return new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 }).format(value);
-}
-
 function formatDateHu(dateStr: string | null | undefined) {
   if (!dateStr) return null;
   return new Date(dateStr).toLocaleDateString("hu-HU");
@@ -150,6 +146,7 @@ export default function MaintenanceDetailPage() {
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docUploadError, setDocUploadError] = useState("");
   const docInputRef = useRef<HTMLInputElement>(null);
 
   const anyPending =
@@ -162,6 +159,7 @@ export default function MaintenanceDetailPage() {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0 || !log) return;
     setUploadingDoc(true);
+    setDocUploadError("");
     try {
       const urls: string[] = [];
       for (const file of files) {
@@ -169,14 +167,14 @@ export default function MaintenanceDetailPage() {
         formData.append("file", file);
         formData.append("folder", "maintenance");
         const res = await fetch("/api/upload", { method: "POST", body: formData });
-        if (!res.ok) throw new Error("Upload failed");
+        if (!res.ok) throw new Error("A feltöltés nem sikerült");
         const payload = (await res.json()) as { url: string };
         urls.push(payload.url);
       }
       const currentDocs = (log as Record<string, unknown>).documentUrls as string[] ?? [];
       updateMutation.mutate({ id, documentUrls: [...currentDocs, ...urls] });
-    } catch {
-      // upload error silently ignored
+    } catch (err) {
+      setDocUploadError(err instanceof Error ? err.message : "A feltöltés nem sikerült");
     } finally {
       setUploadingDoc(false);
       if (docInputRef.current) docInputRef.current.value = "";
@@ -548,6 +546,9 @@ export default function MaintenanceDetailPage() {
             className="hidden"
             onChange={handleDocUpload}
           />
+          {docUploadError && (
+            <p className="text-xs text-destructive">{docUploadError}</p>
+          )}
         </div>
       </div>
     </div>

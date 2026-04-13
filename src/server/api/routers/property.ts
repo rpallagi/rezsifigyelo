@@ -236,14 +236,16 @@ export const propertyRouter = createTRPCRouter({
         await requireLandlordPropertyAccess(ctx, data.buildingPropertyId);
       }
 
-      await ctx.db
+      const [updated] = await ctx.db
         .update(properties)
         .set(data)
         .where(
           and(eq(properties.id, id), eq(properties.landlordId, ctx.dbUser.id)),
-        );
+        )
+        .returning();
       revalidatePath("/properties");
       revalidatePath(`/properties/${id}`);
+      return updated;
     }),
 
   archive: landlordProcedure

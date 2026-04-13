@@ -73,6 +73,7 @@ export const wifiRouter = createTRPCRouter({
       }
       await requireLandlordPropertyAccess(ctx, wifi.propertyId);
       await ctx.db.update(wifiNetworks).set(data).where(eq(wifiNetworks.id, id));
+      return { success: true };
     }),
 
   delete: landlordProcedure

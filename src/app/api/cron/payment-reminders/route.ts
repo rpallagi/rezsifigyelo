@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, isNull, lt, or } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import { chatMessages, invoices, properties, tenancies } from "@/server/db/schema";
@@ -147,8 +147,6 @@ export async function GET(req: NextRequest) {
   const twoWeeksFromNow = new Date(now);
   twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
   const twoWeeksStr = twoWeeksFromNow.toISOString().split("T")[0]!;
-  const todayStr = now.toISOString().split("T")[0]!;
-
   const expiringTenancies = await db.query.tenancies.findMany({
     where: and(
       eq(tenancies.active, true),

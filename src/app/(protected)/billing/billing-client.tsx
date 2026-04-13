@@ -431,14 +431,9 @@ function NewInvoiceForm({
     selectedProperty?.landlordProfile?.id ??
     selectedProfileId ??
     defaultProfile?.id;
-  const selectedProfile =
-    landlordProfiles?.find((p) => p.id === effectiveProfileId) ?? null;
-
   const { data: invoiceSettings } = api.invoice.getSettings.useQuery(
     effectiveProfileId ? { profileId: effectiveProfileId } : undefined,
   );
-
-  const providerConfigured = invoiceSettings?.configured ?? false;
 
   const previewEnabled = propertyId != null;
   const preview = api.invoice.preview.useQuery(

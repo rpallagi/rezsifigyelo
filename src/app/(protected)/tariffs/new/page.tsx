@@ -28,8 +28,8 @@ export default function NewTariffGroupPage() {
     <div className="mx-auto max-w-lg">
       <h1 className="text-2xl font-bold">Új tarifa csoport</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        A tarifa csoport az ingatlanokhoz rendelhető díjszabás. Pl. "Lakás" vagy
-        "Üzleti" tarifa.
+        A tarifa csoport az ingatlanokhoz rendelhető díjszabás. Pl. &bdquo;Lakás&rdquo; vagy
+        &bdquo;Üzleti&rdquo; tarifa.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-5">

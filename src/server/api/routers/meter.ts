@@ -211,6 +211,7 @@ export const meterRouter = createTRPCRouter({
       if ("formulaType" in input) updateData.formulaType = input.formulaType;
 
       await ctx.db.update(meterInfo).set(updateData).where(eq(meterInfo.id, id));
+      return { success: true };
     }),
 
   delete: landlordProcedure

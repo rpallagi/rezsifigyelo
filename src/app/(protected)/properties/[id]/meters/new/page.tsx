@@ -18,7 +18,6 @@ import {
   Check,
   Camera,
   ImageIcon,
-  Upload,
   Loader2,
   Copy,
   CheckCheck,
@@ -129,7 +128,7 @@ export default function NewMeterPage() {
   const [meterLocationPhotos, setMeterLocationPhotos] = useState<UploadedPhoto[]>([]);
   const [tariffGroupId, setTariffGroupId] = useState<string>("");
   const [initialReading, setInitialReading] = useState("");
-  const [photoUrl, setPhotoUrl] = useState<string | undefined>();
+  const [_photoUrl, setPhotoUrl] = useState<string | undefined>();
   const [photoPreview, setPhotoPreview] = useState<string | undefined>();
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 

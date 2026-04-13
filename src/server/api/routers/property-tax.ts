@@ -75,5 +75,6 @@ export const propertyTaxRouter = createTRPCRouter({
           .set({ springPaid: true, springPaidDate: today })
           .where(eq(propertyTaxes.id, input.id));
       }
+      return { success: true };
     }),
 });

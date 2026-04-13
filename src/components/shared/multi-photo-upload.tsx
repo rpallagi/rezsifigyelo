@@ -92,7 +92,7 @@ export function MultiPhotoUpload({
               key={`${p.url}-${i}`}
               className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-muted/50"
             >
-              {p.preview || p.url.match(/\.(jpe?g|png|webp|gif)/i) ? (
+              {p.preview || (/\.(jpe?g|png|webp|gif)/i.exec(p.url)) ? (
                 <img
                   src={p.preview ?? p.url}
                   alt={p.name}

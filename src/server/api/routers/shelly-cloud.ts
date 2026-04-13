@@ -327,7 +327,7 @@ export const shellyCloudRouter = createTRPCRouter({
             }>
           | undefined;
         const apiDevice = devices?.[0];
-        if (!apiDevice || apiDevice.online !== 1) return null;
+        if (apiDevice?.online !== 1) return null;
 
         // Determine which phases are physically reversed (CT flipped)
         const reversed = new Set((device?.shellyReversedPhases ?? "").split(",").map((s: string) => s.trim().toUpperCase()).filter(Boolean));

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { appSettings } from "@/server/db/schema";
 import type { db } from "@/server/db";
@@ -82,10 +82,5 @@ export async function deleteInvoiceSettings(
 
   await database
     .delete(appSettings)
-    .where(
-      and(
-        inArray(appSettings.key, keys),
-        eq(appSettings.key, appSettings.key),
-      ),
-    );
+    .where(inArray(appSettings.key, keys));
 }

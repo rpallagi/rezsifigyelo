@@ -275,7 +275,7 @@ export default async function MaintenancePage({
 }) {
   const params = await searchParams;
   const locale = await getCurrentLocale();
-  const m = getMessages(locale);
+  const _m = getMessages(locale);
   const [properties, logs] = await Promise.all([
     api.property.list(),
     api.maintenance.list({}),

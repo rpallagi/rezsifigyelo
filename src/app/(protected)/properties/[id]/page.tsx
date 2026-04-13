@@ -223,17 +223,8 @@ export default async function PropertyDetailPage({
     : pendingInvitation
       ? pendingInvitation.tenantName ?? pendingInvitation.tenantEmail
       : "Nincs aktív bérlő";
-  const buyerName =
-    property.billingName ??
-    (activeTenancy ? formatTenantName(activeTenancy.tenant) : null) ??
-    activeTenancy?.tenantName ??
-    property.contactName ??
-    property.name;
   const buyerEmail =
     property.billingEmail ?? activeTenancy?.tenant?.email ?? activeTenancy?.tenantEmail ?? property.contactEmail ?? null;
-  const unpaidTaxSeasons = property.propertyTaxes.reduce((count, tax) => {
-    return count + (tax.springPaid ? 0 : 1) + (tax.autumnPaid ? 0 : 1);
-  }, 0);
   const primaryActions = [
     {
       href: `/properties/${property.id}/readings/new`,
@@ -352,6 +343,7 @@ export default async function PropertyDetailPage({
                 {property.address}
               </p>
             )}
+            {/* eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- 0 area should be falsy */}
             {(property.buildingArea || property.landArea) && (
               <p className="mt-1.5 text-sm text-white/60">
                 {[
@@ -634,7 +626,7 @@ export default async function PropertyDetailPage({
                 : null;
 
               // MoM change (vs previous month)
-              const momPct = latest && prev && prev.consumption
+              const momPct = latest && prev?.consumption
                 ? Math.round(((latest.consumption! - prev.consumption) / prev.consumption) * 100)
                 : null;
 

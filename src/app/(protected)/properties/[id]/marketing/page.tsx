@@ -305,7 +305,7 @@ export default function MarketingPage() {
             <div className="absolute inset-x-4 bottom-4">
               <p className="text-lg font-semibold tracking-tight text-white">{property?.name}</p>
               <p className="mt-1 text-xs text-white/72">
-                {property?.address || "Nincs cím megadva"}
+                {property?.address ?? "Nincs cím megadva"}
               </p>
             </div>
           </div>
@@ -566,7 +566,7 @@ export default function MarketingPage() {
                     <div>
                       <p className="truncate text-sm font-semibold">{doc.filename}</p>
                       <p className="text-xs text-muted-foreground">
-                        {meta?.shotDate || new Date(doc.uploadedAt).toLocaleDateString("hu-HU")}
+                        {meta?.shotDate ?? new Date(doc.uploadedAt).toLocaleDateString("hu-HU")}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -640,7 +640,7 @@ export default function MarketingPage() {
                   <div>
                     <p className="text-sm font-semibold">{doc.filename}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {meta?.shotDate || new Date(doc.uploadedAt).toLocaleDateString("hu-HU")}
+                      {meta?.shotDate ?? new Date(doc.uploadedAt).toLocaleDateString("hu-HU")}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">

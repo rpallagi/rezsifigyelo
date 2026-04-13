@@ -6,8 +6,6 @@ import {
   smartMeterDevices,
   smartMeterLogs,
   meterReadings,
-  properties,
-  tariffs,
 } from "@/server/db/schema";
 
 /**

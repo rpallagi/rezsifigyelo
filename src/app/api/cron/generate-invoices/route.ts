@@ -6,7 +6,7 @@ import {
   commonFees,
   invoiceItems,
   invoices,
-  landlordProfiles,
+  type landlordProfiles,
   meterReadings,
   properties,
   tenancies,
@@ -18,7 +18,7 @@ import { createInvoiceWithSzamlazz } from "@/server/billing/szamlazz";
 // Helpers (mirrored from invoice.ts to avoid tRPC context dependency)
 // ---------------------------------------------------------------------------
 
-const HUNGARIAN_MONTHS = [
+const _HUNGARIAN_MONTHS = [
   "januar",
   "februar",
   "marcius",
@@ -412,7 +412,7 @@ async function processProperty(
 
     // Build items
     const missingReadingsMode = property.autoBillingMissingReadings;
-    const { items, warnings } = await buildItemsForProperty(
+    const { items } = await buildItemsForProperty(
       property,
       periodFrom,
       periodTo,

@@ -52,6 +52,7 @@ export const todoRouter = createTRPCRouter({
         .update(todos)
         .set(updateData)
         .where(and(eq(todos.id, id), eq(todos.landlordId, ctx.dbUser.id)));
+      return { success: true };
     }),
 
   delete: protectedProcedure
@@ -60,5 +61,6 @@ export const todoRouter = createTRPCRouter({
       await ctx.db
         .delete(todos)
         .where(and(eq(todos.id, input.id), eq(todos.landlordId, ctx.dbUser.id)));
+      return { success: true };
     }),
 });

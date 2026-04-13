@@ -39,7 +39,7 @@ export default function ConditionPage() {
   const [rating, setRating] = useState(existingData.rating ?? "");
   const [notes, setNotes] = useState(existingData.notes ?? "");
   const [photos, setPhotos] = useState<string[]>(existingData.photos ?? []);
-  const [saving, setSaving] = useState(false);
+  const [_saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function ConditionPage() {
     }
   }, [checklist, loaded]);
 
-  const handleSave = async () => {
+  const _handleSave = async () => {
     if (!checklist) return;
     setSaving(true);
     try {

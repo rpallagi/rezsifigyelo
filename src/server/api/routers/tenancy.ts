@@ -292,6 +292,8 @@ export const tenancyRouter = createTRPCRouter({
           tenantPhone: input.tenantPhone,
           moveInDate: input.moveInDate,
           depositAmount: input.depositAmount,
+          leaseMonths: input.leaseMonths,
+          leaseEndDate: computeLeaseEndDate(input.moveInDate, input.leaseMonths),
           active: true,
         })
         .returning();

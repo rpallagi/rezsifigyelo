@@ -320,7 +320,7 @@ export default function MoveInWizardPage() {
                   {property.name}
                 </p>
                 <p className="mt-1 text-sm text-white/72">
-                  {property.address || "Nincs cím megadva"}
+                  {property.address ?? "Nincs cím megadva"}
                 </p>
               </div>
             </div>
@@ -876,7 +876,7 @@ export default function MoveInWizardPage() {
             </p>
             <h3 className="mt-2 text-xl font-semibold tracking-tight">{property.name}</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              {property.address || "Nincs cím megadva"}
+              {property.address ?? "Nincs cím megadva"}
             </p>
             <div className="mt-5 space-y-3">
               <div className="flex items-center justify-between text-sm">

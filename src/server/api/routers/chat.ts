@@ -42,12 +42,14 @@ export const chatRouter = createTRPCRouter({
     return props.map((p) => {
       const l = byId.get(p.id);
       const tenancy = p.tenancies[0];
+      /* eslint-disable @typescript-eslint/prefer-nullish-coalescing -- intentional: empty strings should fall through */
       const tenantName =
         [tenancy?.tenant?.firstName, tenancy?.tenant?.lastName].filter(Boolean).join(" ").trim() ||
         tenancy?.tenantName ||
         tenancy?.tenant?.email ||
         tenancy?.tenantEmail ||
         null;
+      /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
       return {
         id: p.id,
         name: p.name,

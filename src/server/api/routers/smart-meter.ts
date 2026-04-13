@@ -114,6 +114,7 @@ export const smartMeterRouter = createTRPCRouter({
         .update(smartMeterDevices)
         .set(data)
         .where(eq(smartMeterDevices.id, id));
+      return { success: true };
     }),
 
   logs: landlordProcedure

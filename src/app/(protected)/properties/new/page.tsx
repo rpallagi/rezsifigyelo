@@ -68,13 +68,6 @@ export default function NewPropertyPage() {
     });
   };
 
-  const typeLabels = {
-    lakas: "Lakás",
-    uzlet: "Üzlet",
-    telek: "Telek",
-    egyeb: "Egyéb",
-  };
-
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-bold">Új ingatlan</h1>
