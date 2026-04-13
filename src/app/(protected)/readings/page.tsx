@@ -154,10 +154,11 @@ function computeTrendCards(readings: Reading[]) {
 export default async function AllReadingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ property?: string }>;
+  searchParams: Promise<{ property?: string; view?: string }>;
 }) {
   const params = await searchParams;
   const activePropertyId = params.property ? Number(params.property) : null;
+  const viewMode = params.view === "monthly" ? "monthly" : "readings";
 
   const [allReadings, propertyList] = await Promise.all([
     api.reading.listAll(),
@@ -276,22 +277,46 @@ export default async function AllReadingsPage({
         })}
       </div>
 
+      {/* View mode toggle */}
+      <div className="flex items-center gap-2">
+        <Link
+          href={`/readings${activePropertyId ? `?property=${activePropertyId}` : ""}`}
+          className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+            viewMode === "readings"
+              ? "bg-foreground text-background"
+              : "border border-border/70 bg-card text-foreground hover:bg-secondary"
+          }`}
+        >
+          Leolvasasok
+        </Link>
+        <Link
+          href={`/readings?view=monthly${activePropertyId ? `&property=${activePropertyId}` : ""}`}
+          className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+            viewMode === "monthly"
+              ? "bg-foreground text-background"
+              : "border border-border/70 bg-card text-foreground hover:bg-secondary"
+          }`}
+        >
+          Havi fogyasztas
+        </Link>
+      </div>
+
       {/* Property filter tabs */}
       <div className="flex flex-wrap gap-2">
         <Link
-          href="/readings"
+          href={`/readings${viewMode === "monthly" ? "?view=monthly" : ""}`}
           className={`rounded-full px-4 py-2 text-sm font-medium transition ${
             activePropertyId == null
               ? "bg-primary text-primary-foreground"
               : "border border-border/70 bg-card text-foreground hover:bg-secondary"
           }`}
         >
-          Összes
+          Osszes
         </Link>
         {propertyList.map((property) => (
           <Link
             key={property.id}
-            href={`/readings?property=${property.id}`}
+            href={`/readings?property=${property.id}${viewMode === "monthly" ? "&view=monthly" : ""}`}
             className={`rounded-full px-4 py-2 text-sm font-medium transition ${
               activePropertyId === property.id
                 ? "bg-primary text-primary-foreground"
@@ -303,11 +328,85 @@ export default async function AllReadingsPage({
         ))}
       </div>
 
+      {/* Monthly consumption view */}
+      {viewMode === "monthly" && (() => {
+        // Group by month + utility type
+        type MonthRow = { month: string; utilityType: string; consumption: number; costHuf: number; count: number; propertyName: string; propertyId: number };
+        const monthMap = new Map<string, MonthRow>();
+        for (const r of filteredReadings) {
+          if (r.consumption == null || r.consumption <= 0) continue;
+          const month = r.readingDate.substring(0, 7); // "2026-04"
+          const key = `${r.propertyId}-${month}-${r.utilityType}`;
+          const existing = monthMap.get(key);
+          if (existing) {
+            existing.consumption += r.consumption;
+            existing.costHuf += r.costHuf ?? 0;
+            existing.count++;
+          } else {
+            monthMap.set(key, {
+              month,
+              utilityType: r.utilityType,
+              consumption: r.consumption,
+              costHuf: r.costHuf ?? 0,
+              count: 1,
+              propertyName: r.propertyName ?? "",
+              propertyId: r.propertyId,
+            });
+          }
+        }
+        const monthRows = [...monthMap.values()].sort((a, b) => b.month.localeCompare(a.month) || a.propertyName.localeCompare(b.propertyName));
+
+        return monthRows.length === 0 ? (
+          <div className="rounded-[24px] bg-card/90 p-8 text-center ring-1 ring-border/60">
+            <p className="text-sm text-muted-foreground">Nincs havi adat.</p>
+          </div>
+        ) : (
+          <div className="overflow-auto rounded-[16px] border border-border/60">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="px-4 py-3 font-semibold">Honap</th>
+                  {!activePropertyId && <th className="px-4 py-3 font-semibold">Ingatlan</th>}
+                  <th className="px-4 py-3 font-semibold">Kozmu</th>
+                  <th className="px-4 py-3 font-semibold">Fogyasztas</th>
+                  <th className="px-4 py-3 font-semibold">Koltseg</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monthRows.map((row) => {
+                  const colors = utilityColor(row.utilityType);
+                  return (
+                    <tr key={`${row.propertyId}-${row.month}-${row.utilityType}`} className="border-b last:border-b-0 transition hover:bg-secondary/30">
+                      <td className="px-4 py-3 font-medium">{row.month}</td>
+                      {!activePropertyId && <td className="px-4 py-3 text-muted-foreground">{row.propertyName}</td>}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex rounded-lg p-1.5 ${colors.bg} ${colors.text}`}>
+                            {utilityIcon(row.utilityType)}
+                          </span>
+                          {utilityLabels[row.utilityType] ?? row.utilityType}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-mono font-medium">
+                        {row.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })} {utilityUnits[row.utilityType] ?? ""}
+                      </td>
+                      <td className="px-4 py-3 font-medium">
+                        {row.costHuf > 0 ? formatCurrency(row.costHuf) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
+
       {/* Readings list */}
-      {filteredReadings.length === 0 ? (
+      {viewMode === "readings" && (filteredReadings.length === 0 ? (
         <div className="rounded-[24px] bg-card/90 p-8 text-center ring-1 ring-border/60">
           <p className="text-sm text-muted-foreground">
-            Még nincs leolvasás rögzítve.
+            Meg nincs leolvasas rogzitve.
           </p>
         </div>
       ) : (
@@ -473,7 +572,7 @@ export default async function AllReadingsPage({
             ),
           )}
         </div>
-      )}
+      ))}
     </div>
   );
 }
