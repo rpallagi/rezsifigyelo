@@ -1194,11 +1194,6 @@ export const meterInfoRelations = relations(meterInfo, ({ one }) => ({
     fields: [meterInfo.tariffGroupId],
     references: [tariffGroups.id],
   }),
-  primaryMeter: one(meterInfo, {
-    fields: [meterInfo.primaryMeterId],
-    references: [meterInfo.id],
-    relationName: "primaryMeter",
-  }),
 }));
 
 export const meterReadingsRelations = relations(meterReadings, ({ one }) => ({

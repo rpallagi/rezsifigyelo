@@ -13,7 +13,7 @@ export const meterRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const meter = await ctx.db.query.meterInfo.findFirst({
         where: eq(meterInfo.id, input.id),
-        with: { tariffGroup: true, primaryMeter: true },
+        with: { tariffGroup: true },
       });
       if (!meter) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Mérő nem található" });
