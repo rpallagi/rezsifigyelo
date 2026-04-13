@@ -356,6 +356,11 @@ export default async function AllReadingsPage({
                               </p>
                               <p className="mt-0.5 text-sm text-muted-foreground">
                                 {formatDate(r.readingDate)}
+                                {(r.meterLocation || r.meterSerialNumber) && (
+                                  <span className="ml-1 text-xs opacity-70">
+                                    · {r.meterLocation ?? r.meterSerialNumber}
+                                  </span>
+                                )}
                               </p>
                             </div>
                           </div>

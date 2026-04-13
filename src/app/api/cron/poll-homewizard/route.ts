@@ -8,6 +8,7 @@ import {
   meterReadings,
   properties,
 } from "@/server/db/schema";
+import { calculateReadingCost } from "@/server/api/tariff-calc";
 import { getHomeWizardCredentials } from "@/server/api/routers/homewizard";
 import { getToken, fetchHistory } from "@/server/homewizard/client";
 
@@ -114,6 +115,15 @@ export async function GET(req: NextRequest) {
         });
 
         const value = prev ? prev.value + consumption : consumption;
+        const roundedConsumption = Math.round(consumption * 100) / 100;
+
+        const { costHuf, tariffId } = await calculateReadingCost(db, {
+          propertyId: device.propertyId,
+          utilityType: device.utilityType,
+          meterInfoId: device.meterInfoId,
+          consumption: roundedConsumption,
+          readingDate,
+        });
 
         const [reading] = await db
           .insert(meterReadings)
@@ -122,7 +132,9 @@ export async function GET(req: NextRequest) {
             utilityType: device.utilityType,
             value: Math.round(value * 100) / 100,
             prevValue: prev?.value ?? null,
-            consumption: Math.round(consumption * 100) / 100,
+            consumption: roundedConsumption,
+            costHuf,
+            tariffId,
             readingDate,
             source: "smart_mqtt",
             meterInfoId: device.meterInfoId,

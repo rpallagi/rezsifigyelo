@@ -127,6 +127,7 @@ export default function NewMeterPage() {
   const [location, setLocation] = useState("");
   const [meterNotes, setMeterNotes] = useState("");
   const [meterLocationPhotos, setMeterLocationPhotos] = useState<UploadedPhoto[]>([]);
+  const [tariffGroupId, setTariffGroupId] = useState<string>("");
   const [initialReading, setInitialReading] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | undefined>();
   const [photoPreview, setPhotoPreview] = useState<string | undefined>();
@@ -151,6 +152,7 @@ export default function NewMeterPage() {
   const galleryRef = useRef<HTMLInputElement>(null);
 
   /* ---- mutations ---- */
+  const { data: tariffGroups } = api.tariff.listGroups.useQuery();
   const createMeter = api.meter.create.useMutation();
   const createSmartMeter = api.smartMeter.create.useMutation();
   const recordReading = api.reading.record.useMutation();
@@ -238,6 +240,7 @@ export default function NewMeterPage() {
         serialNumber: serialNumber || undefined,
         location: location || undefined,
         photoUrls: meterLocationPhotos.length > 0 ? meterLocationPhotos.map((p) => p.url) : undefined,
+        tariffGroupId: tariffGroupId ? Number(tariffGroupId) : undefined,
       });
 
       // 2. If smart: create smart meter device
@@ -507,6 +510,23 @@ export default function NewMeterPage() {
             placeholder="pl. Előszoba, Pince"
             className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
+        </div>
+
+        {/* Tariff group */}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium">Tarifa csoport</label>
+          <select
+            value={tariffGroupId}
+            onChange={(e) => setTariffGroupId(e.target.value)}
+            className="w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">Ingatlan alapértelmezése</option>
+            {tariffGroups?.map((group) => (
+              <option key={group.id} value={String(group.id)}>
+                {group.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Notes */}

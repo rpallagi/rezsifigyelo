@@ -3,6 +3,7 @@ import { eq, and, desc } from "drizzle-orm";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
 import { appSettings, smartMeterDevices, meterReadings, meterInfo, smartMeterLogs } from "@/server/db/schema";
+import { calculateReadingCost } from "@/server/api/tariff-calc";
 import {
   getToken,
   listLocations,
@@ -171,13 +172,24 @@ export const homewizardRouter = createTRPCRouter({
 
         const consumption = entry.importKwh;
         const value = prev ? prev.value + consumption : cumulativeKwh;
+        const roundedConsumption = Math.round(consumption * 100) / 100;
+
+        const { costHuf, tariffId } = await calculateReadingCost(ctx.db, {
+          propertyId: device.propertyId,
+          utilityType: device.utilityType,
+          meterInfoId: device.meterInfoId,
+          consumption: roundedConsumption,
+          readingDate,
+        });
 
         await ctx.db.insert(meterReadings).values({
           propertyId: device.propertyId,
           utilityType: device.utilityType,
           value: Math.round(value * 100) / 100,
           prevValue: prev?.value ?? null,
-          consumption: Math.round(consumption * 100) / 100,
+          consumption: roundedConsumption,
+          costHuf,
+          tariffId,
           readingDate,
           source: "smart_mqtt",
           meterInfoId: device.meterInfoId,
