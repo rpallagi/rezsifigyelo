@@ -125,8 +125,9 @@ export const meterRouter = createTRPCRouter({
         limit: 12,
       });
 
-      // Get subtract meter readings
-      const subtractReadingsMap = new Map<string, number>(); // date → total subtract
+      // Get subtract meter readings — indexed by both exact date and month
+      const subByDate = new Map<string, number>();
+      const subByMonth = new Map<string, number>();
       for (const sid of subtractIds) {
         const subReadings = await ctx.db.query.meterReadings.findMany({
           where: eq(meterReadings.meterInfoId, sid),
@@ -134,14 +135,20 @@ export const meterRouter = createTRPCRouter({
           limit: 12,
         });
         for (const r of subReadings) {
-          const date = r.readingDate;
-          subtractReadingsMap.set(date, (subtractReadingsMap.get(date) ?? 0) + (r.consumption ?? 0));
+          subByDate.set(r.readingDate, (subByDate.get(r.readingDate) ?? 0) + (r.consumption ?? 0));
+          const month = r.readingDate.substring(0, 7);
+          if (!subByMonth.has(month)) {
+            subByMonth.set(month, r.consumption ?? 0);
+          } else {
+            subByMonth.set(month, (subByMonth.get(month) ?? 0) + (r.consumption ?? 0));
+          }
         }
       }
 
-      // Calculate per-month
+      // Calculate per-month — try exact date first, fallback to month
       const months = primaryReadings.map((pr) => {
-        const subtracted = subtractReadingsMap.get(pr.readingDate) ?? 0;
+        const readingMonth = pr.readingDate.substring(0, 7);
+        const subtracted = subByDate.get(pr.readingDate) ?? subByMonth.get(readingMonth) ?? 0;
         const calculated = Math.max(0, (pr.consumption ?? 0) - subtracted);
         return {
           readingDate: pr.readingDate,

@@ -62,11 +62,19 @@ export const readingRouter = createTRPCRouter({
             .where(inArray(meterReadings.meterInfoId, [...subtractMeterIds]))
         : [];
 
-      // Index subtract readings by meterId+date
-      const subIndex = new Map<string, number>();
+      // Index subtract readings by meterId+date AND meterId+month
+      const subByDate = new Map<string, number>();
+      const subByMonth = new Map<string, number>();
       for (const sr of subtractReadings) {
         if (sr.meterInfoId && sr.consumption != null) {
-          subIndex.set(`${sr.meterInfoId}:${sr.readingDate}`, sr.consumption);
+          subByDate.set(`${sr.meterInfoId}:${sr.readingDate}`, sr.consumption);
+          // Also index by month (YYYY-MM) — use the latest reading for the month
+          const month = sr.readingDate.substring(0, 7);
+          const monthKey = `${sr.meterInfoId}:${month}`;
+          const existing = subByMonth.get(monthKey);
+          if (!existing || sr.readingDate > (existing ? sr.readingDate : "")) {
+            subByMonth.set(monthKey, sr.consumption);
+          }
         }
       }
 
@@ -91,8 +99,12 @@ export const readingRouter = createTRPCRouter({
 
         const sids = Array.isArray(vm.subtractMeterIds) ? (vm.subtractMeterIds as number[]) : [];
         let subtractTotal = 0;
+        const readingMonth = r.readingDate.substring(0, 7);
         for (const sid of sids) {
-          subtractTotal += subIndex.get(`${sid}:${r.readingDate}`) ?? 0;
+          // Try exact date first, fallback to month
+          subtractTotal += subByDate.get(`${sid}:${r.readingDate}`)
+            ?? subByMonth.get(`${sid}:${readingMonth}`)
+            ?? 0;
         }
         const calc = Math.max(0, r.consumption - subtractTotal);
         const rate = tariffRates.get(vm.id);
