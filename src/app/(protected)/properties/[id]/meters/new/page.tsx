@@ -155,7 +155,8 @@ export default function NewMeterPage() {
   const createSmartMeter = api.smartMeter.create.useMutation();
   const recordReading = api.reading.record.useMutation();
   const importShellyHistory = api.shellyCloud.importHistory.useMutation();
-  const [importResult, setImportResult] = useState<{ imported: number; firstMonth?: string; lastMonth?: string; totalKwh?: number } | null>(null);
+  const importHWHistory = api.homewizard.importHistory.useMutation();
+  const [importResult, setImportResult] = useState<{ imported: number; firstMonth?: string; lastMonth?: string; totalKwh?: number; months?: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -166,7 +167,8 @@ export default function NewMeterPage() {
     createMeter.isPending ||
     createSmartMeter.isPending ||
     recordReading.isPending ||
-    importShellyHistory.isPending;
+    importShellyHistory.isPending ||
+    importHWHistory.isPending;
 
   const mutationError =
     createMeter.error ?? createSmartMeter.error ?? recordReading.error;
@@ -249,18 +251,18 @@ export default function NewMeterPage() {
           name: deviceName || undefined,
           mqttTopic: smartSource === "mqtt" ? (mqttTopic || `rezsi/${deviceId}`) : undefined,
           ttnAppId: smartSource === "ttn" ? (ttnAppId || undefined) : undefined,
-          shellyDeviceId: smartSource === "shelly_cloud" ? deviceId : undefined,
+          shellyDeviceId: (smartSource === "shelly_cloud" || smartSource === ("homewizard" as typeof smartSource)) ? deviceId : undefined,
           shellyAuthKey: smartSource === "shelly_cloud" ? shellyAuthKey : undefined,
           shellyServer: smartSource === "shelly_cloud" ? shellyServer : undefined,
-          valueField: smartSource === "shelly_cloud" ? "total_act" : valueField,
-          multiplier: smartSource === "shelly_cloud" ? 0.001 : multiplier,
-          offset: smartSource === "shelly_cloud" ? 0 : offset,
+          valueField: smartSource === "shelly_cloud" ? "total_act" : smartSource === ("homewizard" as typeof smartSource) ? "total_power_import_kwh" : valueField,
+          multiplier: smartSource === "shelly_cloud" ? 0.001 : smartSource === ("homewizard" as typeof smartSource) ? 1 : multiplier,
+          offset: smartSource === "shelly_cloud" ? 0 : smartSource === ("homewizard" as typeof smartSource) ? 0 : offset,
           minIntervalMinutes: minInterval,
         });
         createdSmartMeterId = result?.id;
       }
 
-      // 2b. If Shelly Cloud: import historical data automatically
+      // 2b. Auto-import historical data for cloud-connected meters
       if (smartSource === "shelly_cloud" && createdSmartMeterId) {
         try {
           const res = await importShellyHistory.mutateAsync({
@@ -270,6 +272,18 @@ export default function NewMeterPage() {
           setImportResult(res);
         } catch (err) {
           console.error("Shelly history import failed:", err);
+          setImportResult({ imported: 0 });
+        }
+      }
+      if (smartSource === ("homewizard" as typeof smartSource) && createdSmartMeterId) {
+        try {
+          const res = await importHWHistory.mutateAsync({
+            smartMeterId: createdSmartMeterId,
+            monthsBack: 12,
+          });
+          setImportResult({ imported: res.imported, months: res.months });
+        } catch (err) {
+          console.error("HomeWizard history import failed:", err);
           setImportResult({ imported: 0 });
         }
       }
