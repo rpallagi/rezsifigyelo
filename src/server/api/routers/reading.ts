@@ -98,10 +98,17 @@ export const readingRouter = createTRPCRouter({
         if (!vm || !r.consumption) return { ...r, virtualConsumption: null, virtualCostHuf: null };
 
         const sids = Array.isArray(vm.subtractMeterIds) ? (vm.subtractMeterIds as number[]) : [];
+
+        // Only calculate for monthly readings (1st of month) — daily readings
+        // can't be accurately subtracted from monthly Shelly data
+        const isMonthlyReading = r.readingDate.endsWith("-01");
+        if (!isMonthlyReading) {
+          return { ...r, virtualConsumption: null, virtualCostHuf: null };
+        }
+
         let subtractTotal = 0;
         const readingMonth = r.readingDate.substring(0, 7);
         for (const sid of sids) {
-          // Try exact date first, fallback to month
           subtractTotal += subByDate.get(`${sid}:${r.readingDate}`)
             ?? subByMonth.get(`${sid}:${readingMonth}`)
             ?? 0;

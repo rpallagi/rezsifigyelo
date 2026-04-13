@@ -335,7 +335,7 @@ export default async function AllReadingsPage({
       {/* Monthly consumption view */}
       {viewMode === "monthly" && (() => {
         // Group by month + utility type
-        type MonthRow = { month: string; utilityType: string; consumption: number; costHuf: number; count: number; propertyName: string; propertyId: number };
+        type MonthRow = { month: string; utilityType: string; consumption: number; costHuf: number; count: number; propertyName: string; propertyId: number; isVirtual: boolean };
         const monthMap = new Map<string, MonthRow>();
         for (const r of filteredReadings) {
           const cons = r.virtualConsumption ?? r.consumption;
@@ -354,6 +354,7 @@ export default async function AllReadingsPage({
               utilityType: r.utilityType,
               consumption: cons,
               costHuf: cost ?? 0,
+              isVirtual: r.virtualConsumption != null,
               count: 1,
               propertyName: r.propertyName ?? "",
               propertyId: r.propertyId,
@@ -407,6 +408,7 @@ export default async function AllReadingsPage({
                   <th className="px-4 py-3 font-semibold">Közműtípus</th>
                   <th className="px-4 py-3 font-semibold">Fogyasztás</th>
                   <th className="px-4 py-3 font-semibold">Költség</th>
+                  <th className="px-4 py-3 font-semibold">Forrás</th>
                 </tr>
               </thead>
               <tbody>
@@ -431,11 +433,18 @@ export default async function AllReadingsPage({
                           {utilityLabels[row.utilityType] ?? row.utilityType}
                         </div>
                       </td>
-                      <td className="px-4 py-3 font-mono font-medium">
+                      <td className={`px-4 py-3 font-mono font-medium ${row.isVirtual ? "text-purple-700 dark:text-purple-300" : ""}`}>
                         {row.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })} {utilityUnits[row.utilityType] ?? ""}
                       </td>
-                      <td className="px-4 py-3 font-medium">
+                      <td className={`px-4 py-3 font-medium ${row.isVirtual ? "text-purple-700 dark:text-purple-300" : ""}`}>
                         {row.costHuf > 0 ? formatCurrency(row.costHuf) : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {row.isVirtual ? (
+                          <span className="rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 text-xs">Számított</span>
+                        ) : (
+                          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">Okos mérő</span>
+                        )}
                       </td>
                     </tr>
                   );
