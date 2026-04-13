@@ -98,11 +98,15 @@ type Reading = {
   meterInfoId: number | null;
   meterSerialNumber: string | null;
   meterLocation: string | null;
+  meterType: string | null;
+  tariffGroupId: number | null;
   value: number;
   consumption: number | null;
   costHuf: number | null;
   readingDate: string;
   source: string;
+  virtualConsumption: number | null;
+  virtualCostHuf: number | null;
 };
 
 function computeTrendCards(readings: Reading[]) {
@@ -334,20 +338,22 @@ export default async function AllReadingsPage({
         type MonthRow = { month: string; utilityType: string; consumption: number; costHuf: number; count: number; propertyName: string; propertyId: number };
         const monthMap = new Map<string, MonthRow>();
         for (const r of filteredReadings) {
-          if (r.consumption == null || r.consumption <= 0) continue;
+          const cons = r.virtualConsumption ?? r.consumption;
+          const cost = r.virtualCostHuf ?? r.costHuf;
+          if (cons == null || cons <= 0) continue;
           const month = r.readingDate.substring(0, 7); // "2026-04"
           const key = `${r.propertyId}-${month}-${r.utilityType}`;
           const existing = monthMap.get(key);
           if (existing) {
-            existing.consumption += r.consumption;
-            existing.costHuf += r.costHuf ?? 0;
+            existing.consumption += cons;
+            existing.costHuf += cost ?? 0;
             existing.count++;
           } else {
             monthMap.set(key, {
               month,
               utilityType: r.utilityType,
-              consumption: r.consumption,
-              costHuf: r.costHuf ?? 0,
+              consumption: cons,
+              costHuf: cost ?? 0,
               count: 1,
               propertyName: r.propertyName ?? "",
               propertyId: r.propertyId,
@@ -509,24 +515,28 @@ export default async function AllReadingsPage({
                         <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
                           <div>
                             <p className="text-muted-foreground">Fogyasztás</p>
-                            <p className="mt-1 font-medium">
-                              {r.consumption != null
-                                ? `${r.consumption.toFixed(2)} ${utilityUnits[r.utilityType] ?? ""}`
-                                : "—"}
+                            <p className={`mt-1 font-medium ${r.virtualConsumption != null ? "text-purple-700 dark:text-purple-300" : ""}`}>
+                              {r.virtualConsumption != null
+                                ? `${r.virtualConsumption.toFixed(1)} ${utilityUnits[r.utilityType] ?? ""}`
+                                : r.consumption != null
+                                  ? `${r.consumption.toFixed(2)} ${utilityUnits[r.utilityType] ?? ""}`
+                                  : "—"}
                             </p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Költség</p>
-                            <p className="mt-1 font-medium">
-                              {formatCurrency(r.costHuf)}
+                            <p className={`mt-1 font-medium ${r.virtualCostHuf != null ? "text-purple-700 dark:text-purple-300" : ""}`}>
+                              {formatCurrency(r.virtualCostHuf ?? r.costHuf)}
                             </p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Forrás</p>
                             <p className="mt-1">
-                              <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">
-                                {sourceLabel(r.source)}
-                              </span>
+                              {r.virtualConsumption != null ? (
+                                <span className="rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 text-xs">Számított</span>
+                              ) : (
+                                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">{sourceLabel(r.source)}</span>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -573,6 +583,9 @@ export default async function AllReadingsPage({
                                   href={`/properties/${r.propertyId}/meters/${r.meterInfoId}/edit`}
                                   className="hover:text-primary hover:underline"
                                 >
+                                  {r.meterType === "virtual" && (
+                                    <span className="mb-0.5 inline-block rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 text-[9px] font-semibold uppercase">Számított</span>
+                                  )}
                                   {r.meterSerialNumber ? (
                                     <div>
                                       <p className="font-mono">{r.meterSerialNumber}</p>
@@ -590,16 +603,22 @@ export default async function AllReadingsPage({
                             </td>
                             <td className="py-3">{formatDate(r.readingDate)}</td>
                             <td className="py-3 font-mono">{r.value}</td>
-                            <td className="py-3">
-                              {r.consumption != null
-                                ? `${r.consumption.toFixed(2)} ${utilityUnits[r.utilityType] ?? ""}`
-                                : "—"}
+                            <td className={`py-3 ${r.virtualConsumption != null ? "text-purple-700 dark:text-purple-300 font-medium" : ""}`}>
+                              {r.virtualConsumption != null
+                                ? `${r.virtualConsumption.toFixed(1)} ${utilityUnits[r.utilityType] ?? ""}`
+                                : r.consumption != null
+                                  ? `${r.consumption.toFixed(2)} ${utilityUnits[r.utilityType] ?? ""}`
+                                  : "—"}
                             </td>
-                            <td className="py-3">{formatCurrency(r.costHuf)}</td>
+                            <td className={`py-3 ${r.virtualCostHuf != null ? "text-purple-700 dark:text-purple-300 font-medium" : ""}`}>
+                              {formatCurrency(r.virtualCostHuf ?? r.costHuf)}
+                            </td>
                             <td className="py-3">
-                              <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">
-                                {sourceLabel(r.source)}
-                              </span>
+                              {r.virtualConsumption != null ? (
+                                <span className="rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 text-xs">Számított</span>
+                              ) : (
+                                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">{sourceLabel(r.source)}</span>
+                              )}
                             </td>
                           </ClickableRow>
                         );

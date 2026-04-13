@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq, and, desc, lt, lte } from "drizzle-orm";
+import { eq, and, desc, lt, lte, inArray } from "drizzle-orm";
 
 import {
   createTRPCRouter,
@@ -21,6 +21,8 @@ export const readingRouter = createTRPCRouter({
         meterInfoId: meterReadings.meterInfoId,
         meterSerialNumber: meterInfo.serialNumber,
         meterLocation: meterInfo.location,
+        meterType: meterInfo.meterType,
+        tariffGroupId: meterInfo.tariffGroupId,
         value: meterReadings.value,
         consumption: meterReadings.consumption,
         costHuf: meterReadings.costHuf,
@@ -33,7 +35,76 @@ export const readingRouter = createTRPCRouter({
       .where(eq(properties.landlordId, ctx.dbUser.id))
       .orderBy(desc(meterReadings.readingDate))
       .limit(200);
-    return rows;
+
+    // Enrich virtual meter readings with calculated consumption
+    const virtualMeters = await ctx.db.query.meterInfo.findMany({
+      where: eq(meterInfo.meterType, "virtual"),
+    });
+    if (virtualMeters.length > 0) {
+      // Build a map of meterInfoId → virtual meter config
+      const vmMap = new Map(virtualMeters.map((vm) => [vm.id, vm]));
+
+      // Get all subtract meter readings for date matching
+      const subtractMeterIds = new Set<number>();
+      for (const vm of virtualMeters) {
+        if (Array.isArray(vm.subtractMeterIds)) {
+          (vm.subtractMeterIds as number[]).forEach((id) => subtractMeterIds.add(id));
+        }
+      }
+      const subtractReadings = subtractMeterIds.size > 0
+        ? await ctx.db
+            .select({
+              meterInfoId: meterReadings.meterInfoId,
+              readingDate: meterReadings.readingDate,
+              consumption: meterReadings.consumption,
+            })
+            .from(meterReadings)
+            .where(inArray(meterReadings.meterInfoId, [...subtractMeterIds]))
+        : [];
+
+      // Index subtract readings by meterId+date
+      const subIndex = new Map<string, number>();
+      for (const sr of subtractReadings) {
+        if (sr.meterInfoId && sr.consumption != null) {
+          subIndex.set(`${sr.meterInfoId}:${sr.readingDate}`, sr.consumption);
+        }
+      }
+
+      // Get tariff rates for virtual meters
+      const tariffRates = new Map<number, number>();
+      for (const vm of virtualMeters) {
+        if (vm.tariffGroupId) {
+          const t = await ctx.db.query.tariffs.findFirst({
+            where: and(
+              eq(tariffs.tariffGroupId, vm.tariffGroupId),
+              eq(tariffs.utilityType, vm.utilityType),
+            ),
+            orderBy: [desc(tariffs.validFrom)],
+          });
+          if (t) tariffRates.set(vm.id, t.rateHuf);
+        }
+      }
+
+      return rows.map((r) => {
+        const vm = r.meterInfoId ? vmMap.get(r.meterInfoId) : null;
+        if (!vm || !r.consumption) return { ...r, virtualConsumption: null, virtualCostHuf: null };
+
+        const sids = Array.isArray(vm.subtractMeterIds) ? (vm.subtractMeterIds as number[]) : [];
+        let subtractTotal = 0;
+        for (const sid of sids) {
+          subtractTotal += subIndex.get(`${sid}:${r.readingDate}`) ?? 0;
+        }
+        const calc = Math.max(0, r.consumption - subtractTotal);
+        const rate = tariffRates.get(vm.id);
+        return {
+          ...r,
+          virtualConsumption: Math.round(calc * 100) / 100,
+          virtualCostHuf: rate ? Math.round(calc * rate * 100) / 100 : null,
+        };
+      });
+    }
+
+    return rows.map((r) => ({ ...r, virtualConsumption: null, virtualCostHuf: null }));
   }),
 
   list: protectedProcedure
