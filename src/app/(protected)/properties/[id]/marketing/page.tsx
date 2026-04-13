@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import {
   Camera,
@@ -84,6 +84,7 @@ export default function MarketingPage() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadKind, setUploadKind] = useState<"photo" | "floorplan">("photo");
   const [roomLabel, setRoomLabel] = useState("");
@@ -368,19 +369,25 @@ export default function MarketingPage() {
               <label className="block text-sm font-medium">
                 Fájl <span className="text-destructive">*</span>
               </label>
-              <label className="mt-2 block cursor-pointer overflow-hidden rounded-2xl border border-dashed border-border bg-background/70 transition hover:bg-secondary/40">
-                <input
-                  type="file"
-                  accept={uploadKind === "photo" ? "image/*" : ".pdf,image/*"}
-                  multiple
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files ?? []);
-                    setUploadFiles(files);
-                    const first = files[0];
-                    setLocalPreviewUrl(first && first.type.startsWith("image/") ? URL.createObjectURL(first) : "");
-                  }}
-                  className="hidden"
-                />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={uploadKind === "photo" ? "image/*" : ".pdf,image/*"}
+                multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  if (files.length === 0) return;
+                  setUploadFiles(files);
+                  const first = files[0];
+                  setLocalPreviewUrl(first && first.type.startsWith("image/") ? URL.createObjectURL(first) : "");
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                className="hidden"
+              />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-2 cursor-pointer overflow-hidden rounded-2xl border border-dashed border-border bg-background/70 transition hover:bg-secondary/40"
+              >
                 <div className="grid min-h-[220px] place-items-center p-4">
                   {localPreviewUrl ? (
                     <div className="w-full">
@@ -406,7 +413,7 @@ export default function MarketingPage() {
                     </div>
                   )}
                 </div>
-              </label>
+              </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
