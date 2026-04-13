@@ -55,7 +55,7 @@ export function HomeWizardDevicePicker({
     return (
       <div className="space-y-3">
         <p className="text-xs font-medium text-muted-foreground">
-          Valaszd ki az eszkozt:
+          Válaszd ki az eszközt:
         </p>
         {locations.map((loc) =>
           loc.devices
@@ -96,7 +96,7 @@ export function HomeWizardDevicePicker({
             onClick={() => connect.reset()}
             className="text-xs text-muted-foreground hover:underline"
           >
-            Masik fiok
+            Másik fiók
           </button>
         )}
       </div>
@@ -134,7 +134,7 @@ export function HomeWizardDevicePicker({
         {connect.isPending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          "Csatlakozas"
+          "Csatlakozás"
         )}
       </button>
       {error && <p className="text-xs text-destructive">{error}</p>}

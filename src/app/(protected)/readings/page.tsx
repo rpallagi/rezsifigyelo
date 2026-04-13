@@ -287,7 +287,7 @@ export default async function AllReadingsPage({
               : "border border-border/70 bg-card text-foreground hover:bg-secondary"
           }`}
         >
-          Leolvasasok
+          Leolvasások
         </Link>
         <Link
           href={`/readings?view=monthly${activePropertyId ? `&property=${activePropertyId}` : ""}`}
@@ -297,7 +297,7 @@ export default async function AllReadingsPage({
               : "border border-border/70 bg-card text-foreground hover:bg-secondary"
           }`}
         >
-          Havi fogyasztas
+          Havi fogyasztás
         </Link>
       </div>
 
@@ -311,7 +311,7 @@ export default async function AllReadingsPage({
               : "border border-border/70 bg-card text-foreground hover:bg-secondary"
           }`}
         >
-          Osszes
+          Összes
         </Link>
         {propertyList.map((property) => (
           <Link
@@ -396,11 +396,11 @@ export default async function AllReadingsPage({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-3 font-semibold">Honap</th>
+                  <th className="px-4 py-3 font-semibold">Hónap</th>
                   {!activePropertyId && <th className="px-4 py-3 font-semibold">Ingatlan</th>}
-                  <th className="px-4 py-3 font-semibold">Kozmu</th>
-                  <th className="px-4 py-3 font-semibold">Fogyasztas</th>
-                  <th className="px-4 py-3 font-semibold">Koltseg</th>
+                  <th className="px-4 py-3 font-semibold">Közműtípus</th>
+                  <th className="px-4 py-3 font-semibold">Fogyasztás</th>
+                  <th className="px-4 py-3 font-semibold">Költség</th>
                 </tr>
               </thead>
               <tbody>

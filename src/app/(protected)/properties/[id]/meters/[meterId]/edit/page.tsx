@@ -108,7 +108,7 @@ export default function EditMeterPage() {
   if (!meter) {
     return (
       <div className="mx-auto max-w-lg py-12 text-center">
-        <p className="text-muted-foreground">Mero nem talalhato.</p>
+        <p className="text-muted-foreground">Mérő nem található.</p>
         <Link href={`/properties/${propertyId}`} className="mt-4 inline-block text-primary hover:underline">
           Vissza
         </Link>
@@ -133,7 +133,7 @@ export default function EditMeterPage() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-xl font-semibold">Meroora szerkesztes</h1>
+          <h1 className="text-xl font-semibold">Mérőóra szerkesztés</h1>
           <p className="text-sm text-muted-foreground">
             {utilityLabels[meter.utilityType] ?? meter.utilityType}
           </p>
@@ -144,14 +144,14 @@ export default function EditMeterPage() {
       <div className="space-y-5 rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border/60">
         {/* Utility type (read-only) */}
         <div>
-          <label className="text-sm font-medium text-muted-foreground">Kozmu tipus</label>
+          <label className="text-sm font-medium text-muted-foreground">Közműtípus</label>
           <p className="mt-1 font-medium">{utilityLabels[meter.utilityType] ?? meter.utilityType}</p>
         </div>
 
         {/* Serial number */}
         <div>
           <label htmlFor="serialNumber" className="text-sm font-medium">
-            Gyari szam
+            Gyári szám
           </label>
           <input
             id="serialNumber"
@@ -166,7 +166,7 @@ export default function EditMeterPage() {
         {/* Location */}
         <div>
           <label htmlFor="location" className="text-sm font-medium">
-            Helyszin
+            Helyszín
           </label>
           <input
             id="location"
@@ -213,7 +213,7 @@ export default function EditMeterPage() {
           )}
           {!tariffGroupId && (
             <p className="mt-1 text-xs text-muted-foreground">
-              Ha nem valasztasz, az ingatlanhoz rendelt tarifa csoport ervenyes.
+              Ha nem választasz, az ingatlanhoz rendelt tarifa csoport érvényes.
             </p>
           )}
         </div>
@@ -221,7 +221,7 @@ export default function EditMeterPage() {
         {/* Virtual meter (calculated consumption) */}
         <div className="rounded-lg border border-border p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">Szamitott fogyasztas</label>
+            <label className="text-sm font-medium">Számított fogyasztás</label>
             <button
               type="button"
               onClick={() => setMeterType(meterType === "virtual" ? "physical" : "virtual")}
@@ -237,20 +237,20 @@ export default function EditMeterPage() {
             </button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Fogyasztas = fomero - almero(k). Hasznos ha egy fomero alatt tobb unit van es az egyiknek van sajat meroje.
+            Fogyasztás = főmérő - almérő(k). Hasznos ha egy főmérő alatt több unit van és az egyiknek van saját mérője.
           </p>
 
           {meterType === "virtual" && (
             <div className="space-y-3 pt-2">
               {/* Primary meter (main meter) */}
               <div>
-                <label className="text-sm font-medium">Fomero</label>
+                <label className="text-sm font-medium">Főmérő</label>
                 <select
                   value={primaryMeterId}
                   onChange={(e) => setPrimaryMeterId(e.target.value)}
                   className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                 >
-                  <option value="">Valassz fomerot...</option>
+                  <option value="">Válassz főmérőt...</option>
                   {buildingMeters
                     ?.filter((m) => m.utilityType === meter?.utilityType)
                     .map((m) => (
@@ -263,7 +263,7 @@ export default function EditMeterPage() {
 
               {/* Subtract meters */}
               <div>
-                <label className="text-sm font-medium">Levonando almero(k)</label>
+                <label className="text-sm font-medium">Levonandó almérő(k)</label>
                 <div className="mt-1 space-y-1.5">
                   {buildingMeters
                     ?.filter((m) => m.id !== Number(primaryMeterId) && m.utilityType === meter?.utilityType)
@@ -293,11 +293,11 @@ export default function EditMeterPage() {
               {/* Formula preview */}
               {primaryMeterId && (
                 <div className="rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs">
-                  <span className="font-medium">Keplet: </span>
-                  {buildingMeters?.find((m) => m.id === Number(primaryMeterId))?.property?.name ?? "Fomero"}
+                  <span className="font-medium">Képlet: </span>
+                  {buildingMeters?.find((m) => m.id === Number(primaryMeterId))?.property?.name ?? "Főmérő"}
                   {subtractMeterIds.map((sid) => {
                     const sm = buildingMeters?.find((m) => m.id === sid);
-                    return ` - ${sm?.property?.name ?? "Almero"}`;
+                    return ` - ${sm?.property?.name ?? "Almérő"}`;
                   })}
                 </div>
               )}
@@ -311,7 +311,7 @@ export default function EditMeterPage() {
           onChange={setPhotos}
           folder={`meters/${meterId}`}
           maxPhotos={5}
-          label="Merofotok"
+          label="Mérőfotók"
         />
       </div>
 
@@ -323,13 +323,13 @@ export default function EditMeterPage() {
           className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          Mentes
+          Mentés
         </button>
         <Link
           href={`/properties/${propertyId}`}
           className="flex items-center justify-center rounded-full bg-secondary px-4 py-3 text-sm font-medium transition hover:bg-secondary/80"
         >
-          Megse
+          Mégse
         </Link>
       </div>
 
@@ -341,12 +341,12 @@ export default function EditMeterPage() {
             className="flex items-center gap-2 text-sm text-destructive hover:underline"
           >
             <Trash2 className="h-4 w-4" />
-            Meroora torlese
+            Mérőóra törlése
           </button>
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-destructive">
-              Biztosan torlod ezt a merorat? A hozzatartozo okos mero kapcsolat is torlodik.
+              Biztosan törlöd ezt a mérőórát? A hozzátartozó okos mérő kapcsolat is törlődik.
             </p>
             <div className="flex gap-2">
               <button
@@ -355,13 +355,13 @@ export default function EditMeterPage() {
                 className="flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-50"
               >
                 {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
-                Igen, torles
+                Igen, törlés
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
                 className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium transition hover:bg-secondary/80"
               >
-                Megse
+                Mégse
               </button>
             </div>
           </div>

@@ -29,7 +29,7 @@ export function VirtualReadingsNote({
 
   return (
     <div className="mt-1 rounded bg-purple-50 dark:bg-purple-950/20 px-2 py-1 text-[10px] text-purple-700 dark:text-purple-300">
-      Szamitott: <span className="font-bold">{calc.toLocaleString("hu-HU", { maximumFractionDigits: 1 })} kWh</span>
+      Számított: <span className="font-bold">{calc.toLocaleString("hu-HU", { maximumFractionDigits: 1 })} kWh</span>
       {calcCost != null && (
         <span className="ml-2">{formatCurrency(calcCost)}</span>
       )}

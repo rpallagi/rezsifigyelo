@@ -61,11 +61,11 @@ export default function HomeWizardSettingsPage() {
       </div>
 
       <div className="mt-6 space-y-4 rounded-lg border border-border p-6">
-        <h3 className="font-semibold">Fiok beallitasok</h3>
+        <h3 className="font-semibold">Fiók beállítások</h3>
 
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs dark:border-blue-900 dark:bg-blue-950/30">
           <p className="font-semibold text-blue-900 dark:text-blue-200">
-            Hogyan mukodik?
+            Hogyan működik?
           </p>
           <ol className="mt-1.5 space-y-1 text-blue-800 dark:text-blue-300">
             <li>
@@ -94,7 +94,7 @@ export default function HomeWizardSettingsPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Jelszo</label>
+          <label className="block text-sm font-medium">Jelszó</label>
           <input
             type="password"
             value={password}
@@ -120,7 +120,7 @@ export default function HomeWizardSettingsPage() {
             {saveSettings.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              "Mentes"
+              "Mentés"
             )}
           </button>
           <button
