@@ -9,10 +9,13 @@ import {
   appSettings,
   properties,
 } from "@/server/db/schema";
+import { calculateReadingCost } from "@/server/api/tariff-calc";
 
 /**
  * Vercel Cron — polls Shelly Cloud API for all active shelly_cloud devices.
- * Runs every 5 minutes.
+ * Runs daily at 06:00 UTC.
+ * - Updates live power for all devices
+ * - Creates daily reading for yesterday's consumption
  * GET /api/cron/poll-shelly
  */
 
@@ -150,53 +153,111 @@ export async function GET(req: NextRequest) {
           .where(eq(smartMeterDevices.id, device.id));
       }
 
-      // Only create a new reading once per month (on the 1st, or if no reading yet this month)
-      const today = new Date();
-      const currentMonth = today.toISOString().slice(0, 7); // YYYY-MM
-      const existingConditions = [
-        eq(meterReadings.propertyId, device.propertyId),
-        eq(meterReadings.utilityType, device.utilityType),
-      ];
-      if (device.meterInfoId) {
-        existingConditions.push(eq(meterReadings.meterInfoId, device.meterInfoId));
-      }
-      const existingThisMonth = await db.query.meterReadings.findFirst({
-        where: and(...existingConditions),
-        orderBy: [desc(meterReadings.readingDate), desc(meterReadings.id)],
+      // Create daily reading for yesterday's consumption using Shelly Cloud statistics API
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yyyy = yesterday.getFullYear();
+      const mm = String(yesterday.getMonth() + 1).padStart(2, "0");
+      const dd = String(yesterday.getDate()).padStart(2, "0");
+      const readingDate = `${yyyy}-${mm}-${dd}`;
+
+      // Check if reading already exists for yesterday
+      const existingReading = await db.query.meterReadings.findFirst({
+        where: and(
+          eq(meterReadings.propertyId, device.propertyId),
+          eq(meterReadings.utilityType, device.utilityType),
+          eq(meterReadings.readingDate, readingDate),
+          ...(device.meterInfoId ? [eq(meterReadings.meterInfoId, device.meterInfoId)] : []),
+        ),
       });
 
-      const isFirstOfMonth = today.getDate() === 1;
-      const latestReadingMonth = existingThisMonth?.readingDate?.slice(0, 7);
-      const shouldCreateReading = isFirstOfMonth && latestReadingMonth !== currentMonth;
-
-      if (!shouldCreateReading) {
+      if (existingReading) {
         results.push({ deviceId: device.deviceId, status: "power_only", value: livePower });
         continue;
       }
 
-      // Extract cumulative energy for monthly reading
-      const rawValue = shellyData.emdataStatus?.total_act;
-      if (rawValue === undefined) {
-        results.push({ deviceId: device.deviceId, status: "no_em_data" });
+      // Fetch yesterday's consumption from Shelly Cloud statistics
+      let dailyConsumption: number | null = null;
+      try {
+        const shellyId = device.shellyDeviceId ?? device.deviceId;
+        const statsUrl = `https://${creds.serverHost}/v2/statistics/power-consumption/em-3p?auth_key=${creds.authKey}`;
+        const statsRes = await fetch(statsUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: shellyId,
+            date_range: "day",
+            date: `${yyyy}-${mm}-${dd}`,
+            channel: device.shellyChannel ?? 0,
+          }),
+        });
+        if (statsRes.ok) {
+          const statsData = await statsRes.json() as { data?: { total?: number }; total?: number };
+          // total is in Wh, convert to kWh
+          const totalWh = statsData.data?.total ?? statsData.total ?? 0;
+          dailyConsumption = totalWh / 1000;
+          // Handle reversed phases
+          if (dailyConsumption < 0) dailyConsumption = Math.abs(dailyConsumption);
+        }
+      } catch {
+        // Fallback to cumulative reading if stats API fails
+      }
+
+      // Fallback: use cumulative energy from device status
+      if (dailyConsumption === null || dailyConsumption === 0) {
+        const rawValue = shellyData.emdataStatus?.total_act;
+        if (rawValue !== undefined) {
+          const finalValue = rawValue * device.multiplier + device.offset;
+          const prevReading = await db.query.meterReadings.findFirst({
+            where: and(
+              eq(meterReadings.propertyId, device.propertyId),
+              eq(meterReadings.utilityType, device.utilityType),
+            ),
+            orderBy: [desc(meterReadings.readingDate)],
+          });
+          if (prevReading) {
+            dailyConsumption = finalValue - prevReading.value;
+            if (dailyConsumption < 0) dailyConsumption = 0;
+          }
+        }
+      }
+
+      if (!dailyConsumption || dailyConsumption <= 0) {
+        results.push({ deviceId: device.deviceId, status: "no_consumption", value: livePower });
         continue;
       }
 
-      // Apply multiplier + offset (default: Wh → kWh = multiplier 0.001)
-      const finalValue = rawValue * device.multiplier + device.offset;
+      // Get previous reading for cumulative value
+      const prevReading = await db.query.meterReadings.findFirst({
+        where: and(
+          eq(meterReadings.propertyId, device.propertyId),
+          eq(meterReadings.utilityType, device.utilityType),
+        ),
+        orderBy: [desc(meterReadings.readingDate)],
+      });
 
-      const prevValue = existingThisMonth?.value ?? null;
-      const consumption = prevValue !== null ? finalValue - prevValue : null;
+      const value = prevReading ? prevReading.value + dailyConsumption : dailyConsumption;
+      const consumption = Math.round(dailyConsumption * 100) / 100;
 
-      const readingDate = `${currentMonth}-01`;
+      const { costHuf, tariffId } = await calculateReadingCost(db, {
+        propertyId: device.propertyId,
+        utilityType: device.utilityType,
+        meterInfoId: device.meterInfoId,
+        consumption,
+        readingDate,
+      });
+
       const [reading] = await db
         .insert(meterReadings)
         .values({
           propertyId: device.propertyId,
           utilityType: device.utilityType,
           meterInfoId: device.meterInfoId,
-          value: finalValue,
-          prevValue,
+          value: Math.round(value * 100) / 100,
+          prevValue: prevReading?.value ?? null,
           consumption,
+          costHuf,
+          tariffId,
           readingDate,
           source: "smart_mqtt",
           notes: `Auto: Shelly Cloud · ${device.name ?? device.deviceId}`,
@@ -207,14 +268,14 @@ export async function GET(req: NextRequest) {
       await db.insert(smartMeterLogs).values({
         deviceId: device.deviceId,
         source: "shelly_cloud",
-        rawPayload: JSON.stringify(shellyData),
-        parsedValue: rawValue,
-        finalValue,
+        rawPayload: JSON.stringify({ dailyConsumption, readingDate }),
+        parsedValue: dailyConsumption,
+        finalValue: value,
         status: "ok",
         readingId: reading?.id,
       });
 
-      results.push({ deviceId: device.deviceId, status: "ok", value: finalValue });
+      results.push({ deviceId: device.deviceId, status: "ok", value: consumption });
     } catch (error) {
       console.error(`[cron] poll-shelly error for ${device.deviceId}:`, error);
       results.push({ deviceId: device.deviceId, status: "error" });

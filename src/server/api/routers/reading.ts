@@ -67,14 +67,11 @@ export const readingRouter = createTRPCRouter({
       const subByMonth = new Map<string, number>();
       for (const sr of subtractReadings) {
         if (sr.meterInfoId && sr.consumption != null) {
-          subByDate.set(`${sr.meterInfoId}:${sr.readingDate}`, sr.consumption);
-          // Also index by month (YYYY-MM) — use the latest reading for the month
-          const month = sr.readingDate.substring(0, 7);
+          const srDate = typeof sr.readingDate === "string" ? sr.readingDate : (sr.readingDate as Date).toISOString();
+          subByDate.set(`${sr.meterInfoId}:${srDate}`, sr.consumption);
+          const month = srDate.substring(0, 7);
           const monthKey = `${sr.meterInfoId}:${month}`;
-          const existing = subByMonth.get(monthKey);
-          if (!existing || sr.readingDate > (existing ? sr.readingDate : "")) {
-            subByMonth.set(monthKey, sr.consumption);
-          }
+          subByMonth.set(monthKey, (subByMonth.get(monthKey) ?? 0) + sr.consumption);
         }
       }
 
@@ -99,17 +96,11 @@ export const readingRouter = createTRPCRouter({
 
         const sids = Array.isArray(vm.subtractMeterIds) ? (vm.subtractMeterIds as number[]) : [];
 
-        // Only calculate for monthly readings (1st of month) — daily readings
-        // can't be accurately subtracted from monthly Shelly data
-        const isMonthlyReading = r.readingDate.endsWith("-01");
-        if (!isMonthlyReading) {
-          return { ...r, virtualConsumption: null, virtualCostHuf: null };
-        }
-
         let subtractTotal = 0;
-        const readingMonth = r.readingDate.substring(0, 7);
+        const dateStr = typeof r.readingDate === "string" ? r.readingDate : (r.readingDate as Date).toISOString();
+        const readingMonth = dateStr.substring(0, 7);
         for (const sid of sids) {
-          subtractTotal += subByDate.get(`${sid}:${r.readingDate}`)
+          subtractTotal += subByDate.get(`${sid}:${dateStr}`)
             ?? subByMonth.get(`${sid}:${readingMonth}`)
             ?? 0;
         }
