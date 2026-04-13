@@ -252,10 +252,10 @@ export default function EditMeterPage() {
                 >
                   <option value="">Valassz fomerot...</option>
                   {buildingMeters
-                    ?.filter((m) => m.id !== meterId && m.utilityType === meter?.utilityType)
+                    ?.filter((m) => m.utilityType === meter?.utilityType)
                     .map((m) => (
                       <option key={m.id} value={String(m.id)}>
-                        {m.property?.name} — {m.utilityType} {m.serialNumber ? `(${m.serialNumber})` : ""} {m.location ?? ""}
+                        {m.property?.name} — {m.utilityType} {m.serialNumber ? `(${m.serialNumber})` : ""} {m.location ?? ""} {m.id === meterId ? "(ez a mero)" : ""}
                       </option>
                     ))}
                 </select>
@@ -266,7 +266,7 @@ export default function EditMeterPage() {
                 <label className="text-sm font-medium">Levonando almero(k)</label>
                 <div className="mt-1 space-y-1.5">
                   {buildingMeters
-                    ?.filter((m) => m.id !== meterId && m.id !== Number(primaryMeterId) && m.utilityType === meter?.utilityType)
+                    ?.filter((m) => m.id !== Number(primaryMeterId) && m.utilityType === meter?.utilityType)
                     .map((m) => {
                       const checked = subtractMeterIds.includes(m.id);
                       return (
