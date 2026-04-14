@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { CurrencyInput } from "@/components/shared/currency-input";
 import { TaxNumberInput } from "@/components/shared/tax-number-input";
 import { PhoneInput } from "@/components/shared/phone-input";
@@ -156,7 +156,9 @@ function PropertyCover({
 export default function MoveInWizardPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const propertyId = Number(params.id);
+  const isEditMode = searchParams.get("edit") === "true";
   const [step, setStep] = useState(0);
 
   const { data: property, isLoading } = api.property.get.useQuery({ id: propertyId });
@@ -196,10 +198,51 @@ export default function MoveInWizardPage() {
   const [keyCount, setKeyCount] = useState("");
   const [keyNotes, setKeyNotes] = useState("");
 
+  // Pre-fill from existing active tenancy when in edit mode
+  const [prefilled, setPrefilled] = useState(false);
+  useEffect(() => {
+    if (!isEditMode || !property || prefilled) return;
+    const activeTenancy = property.tenancies.find((t) => t.active);
+    if (!activeTenancy) return;
+    setTenantName(activeTenancy.tenantName ?? "");
+    setTenantEmail(activeTenancy.tenantEmail ?? "");
+    setTenantPhone(activeTenancy.tenantPhone ?? "");
+    setTenantAddress(activeTenancy.tenantAddress ?? "");
+    setTenantMotherName(activeTenancy.tenantMotherName ?? "");
+    setTenantBirthPlace(activeTenancy.tenantBirthPlace ?? "");
+    setTenantBirthDate(activeTenancy.tenantBirthDate ?? "");
+    setTenantTaxNumber(activeTenancy.tenantTaxNumber ?? "");
+    setTenantType((activeTenancy.tenantType as "individual" | "company") ?? "individual");
+    setMoveInDate(activeTenancy.moveInDate ?? new Date().toISOString().split("T")[0]!);
+    setDepositAmount(activeTenancy.depositAmount?.toString() ?? "");
+    setDepositCurrency((activeTenancy.depositCurrency as "HUF" | "EUR") ?? "HUF");
+    setLeaseMonths(activeTenancy.leaseMonths?.toString() ?? "12");
+    if (activeTenancy.billingName) {
+      setBillingSameAsTenant(false);
+      setBillingName(activeTenancy.billingName ?? "");
+      setBillingEmail(activeTenancy.billingEmail ?? "");
+      setBillingAddress(activeTenancy.billingAddress ?? "");
+      setBillingTaxNumber(activeTenancy.billingTaxNumber ?? "");
+      setBillingBuyerType((activeTenancy.billingBuyerType as "individual" | "company") ?? "individual");
+    }
+    setPrefilled(true);
+  }, [isEditMode, property, prefilled]);
+
   const contractInputRef = useRef<HTMLInputElement>(null);
 
   const [moveInError, setMoveInError] = useState("");
   const moveIn = api.tenancy.moveIn.useMutation({
+    onSuccess: () => {
+      setMoveInError("");
+      router.refresh();
+      router.push(`/properties/${propertyId}`);
+    },
+    onError: (err) => {
+      setMoveInError(err.message);
+    },
+  });
+
+  const updateTenant = api.tenancy.updateTenant.useMutation({
     onSuccess: () => {
       setMoveInError("");
       router.refresh();
@@ -226,6 +269,31 @@ export default function MoveInWizardPage() {
   };
 
   const handleFinish = () => {
+    if (isEditMode) {
+      const activeTenancy = property?.tenancies.find((t) => t.active);
+      if (!activeTenancy) return;
+      updateTenant.mutate({
+        tenancyId: activeTenancy.id,
+        tenantName: tenantName || undefined,
+        tenantEmail: tenantEmail || undefined,
+        tenantPhone: tenantPhone || undefined,
+        tenantAddress: tenantAddress || undefined,
+        tenantMotherName: tenantMotherName || undefined,
+        tenantBirthPlace: tenantBirthPlace || undefined,
+        tenantBirthDate: tenantBirthDate || undefined,
+        tenantType,
+        tenantTaxNumber: tenantTaxNumber || undefined,
+        billingName: !billingSameAsTenant ? (billingName || undefined) : undefined,
+        billingEmail: !billingSameAsTenant ? (billingEmail || undefined) : undefined,
+        billingAddress: !billingSameAsTenant ? (billingAddress || undefined) : undefined,
+        billingTaxNumber: !billingSameAsTenant ? (billingTaxNumber || undefined) : undefined,
+        billingBuyerType: !billingSameAsTenant ? billingBuyerType : undefined,
+        depositAmount: depositAmount ? Number(depositAmount) : undefined,
+        depositCurrency,
+        leaseMonths: leaseMonths && Number(leaseMonths) > 0 ? Number(leaseMonths) : undefined,
+      });
+      return;
+    }
     moveIn.mutate({
       propertyId,
       tenantEmail: tenantEmail || undefined,
