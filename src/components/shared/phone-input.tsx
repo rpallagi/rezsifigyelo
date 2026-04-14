@@ -8,15 +8,10 @@ import { useCallback } from "react";
  * Hungarian landline: +36 1 234 5678
  * International: +XX XXX XXX XXXX (generic grouping)
  */
-function formatPhone(raw: string): string {
-  // Strip everything except digits and leading +
-  const hasPlus = raw.startsWith("+");
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return hasPlus ? "+" : "";
+function formatPhone(digits: string): string {
+  if (!digits) return "+";
 
-  const withPlus = `+${digits}`;
-
-  // Hungarian number: +36...
+  // Hungarian number: 36...
   if (digits.startsWith("36") && digits.length > 2) {
     const rest = digits.slice(2);
     // Budapest landline: +36 1 XXX XXXX
@@ -30,7 +25,7 @@ function formatPhone(raw: string): string {
   }
 
   // Generic international: +XX XXX XXX XXXX
-  if (digits.length <= 2) return withPlus;
+  if (digits.length <= 2) return `+${digits}`;
   const country = digits.slice(0, 2);
   const rest = digits.slice(2);
   const groups: string[] = [];
@@ -55,20 +50,19 @@ export function PhoneInput({
 }: PhoneInputProps) {
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      let input = e.target.value;
+      const input = e.target.value;
+      const digits = input.replace(/\D/g, "");
 
-      // Auto-add + if user starts typing digits without it
-      if (input && !input.startsWith("+")) {
-        input = `+${input}`;
-      }
-
-      onChange(formatPhone(input));
+      // Always keep "+" — store formatted value, onChange gets the display value
+      onChange(formatPhone(digits));
     },
     [onChange],
   );
 
   // Format existing value on render (handles loading saved data)
-  const displayed = value && !value.includes(" ") ? formatPhone(value) : value;
+  const displayed = value
+    ? value.includes(" ") ? value : formatPhone(value.replace(/\D/g, ""))
+    : "+";
 
   return (
     <input
