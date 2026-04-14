@@ -45,6 +45,7 @@ export default function EditPropertyPage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [showBillingOverride, setShowBillingOverride] = useState(false);
   const [buildingPropertyId, setBuildingPropertyId] = useState<string>("");
   const [tariffGroupId, setTariffGroupId] = useState<string>("");
 
@@ -85,6 +86,7 @@ export default function EditPropertyPage() {
       setPurchasePrice(property.purchasePrice?.toString() ?? "");
       setNotes(property.notes ?? "");
       setAvatarUrl(property.avatarUrl ?? "");
+      setShowBillingOverride(!!(property.billingName?.trim()));
       setBuildingPropertyId(property.buildingPropertyId?.toString() ?? "");
       setTariffGroupId(property.tariffGroupId?.toString() ?? "");
     }
@@ -260,76 +262,10 @@ export default function EditPropertyPage() {
           </div>
         </fieldset>
 
+        {/* Számlázási beállítások — always visible */}
         <fieldset className="rounded-lg border border-border p-4">
-          <legend className="px-2 text-sm font-medium">Vevő / számlacímzett alapadatok</legend>
-          <p className="mb-4 text-xs text-muted-foreground">
-            Az itt mentett adatokból készül a vevő profil a számlázásnál. Mivel nálad
-            előre számlázás a fő flow, ezt ez az ingatlan fogja alapértelmezetten használni.
-          </p>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-xs text-muted-foreground">Vevő neve</label>
-              <input
-                type="text"
-                value={billingName}
-                onChange={(e) => setBillingName(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground">Vevő email</label>
-              <input
-                type="email"
-                value={billingEmail}
-                onChange={(e) => setBillingEmail(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs text-muted-foreground">Számlázási cím</label>
-              <input
-                type="text"
-                value={billingAddress}
-                onChange={(e) => setBillingAddress(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground">Vevő típusa</label>
-              <select
-                value={billingBuyerType}
-                onChange={(e) =>
-                  setBillingBuyerType(e.target.value as "individual" | "company")
-                }
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="individual">Magánszemély</option>
-                <option value="company">Cég</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground">
-                Adószám {billingBuyerType === "company" ? "*" : ""}
-              </label>
-              <input
-                type="text"
-                value={billingTaxNumber}
-                onChange={(e) => setBillingTaxNumber(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground">ÁFA / adózási kód</label>
-              <select
-                value={billingVatCode}
-                onChange={(e) => setBillingVatCode(e.target.value as "TAM" | "AAM" | "27")}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="TAM">TAM</option>
-                <option value="AAM">AAM</option>
-                <option value="27">27% ÁFA</option>
-              </select>
-            </div>
+          <legend className="px-2 text-sm font-medium">Számlázási beállítások</legend>
+          <div className="grid gap-4 md:grid-cols-3">
             <div>
               <label className="block text-xs text-muted-foreground">Számlázás módja</label>
               <select
@@ -352,7 +288,102 @@ export default function EditPropertyPage() {
                 className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
+            <div>
+              <label className="block text-xs text-muted-foreground">ÁFA / adózási kód</label>
+              <select
+                value={billingVatCode}
+                onChange={(e) => setBillingVatCode(e.target.value as "TAM" | "AAM" | "27")}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="TAM">TAM</option>
+                <option value="AAM">AAM</option>
+                <option value="27">27% ÁFA</option>
+              </select>
+            </div>
           </div>
+        </fieldset>
+
+        {/* Számla címzett override — collapsed by default */}
+        <fieldset className="rounded-lg border border-border p-4">
+          <legend className="px-2 text-sm font-medium">Számla címzettje</legend>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Alapértelmezetten a bérlő adatai kerülnek a számlára. Csak akkor töltsd ki az alábbi mezőket, ha a számla más névre szól (pl. cég, megbízó).
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowBillingOverride(!showBillingOverride)}
+            className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+              showBillingOverride
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 rounded border text-center text-[10px] leading-3 ${
+              showBillingOverride ? "border-primary bg-primary text-primary-foreground" : "border-border"
+            }`}>
+              {showBillingOverride ? "✓" : ""}
+            </span>
+            A számla címzettje eltér a bérlőtől
+          </button>
+          {showBillingOverride && (
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-xs text-muted-foreground">Számla címzett neve</label>
+                <input
+                  type="text"
+                  value={billingName}
+                  onChange={(e) => setBillingName(e.target.value)}
+                  placeholder="pl. Példa Kft."
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground">Számla címzett email</label>
+                <input
+                  type="email"
+                  value={billingEmail}
+                  onChange={(e) => setBillingEmail(e.target.value)}
+                  placeholder="pl. szamla@pelda.hu"
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs text-muted-foreground">Számlázási cím</label>
+                <input
+                  type="text"
+                  value={billingAddress}
+                  onChange={(e) => setBillingAddress(e.target.value)}
+                  placeholder="Ha eltér az ingatlan címétől"
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground">Címzett típusa</label>
+                <select
+                  value={billingBuyerType}
+                  onChange={(e) =>
+                    setBillingBuyerType(e.target.value as "individual" | "company")
+                  }
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="individual">Magánszemély</option>
+                  <option value="company">Cég</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground">
+                  Adószám {billingBuyerType === "company" ? "*" : ""}
+                </label>
+                <input
+                  type="text"
+                  value={billingTaxNumber}
+                  onChange={(e) => setBillingTaxNumber(e.target.value)}
+                  placeholder={billingBuyerType === "company" ? "Kötelező cég esetén" : ""}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+          )}
         </fieldset>
 
         <fieldset className="rounded-lg border border-border p-4">
