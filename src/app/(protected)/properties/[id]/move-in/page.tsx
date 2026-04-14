@@ -757,6 +757,22 @@ export default function MoveInWizardPage() {
                   </div>
                 </label>
               )}
+
+              {/* Inflation tracking toggle */}
+              <label className="flex items-start gap-3 rounded-2xl bg-background/80 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={inflationTracking}
+                  onChange={(e) => setInflationTracking(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+                />
+                <div>
+                  <p className="text-sm font-medium">Inflációkövető bérleti díj</p>
+                  <p className="text-xs text-muted-foreground">
+                    Minden év elején az infláció mértékével automatikusan emelkedik a bérleti díj. A Settings → Inflációkövetés oldalon alkalmazhatod batch-ben.
+                  </p>
+                </div>
+              </label>
             </div>
           ) : null}
 
