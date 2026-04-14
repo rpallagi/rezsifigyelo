@@ -664,19 +664,18 @@ export default function MoveInWizardPage() {
                         </button>
                       ))}
                       <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
+                        type="number"
+                        min="1"
+                        max="999"
                         value={!["3", "6", "12", "0"].includes(leaseMonths) ? leaseMonths : ""}
                         onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, "");
-                          setLeaseMonths(val);
+                          setLeaseMonths(e.target.value);
                         }}
                         onFocus={() => {
                           if (["3", "6", "12", "0"].includes(leaseMonths)) setLeaseMonths("");
                         }}
                         placeholder="Egyéni (hónap)"
-                        className={`w-32 rounded-full border px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring ${
+                        className={`w-36 rounded-full border px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring ${
                           !["3", "6", "12", "0", ""].includes(leaseMonths)
                             ? "border-primary bg-primary/5"
                             : "border-border"
