@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CurrencyInput } from "@/components/shared/currency-input";
 import { TaxNumberInput } from "@/components/shared/tax-number-input";
+import { PhoneInput } from "@/components/shared/phone-input";
 import {
   ArrowLeft,
   ArrowRight,
@@ -437,11 +438,9 @@ export default function MoveInWizardPage() {
                 </Field>
 
                 <Field label="Telefonszám">
-                  <input
-                    type="tel"
+                  <PhoneInput
                     value={tenantPhone}
-                    onChange={(e) => setTenantPhone(e.target.value)}
-                    placeholder="+36 30 123 4567"
+                    onChange={setTenantPhone}
                     className={inputClassName()}
                   />
                 </Field>
@@ -632,11 +631,13 @@ export default function MoveInWizardPage() {
 
                     {billingBuyerType === "company" && (
                       <Field label="Adószám" required>
-                        <input
-                          type="text"
+                        <TaxNumberInput
                           value={billingTaxNumber}
-                          onChange={(e) => setBillingTaxNumber(e.target.value)}
-                          placeholder="12345678-1-23"
+                          onChange={setBillingTaxNumber}
+                          onCompanyFound={(data) => {
+                            setBillingName(data.name);
+                            if (data.address) setBillingAddress(data.address);
+                          }}
                           className={inputClassName()}
                         />
                       </Field>

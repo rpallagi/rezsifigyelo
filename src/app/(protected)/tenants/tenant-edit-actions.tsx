@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
+import { PhoneInput } from "@/components/shared/phone-input";
 
 interface TenantEditActionsProps {
   tenancyId: number;
@@ -58,11 +59,10 @@ export function TenantEditActions({
         placeholder="Email"
         className="rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
       />
-      <input
-        type="tel"
+      <PhoneInput
         value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="Telefon"
+        onChange={setPhone}
+        placeholder="+36 30 123 4567"
         className="rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
       />
       <div className="flex items-center gap-2">

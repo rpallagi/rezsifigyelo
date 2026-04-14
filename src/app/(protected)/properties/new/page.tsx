@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/trpc/react";
 import { AddressInput } from "@/components/shared/address-input";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { CurrencyInput } from "@/components/shared/currency-input";
 
 export default function NewPropertyPage() {
@@ -217,11 +218,9 @@ export default function NewPropertyPage() {
               <label className="block text-xs text-muted-foreground">
                 Telefon
               </label>
-              <input
-                type="tel"
+              <PhoneInput
                 value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                onChange={setContactPhone}
               />
             </div>
             <div>

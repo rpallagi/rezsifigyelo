@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { api } from "@/trpc/react";
 import { CurrencyInput } from "@/components/shared/currency-input";
 import { TaxNumberInput } from "@/components/shared/tax-number-input";
+import { PhoneInput } from "@/components/shared/phone-input";
 
 export default function TenantEditPage() {
   const params = useParams();
@@ -179,10 +180,9 @@ export default function TenantEditPage() {
             </div>
             <div>
               <label className="block text-xs text-muted-foreground">Telefonszám</label>
-              <input
-                type="tel"
+              <PhoneInput
                 value={tenantPhone}
-                onChange={(e) => setTenantPhone(e.target.value)}
+                onChange={setTenantPhone}
                 className={inputCls}
               />
             </div>
@@ -334,11 +334,13 @@ export default function TenantEditPage() {
               {billingBuyerType === "company" && (
                 <div>
                   <label className="block text-xs text-muted-foreground">Adószám *</label>
-                  <input
-                    type="text"
+                  <TaxNumberInput
                     value={billingTaxNumber}
-                    onChange={(e) => setBillingTaxNumber(e.target.value)}
-                    placeholder="12345678-1-23"
+                    onChange={setBillingTaxNumber}
+                    onCompanyFound={(data) => {
+                      setBillingName(data.name);
+                      if (data.address) setBillingAddress(data.address);
+                    }}
                     className={inputCls}
                   />
                 </div>
