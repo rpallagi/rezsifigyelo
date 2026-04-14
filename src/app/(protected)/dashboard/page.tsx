@@ -8,6 +8,7 @@ import {
   type Locale,
   type Messages,
 } from "@/lib/i18n/messages";
+import { toHuf } from "@/lib/currency";
 import { getCurrentLocale } from "@/lib/i18n/server";
 import { api } from "@/trpc/server";
 
@@ -187,10 +188,11 @@ async function DashboardContent({
   locale: Locale;
   m: Messages;
 }) {
-  const [user, properties, landlordProfileCount] = await Promise.all([
+  const [user, properties, landlordProfileCount, eurRate] = await Promise.all([
     api.user.me(),
     api.property.list(),
     api.landlordProfile.count(),
+    api.user.getEurRate(),
   ]);
 
   const totalProperties = properties.length;
@@ -199,12 +201,12 @@ async function DashboardContent({
     0,
   );
   const totalMeters = properties.reduce((acc, property) => acc + property.meterInfo.length, 0);
-  const monthlyRevenue = properties.reduce((acc, property) => acc + (property.monthlyRent ?? 0), 0);
+  const monthlyRevenue = properties.reduce((acc, property) => acc + toHuf(property.monthlyRent ?? 0, property.rentCurrency, eurRate), 0);
   const propertiesWithPurchase = properties.filter(
     (property) => (property.purchasePrice ?? 0) > 0 && (property.monthlyRent ?? 0) > 0,
   );
   const portfolioInvestment = properties.reduce(
-    (acc, property) => acc + (property.purchasePrice ?? 0),
+    (acc, property) => acc + toHuf(property.purchasePrice ?? 0, property.purchasePriceCurrency, eurRate),
     0,
   );
   const annualRevenue = monthlyRevenue * 12;
@@ -215,8 +217,8 @@ async function DashboardContent({
 
   const rankedProperties = propertiesWithPurchase
     .map((property) => {
-      const annualRent = (property.monthlyRent ?? 0) * 12;
-      const purchasePrice = property.purchasePrice ?? 0;
+      const annualRent = toHuf(property.monthlyRent ?? 0, property.rentCurrency, eurRate) * 12;
+      const purchasePrice = toHuf(property.purchasePrice ?? 0, property.purchasePriceCurrency, eurRate);
       const roi = purchasePrice > 0 ? (annualRent / purchasePrice) * 100 : 0;
       return {
         ...property,

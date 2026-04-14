@@ -134,7 +134,7 @@ export default function MoveOutPage() {
         <h2 className="text-sm font-semibold">Kaució elszámolás</h2>
         {activeTenancy.depositAmount ? (
           <p className="mt-1 text-sm text-muted-foreground">
-            Letétbe helyezett kaució: <span className="font-semibold">{activeTenancy.depositAmount.toLocaleString("hu-HU")} Ft</span>
+            Letétbe helyezett kaució: <span className="font-semibold">{activeTenancy.depositAmount.toLocaleString("hu-HU")} {activeTenancy.depositCurrency === "EUR" ? "€" : "Ft"}</span>
           </p>
         ) : (
           <p className="mt-1 text-xs text-muted-foreground">
@@ -143,7 +143,7 @@ export default function MoveOutPage() {
         )}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-xs text-muted-foreground">Visszaadott összeg (Ft)</label>
+            <label className="block text-xs text-muted-foreground">Visszaadott összeg ({activeTenancy.depositCurrency === "EUR" ? "€" : "Ft"})</label>
             <CurrencyInput
               value={depositReturned}
               onChange={setDepositReturned}
@@ -152,7 +152,7 @@ export default function MoveOutPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-muted-foreground">Levonás (Ft)</label>
+            <label className="block text-xs text-muted-foreground">Levonás ({activeTenancy.depositCurrency === "EUR" ? "€" : "Ft"})</label>
             <CurrencyInput
               value={depositDeductions}
               onChange={setDepositDeductions}

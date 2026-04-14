@@ -35,6 +35,7 @@ export default function EditPropertyPage() {
   const [monthlyRent, setMonthlyRent] = useState("");
   const [rentCurrency, setRentCurrency] = useState<"HUF" | "EUR">("HUF");
   const [purchasePrice, setPurchasePrice] = useState("");
+  const [purchasePriceCurrency, setPurchasePriceCurrency] = useState<"HUF" | "EUR">("HUF");
   const [notes, setNotes] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState("");
@@ -72,6 +73,7 @@ export default function EditPropertyPage() {
       setMonthlyRent(property.monthlyRent?.toString() ?? "");
       setRentCurrency((property.rentCurrency as "HUF" | "EUR") ?? "HUF");
       setPurchasePrice(property.purchasePrice?.toString() ?? "");
+      setPurchasePriceCurrency((property.purchasePriceCurrency as "HUF" | "EUR") ?? "HUF");
       setNotes(property.notes ?? "");
       setAvatarUrl(property.avatarUrl ?? "");
       setBuildingPropertyId(property.buildingPropertyId?.toString() ?? "");
@@ -108,6 +110,7 @@ export default function EditPropertyPage() {
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
       rentCurrency,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
+      purchasePriceCurrency,
       notes: notes || undefined,
       buildingPropertyId: buildingPropertyId ? Number(buildingPropertyId) : undefined,
       tariffGroupId: tariffGroupId ? Number(tariffGroupId) : undefined,
@@ -393,11 +396,30 @@ export default function EditPropertyPage() {
               )}
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground">Vételár (Ft)</label>
-              <CurrencyInput
-                value={purchasePrice}
-                onChange={setPurchasePrice}
-              />
+              <label className="block text-xs text-muted-foreground">Vételár</label>
+              <div className="mt-1 flex gap-2">
+                <CurrencyInput
+                  value={purchasePrice}
+                  onChange={setPurchasePrice}
+                  className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <div className="flex gap-1 rounded-md border border-border p-0.5">
+                  {(["HUF", "EUR"] as const).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setPurchasePriceCurrency(c)}
+                      className={`rounded px-2.5 py-1.5 text-xs font-medium transition ${
+                        purchasePriceCurrency === c
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {c === "HUF" ? "Ft" : "€"}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </fieldset>

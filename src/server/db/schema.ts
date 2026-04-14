@@ -266,6 +266,7 @@ export const properties = createTable(
     landArea: d.doublePrecision(),
     // ROI
     purchasePrice: d.doublePrecision(),
+    purchasePriceCurrency: d.varchar({ length: 3 }).notNull().default("HUF"),
     monthlyRent: d.doublePrecision(),
     rentCurrency: d.varchar({ length: 3 }).notNull().default("HUF"),
     // Avatar

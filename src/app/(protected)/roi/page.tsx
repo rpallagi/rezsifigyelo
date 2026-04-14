@@ -119,7 +119,8 @@ export default async function ROIPage({
   const roiProperties = properties
     .filter((property) => (property.purchasePrice ?? 0) > 0)
     .map((property) => {
-      const purchasePrice = property.purchasePrice ?? 0;
+      const rawPurchase = property.purchasePrice ?? 0;
+      const purchasePrice = property.purchasePriceCurrency === "EUR" ? rawPurchase * eurRate : rawPurchase;
       const isEur = property.rentCurrency === "EUR";
       const rawMonthly = property.monthlyRent ?? 0;
       const monthlyHuf = isEur ? rawMonthly * eurRate : rawMonthly;
@@ -145,9 +146,15 @@ export default async function ROIPage({
     })
     .sort((a, b) => b.roi - a.roi);
 
-  const totalPurchase = roiProperties.reduce((acc, property) => acc + (property.purchasePrice ?? 0), 0);
+  const totalPurchase = roiProperties.reduce((acc, property) => {
+    const raw = property.purchasePrice ?? 0;
+    return acc + (property.purchasePriceCurrency === "EUR" ? raw * eurRate : raw);
+  }, 0);
   const totalAnnualRent = roiProperties.reduce((acc, property) => acc + property.annualRent, 0);
-  const monthlyRevenue = roiProperties.reduce((acc, property) => acc + (property.monthlyRent ?? 0), 0);
+  const monthlyRevenue = roiProperties.reduce((acc, property) => {
+    const raw = property.monthlyRent ?? 0;
+    return acc + (property.rentCurrency === "EUR" ? raw * eurRate : raw);
+  }, 0);
   const avgROI = totalPurchase > 0 ? (totalAnnualRent / totalPurchase) * 100 : 0;
   const bestYield = roiProperties[0] ?? null;
   const lowestYield = [...roiProperties].sort((a, b) => a.roi - b.roi)[0] ?? null;

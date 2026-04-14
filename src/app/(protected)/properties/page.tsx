@@ -7,6 +7,7 @@ import Link from "next/link";
 import { PropertyCoverImage } from "@/components/properties/property-cover-image";
 import { ViewSwitcher } from "./view-switcher";
 import { propertyTypeLabel, propertyPlaceholder } from "@/lib/property-labels";
+import { toHuf, formatAmount } from "@/lib/currency";
 
 function profileBadgeColor(color: string | null) {
   const map: Record<string, string> = {
@@ -96,7 +97,10 @@ export default async function PropertiesPage({
     params.view ??
     cookieStore.get("rezsi-property-view")?.value ??
     "grid";
-  const properties = await api.property.list();
+  const [properties, eurRate] = await Promise.all([
+    api.property.list(),
+    api.user.getEurRate(),
+  ]);
 
   // --- Profile filter ---
   const profileFilter = params.profile ? Number(params.profile) : null;
@@ -358,7 +362,7 @@ export default async function PropertiesPage({
                       </p>
                       <p className="mt-1 text-base font-semibold">
                         {property.monthlyRent
-                          ? `${Math.round(property.monthlyRent).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} ${property.rentCurrency === "EUR" ? "€" : "Ft"}${property.buildingArea ? ` · ${Math.round(property.monthlyRent / property.buildingArea).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} ${property.rentCurrency === "EUR" ? "€" : "Ft"}/m²` : ""}`
+                          ? `${formatAmount(property.monthlyRent, property.rentCurrency)}${property.buildingArea ? ` · ${Math.round(toHuf(property.monthlyRent, property.rentCurrency, eurRate) / property.buildingArea).toLocaleString("hu-HU")} Ft/m²` : ""}`
                           : "Nincs"}
                       </p>
                     </div>
@@ -512,14 +516,14 @@ export default async function PropertiesPage({
               </td>
               <td className="px-4 py-3">
                 {property.monthlyRent
-                  ? `${Math.round(property.monthlyRent).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} ${property.rentCurrency === "EUR" ? "€" : "Ft"}`
+                  ? formatAmount(property.monthlyRent, property.rentCurrency)
                   : "Nincs"}
               </td>
               <td className="px-4 py-3 text-muted-foreground">
                 {property.buildingArea ? `${property.buildingArea} m²` : "—"}
                 {property.buildingArea && property.monthlyRent && (
                   <span className="ml-1 text-xs opacity-70">
-                    ({Math.round(property.monthlyRent / property.buildingArea).toLocaleString(locale === "hu" ? "hu-HU" : "en-US")} /m²)
+                    ({Math.round(toHuf(property.monthlyRent, property.rentCurrency, eurRate) / property.buildingArea).toLocaleString("hu-HU")} Ft/m²)
                   </span>
                 )}
               </td>

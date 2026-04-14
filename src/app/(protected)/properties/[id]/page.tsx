@@ -9,6 +9,7 @@ import { Sparkline } from "@/components/shared/sparkline";
 import { LivePowerBadge } from "@/components/shared/live-power-badge";
 import { api } from "@/trpc/server";
 import { propertyTypeLabel } from "@/lib/property-labels";
+import { toHuf, formatAmount } from "@/lib/currency";
 import { CommonFeeCalendar } from "./common-fee-calendar";
 import { VirtualMeterConsumption } from "@/components/shared/virtual-meter-card";
 import { VirtualConsumptionCell, VirtualConsumptionMobile } from "@/components/shared/virtual-readings-table";
@@ -178,17 +179,19 @@ export default async function PropertyDetailPage({
     notFound();
   }
 
-  const [property, allProperties] = await Promise.all([
+  const [property, allProperties, eurRate] = await Promise.all([
     api.property.get({ id: numId }),
     api.property.list(),
+    api.user.getEurRate(),
   ]);
   if (!property) {
     notFound();
   }
 
-  // Category Ft/m² comparison
-  const rentPerSqm = property.monthlyRent && property.buildingArea
-    ? property.monthlyRent / property.buildingArea
+  // Category Ft/m² comparison (always in HUF for apples-to-apples)
+  const rentHuf = property.monthlyRent ? toHuf(property.monthlyRent, property.rentCurrency, eurRate) : null;
+  const rentPerSqm = rentHuf && property.buildingArea
+    ? rentHuf / property.buildingArea
     : null;
   const categoryAvgRentPerSqm = (() => {
     if (!rentPerSqm) return null;
@@ -196,7 +199,7 @@ export default async function PropertyDetailPage({
       (p) => p.id !== property.id && p.propertyType === property.propertyType && p.monthlyRent && p.buildingArea,
     );
     if (peers.length === 0) return null;
-    const avg = peers.reduce((sum, p) => sum + p.monthlyRent! / p.buildingArea!, 0) / peers.length;
+    const avg = peers.reduce((sum, p) => sum + toHuf(p.monthlyRent!, p.rentCurrency, eurRate) / p.buildingArea!, 0) / peers.length;
     return avg;
   })();
   const rentPerSqmDiffPct = rentPerSqm && categoryAvgRentPerSqm

@@ -23,6 +23,7 @@ export default function NewPropertyPage() {
   const [monthlyRent, setMonthlyRent] = useState("");
   const [rentCurrency, setRentCurrency] = useState<"HUF" | "EUR">("HUF");
   const [purchasePrice, setPurchasePrice] = useState("");
+  const [purchasePriceCurrency, setPurchasePriceCurrency] = useState<"HUF" | "EUR">("HUF");
   const [notes, setNotes] = useState("");
   const { data: landlordProfiles } = api.landlordProfile.list.useQuery();
   const { data: existingProperties } = api.property.list.useQuery();
@@ -64,6 +65,7 @@ export default function NewPropertyPage() {
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
       rentCurrency,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
+      purchasePriceCurrency,
       notes: notes || undefined,
     });
   };
@@ -305,14 +307,31 @@ export default function NewPropertyPage() {
               )}
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground">
-                Vételár (Ft)
-              </label>
-              <CurrencyInput
-                value={purchasePrice}
-                onChange={setPurchasePrice}
-                placeholder="0"
-              />
+              <label className="block text-xs text-muted-foreground">Vételár</label>
+              <div className="mt-1 flex gap-2">
+                <CurrencyInput
+                  value={purchasePrice}
+                  onChange={setPurchasePrice}
+                  placeholder="0"
+                  className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <div className="flex gap-1 rounded-md border border-border p-0.5">
+                  {(["HUF", "EUR"] as const).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setPurchasePriceCurrency(c)}
+                      className={`rounded px-2.5 py-1.5 text-xs font-medium transition ${
+                        purchasePriceCurrency === c
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {c === "HUF" ? "Ft" : "€"}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </fieldset>
