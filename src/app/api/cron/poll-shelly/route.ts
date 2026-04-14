@@ -65,7 +65,7 @@ async function fetchShellyDevice(
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.CRON_SECRET) {
     return new Response("Unauthorized", { status: 401 });
   }
 
