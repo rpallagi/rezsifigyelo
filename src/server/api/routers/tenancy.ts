@@ -214,6 +214,7 @@ export const tenancyRouter = createTRPCRouter({
         billingBuyerType: z.enum(["individual", "company"]).optional(),
         moveInDate: z.string(),
         depositAmount: z.number().optional(),
+        depositCurrency: z.enum(["HUF", "EUR"]).optional(),
         leaseMonths: z.number().optional(),
         sendInvitation: z.boolean().default(false),
         // Handover data
@@ -293,6 +294,7 @@ export const tenancyRouter = createTRPCRouter({
             billingBuyerType: input.billingBuyerType,
             moveInDate: input.moveInDate,
             depositAmount: input.depositAmount,
+            depositCurrency: input.depositCurrency,
             leaseMonths: input.leaseMonths,
             leaseEndDate: computeLeaseEndDate(input.moveInDate, input.leaseMonths),
             active: true,
@@ -497,6 +499,7 @@ export const tenancyRouter = createTRPCRouter({
         billingTaxNumber: z.string().optional(),
         billingBuyerType: z.enum(["individual", "company"]).optional(),
         depositAmount: z.number().optional(),
+        depositCurrency: z.enum(["HUF", "EUR"]).optional(),
         leaseMonths: z.number().optional(),
       }),
     )

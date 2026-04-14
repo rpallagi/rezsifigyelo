@@ -350,6 +350,7 @@ export const tenancies = createTable(
     leaseEndDate: d.date(),
     leaseRenewalNotified: d.boolean().notNull().default(false),
     depositAmount: d.doublePrecision(),
+    depositCurrency: d.varchar({ length: 3 }).notNull().default("HUF"),
     active: d.boolean().notNull().default(true),
     createdAt: d
       .timestamp({ withTimezone: true })

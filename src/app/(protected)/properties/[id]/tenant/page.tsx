@@ -30,6 +30,7 @@ export default function TenantEditPage() {
   const [tenantBirthDate, setTenantBirthDate] = useState("");
   const [tenantTaxNumber, setTenantTaxNumber] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
+  const [depositCurrency, setDepositCurrency] = useState<"HUF" | "EUR">("HUF");
   const [leaseMonths, setLeaseMonths] = useState("");
 
   const [billingSameAsTenant, setBillingSameAsTenant] = useState(true);
@@ -51,6 +52,7 @@ export default function TenantEditPage() {
       setTenantBirthDate(activeTenancy.tenantBirthDate ?? "");
       setTenantTaxNumber(activeTenancy.tenantTaxNumber ?? "");
       setDepositAmount(activeTenancy.depositAmount?.toString() ?? "");
+      setDepositCurrency((activeTenancy.depositCurrency as "HUF" | "EUR") ?? "HUF");
       setLeaseMonths(activeTenancy.leaseMonths?.toString() ?? "");
 
       const hasBillingOverride = !!(activeTenancy.billingName?.trim());
@@ -88,6 +90,7 @@ export default function TenantEditPage() {
       tenantType,
       tenantTaxNumber: tenantTaxNumber || undefined,
       depositAmount: depositAmount ? Number(depositAmount) : undefined,
+      depositCurrency,
       leaseMonths: leaseMonths ? Number(leaseMonths) : undefined,
       billingName: !billingSameAsTenant ? (billingName || undefined) : "",
       billingEmail: !billingSameAsTenant ? (billingEmail || undefined) : "",
@@ -250,12 +253,31 @@ export default function TenantEditPage() {
           <legend className="px-2 text-sm font-medium">Bérleti viszony</legend>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-xs text-muted-foreground">Kaució (Ft)</label>
-              <CurrencyInput
-                value={depositAmount}
-                onChange={setDepositAmount}
-                placeholder="0"
-              />
+              <label className="block text-xs text-muted-foreground">Kaució</label>
+              <div className="mt-1 flex gap-2">
+                <CurrencyInput
+                  value={depositAmount}
+                  onChange={setDepositAmount}
+                  placeholder="0"
+                  className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <div className="flex gap-1 rounded-md border border-border p-0.5">
+                  {(["HUF", "EUR"] as const).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setDepositCurrency(c)}
+                      className={`rounded px-2.5 py-1.5 text-xs font-medium transition ${
+                        depositCurrency === c
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {c === "HUF" ? "Ft" : "€"}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div>
               <label className="block text-xs text-muted-foreground">Szerződés (hónap)</label>

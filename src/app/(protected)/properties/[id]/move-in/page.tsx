@@ -172,6 +172,7 @@ export default function MoveInWizardPage() {
   const [tenantTaxNumber, setTenantTaxNumber] = useState("");
   const [moveInDate, setMoveInDate] = useState(new Date().toISOString().split("T")[0]!);
   const [depositAmount, setDepositAmount] = useState("");
+  const [depositCurrency, setDepositCurrency] = useState<"HUF" | "EUR">("HUF");
   const [leaseMonths, setLeaseMonths] = useState("12");
   const [sendInvitation, setSendInvitation] = useState(false);
   const [billingSameAsTenant, setBillingSameAsTenant] = useState(true);
@@ -243,6 +244,7 @@ export default function MoveInWizardPage() {
       billingBuyerType: !billingSameAsTenant ? billingBuyerType : undefined,
       moveInDate,
       depositAmount: depositAmount ? Number(depositAmount) : undefined,
+      depositCurrency,
       leaseMonths: leaseMonths && Number(leaseMonths) > 0 ? Number(leaseMonths) : undefined,
       sendInvitation,
       initialReadings: Object.entries(initialReadings)
@@ -517,14 +519,32 @@ export default function MoveInWizardPage() {
                   </Field>
 
                   <Field label="Kaució összege">
-                    <div className="relative">
-                      <Wallet className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <CurrencyInput
-                        value={depositAmount}
-                        onChange={setDepositAmount}
-                        placeholder="0"
-                        className={`${inputClassName()} pl-11`}
-                      />
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Wallet className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <CurrencyInput
+                          value={depositAmount}
+                          onChange={setDepositAmount}
+                          placeholder="0"
+                          className={`${inputClassName()} pl-11`}
+                        />
+                      </div>
+                      <div className="flex gap-1 rounded-2xl border border-border/60 p-0.5">
+                        {(["HUF", "EUR"] as const).map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setDepositCurrency(c)}
+                            className={`rounded-xl px-2.5 py-1.5 text-xs font-medium transition ${
+                              depositCurrency === c
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            {c === "HUF" ? "Ft" : "€"}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </Field>
 
