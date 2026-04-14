@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 
 import { useLocale } from "@/components/providers/locale-provider";
 import { api } from "@/trpc/react";
@@ -410,6 +410,7 @@ function NewInvoiceForm({
   const utils = api.useUtils();
 
   const [propertyId, setPropertyId] = useState<number | undefined>();
+  // Initialize with default profile to ensure consistent filtering
   const [selectedProfileId, setSelectedProfileId] = useState<
     number | undefined
   >(initialProfileId ?? undefined);
@@ -431,6 +432,13 @@ function NewInvoiceForm({
     properties?.find((p) => p.id === propertyId) ?? null;
   const defaultProfile =
     landlordProfiles?.find((p) => p.isDefault) ?? null;
+
+  // Sync selectedProfileId when profiles load
+  useEffect(() => {
+    if (!selectedProfileId && defaultProfile?.id) {
+      setSelectedProfileId(defaultProfile.id);
+    }
+  }, [defaultProfile?.id, selectedProfileId]);
   const effectiveProfileId =
     selectedProperty?.landlordProfile?.id ??
     selectedProfileId ??
