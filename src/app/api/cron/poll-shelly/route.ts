@@ -50,12 +50,44 @@ async function fetchShellyDevice(
       }),
     });
     if (!res.ok) return null;
-    const data = await res.json() as { data?: Array<{ online: number; status?: Record<string, unknown> }> };
-    const device = data.data?.[0];
+    const raw = await res.json() as Record<string, unknown>;
+    // Shelly API returns either { data: [...] } or a direct array [...]
+    const devices = Array.isArray(raw) ? raw : (raw.data as Array<Record<string, unknown>> | undefined);
+    const device = devices?.[0] as { online?: number; status?: Record<string, unknown> } | undefined;
     if (!device) return null;
+    const status = device.status ?? {};
+    // Gen2: em:0 / emdata:0, Gen1: emeters[] / total_power
+    const emStatus = (status["em:0"] as ShellyEmStatus | undefined) ?? (() => {
+      // Gen1 SHEM-3: emeters array → synthesize emStatus
+      const emeters = status["emeters"] as Array<{ power?: number; voltage?: number; current?: number }> | undefined;
+      if (emeters) {
+        return {
+          total_act_power: emeters.reduce((s, e) => s + (e.power ?? 0), 0),
+          a_act_power: emeters[0]?.power,
+          b_act_power: emeters[1]?.power,
+          c_act_power: emeters[2]?.power,
+        } as ShellyEmStatus;
+      }
+      // Gen1 with total_power directly
+      if (typeof status["total_power"] === "number") {
+        return { total_act_power: status["total_power"] as number } as ShellyEmStatus;
+      }
+      return undefined;
+    })();
+    const emdataStatus = (status["emdata:0"] as ShellyEmdataStatus | undefined) ?? (() => {
+      // Gen1: total energy in emeters[].total
+      const emeters = status["emeters"] as Array<{ total?: number; total_returned?: number }> | undefined;
+      if (emeters) {
+        return {
+          total_act: emeters.reduce((s, e) => s + (e.total ?? 0), 0),
+          total_act_ret: emeters.reduce((s, e) => s + (e.total_returned ?? 0), 0),
+        } as ShellyEmdataStatus;
+      }
+      return undefined;
+    })();
     return {
-      emStatus: device.status?.["em:0"] as ShellyEmStatus | undefined,
-      emdataStatus: device.status?.["emdata:0"] as ShellyEmdataStatus | undefined,
+      emStatus,
+      emdataStatus,
       online: device.online === 1,
     };
   } catch {
