@@ -260,5 +260,6 @@ export const propertyRouter = createTRPCRouter({
             eq(properties.landlordId, ctx.dbUser.id),
           ),
         );
+      return { success: true };
     }),
 });

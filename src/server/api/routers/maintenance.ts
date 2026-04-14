@@ -256,5 +256,6 @@ export const maintenanceRouter = createTRPCRouter({
       await ctx.db
         .delete(maintenanceLogs)
         .where(eq(maintenanceLogs.id, input.id));
+      return { success: true };
     }),
 });

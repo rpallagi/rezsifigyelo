@@ -127,6 +127,7 @@ export const chatRouter = createTRPCRouter({
             ne(chatMessages.senderId, ctx.dbUser.id),
           ),
         );
+      return { success: true };
     }),
 });
 

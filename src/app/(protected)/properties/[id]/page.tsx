@@ -8,6 +8,7 @@ import { ConsumptionChart } from "@/components/shared/consumption-chart";
 import { Sparkline } from "@/components/shared/sparkline";
 import { LivePowerBadge } from "@/components/shared/live-power-badge";
 import { api } from "@/trpc/server";
+import { propertyTypeLabel } from "@/lib/property-labels";
 import { CommonFeeCalendar } from "./common-fee-calendar";
 import { VirtualMeterConsumption } from "@/components/shared/virtual-meter-card";
 import { VirtualConsumptionCell, VirtualConsumptionMobile } from "@/components/shared/virtual-readings-table";
@@ -74,13 +75,6 @@ function formatTenantName(
   if (!tenant) return "Nincs";
   const fullName = [tenant.firstName, tenant.lastName].filter(Boolean).join(" ").trim();
   return fullName || tenant.email;
-}
-
-function propertyTypeLabel(propertyType: string) {
-  const builtIn: Record<string, string> = {
-    lakas: "Lakás", uzlet: "Üzlet", telek: "Telek", egyeb: "Egyéb",
-  };
-  return builtIn[propertyType] ?? propertyType;
 }
 
 function statusTone(status: "success" | "warning" | "danger" | "neutral") {

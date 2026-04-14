@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/trpc/react";
+import { CurrencyInput } from "@/components/shared/currency-input";
 
 export default function MoveOutPage() {
   const router = useRouter();
@@ -143,20 +144,18 @@ export default function MoveOutPage() {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-xs text-muted-foreground">Visszaadott összeg (Ft)</label>
-            <input
-              type="number"
+            <CurrencyInput
               value={depositReturned}
-              onChange={(e) => setDepositReturned(e.target.value)}
+              onChange={setDepositReturned}
               placeholder={activeTenancy.depositAmount ? String(activeTenancy.depositAmount) : "0"}
               className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div>
             <label className="block text-xs text-muted-foreground">Levonás (Ft)</label>
-            <input
-              type="number"
+            <CurrencyInput
               value={depositDeductions}
-              onChange={(e) => setDepositDeductions(e.target.value)}
+              onChange={setDepositDeductions}
               placeholder="0"
               className="mt-1 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />

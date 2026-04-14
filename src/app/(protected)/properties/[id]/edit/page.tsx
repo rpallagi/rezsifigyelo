@@ -4,6 +4,7 @@ import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import { PropertyCoverImage } from "@/components/properties/property-cover-image";
 import { AddressInput } from "@/components/shared/address-input";
+import { CurrencyInput } from "@/components/shared/currency-input";
 
 export default function EditPropertyPage() {
   const router = useRouter();
@@ -435,10 +436,9 @@ export default function EditPropertyPage() {
             <div>
               <label className="block text-xs text-muted-foreground">Havi bérleti díj</label>
               <div className="mt-1 flex gap-2">
-                <input
-                  type="number"
+                <CurrencyInput
                   value={monthlyRent}
-                  onChange={(e) => setMonthlyRent(e.target.value)}
+                  onChange={setMonthlyRent}
                   className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <div className="flex gap-1 rounded-md border border-border p-0.5">
@@ -466,11 +466,9 @@ export default function EditPropertyPage() {
             </div>
             <div>
               <label className="block text-xs text-muted-foreground">Vételár (Ft)</label>
-              <input
-                type="number"
+              <CurrencyInput
                 value={purchasePrice}
-                onChange={(e) => setPurchasePrice(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                onChange={setPurchasePrice}
               />
             </div>
           </div>

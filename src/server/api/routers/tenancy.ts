@@ -463,7 +463,11 @@ export const tenancyRouter = createTRPCRouter({
       }
       await requireLandlordPropertyAccess(ctx, tenancy.propertyId);
       const { tenancyId, ...data } = input;
-      await ctx.db.update(tenancies).set(data).where(eq(tenancies.id, tenancyId));
+      const updateData: Record<string, unknown> = { ...data };
+      if (data.leaseMonths !== undefined && tenancy.moveInDate) {
+        updateData.leaseEndDate = computeLeaseEndDate(tenancy.moveInDate, data.leaseMonths);
+      }
+      await ctx.db.update(tenancies).set(updateData).where(eq(tenancies.id, tenancyId));
       revalidatePath(`/properties/${tenancy.propertyId}`);
       revalidatePath("/tenants");
       return { success: true };

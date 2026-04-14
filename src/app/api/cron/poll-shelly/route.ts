@@ -69,8 +69,6 @@ export async function GET(req: NextRequest) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  console.log("[cron] poll-shelly started");
-
   // Find all active shelly_cloud devices
   const devices = await db.query.smartMeterDevices.findMany({
     where: and(
@@ -80,7 +78,6 @@ export async function GET(req: NextRequest) {
   });
 
   if (devices.length === 0) {
-    console.log("[cron] poll-shelly: no active shelly_cloud devices");
     return Response.json({ status: "ok", polled: 0 });
   }
 
@@ -289,6 +286,5 @@ export async function GET(req: NextRequest) {
     errors: results.filter((r) => ["error", "api_error", "no_em_data", "offline"].includes(r.status)).length,
   };
 
-  console.log(`[cron] poll-shelly done — ${JSON.stringify(summary)}`);
   return Response.json({ status: "ok", ...summary, results });
 }

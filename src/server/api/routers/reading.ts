@@ -260,13 +260,13 @@ export const readingRouter = createTRPCRouter({
 
       if (
         input.utilityType === "viz" &&
-        property?.tariffGroupId &&
+        effectiveTariffGroupId &&
         consumption !== null &&
         consumption >= 0
       ) {
         const sewerTariff = await ctx.db.query.tariffs.findFirst({
           where: and(
-            eq(tariffs.tariffGroupId, property.tariffGroupId),
+            eq(tariffs.tariffGroupId, effectiveTariffGroupId),
             eq(tariffs.utilityType, "csatorna"),
             lte(tariffs.validFrom, input.readingDate),
           ),
@@ -394,5 +394,6 @@ export const readingRouter = createTRPCRouter({
       await ctx.db
         .delete(meterReadings)
         .where(eq(meterReadings.id, input.id));
+      return { success: true };
     }),
 });

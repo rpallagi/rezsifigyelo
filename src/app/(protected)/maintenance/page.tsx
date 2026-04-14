@@ -8,6 +8,7 @@ import { api } from "@/trpc/server";
 import { MaintenanceEntryActions } from "./maintenance-entry-actions";
 import { MaintenanceDemoActions } from "./maintenance-demo-actions";
 import { NewEntryDropdown } from "./new-entry-dropdown";
+import { propertyTypeLabel as _propertyTypeLabel, propertyPlaceholder } from "@/lib/property-labels";
 
 type MaintenanceCategory = "javitas" | "karbantartas" | "felujitas" | "csere";
 type MaintenanceStatus = "pending" | "in_progress" | "done";
@@ -146,30 +147,8 @@ function normalizeStatus(raw: string | null | undefined, performedDate: string |
   return "pending";
 }
 
-function propertyTypeLabel(propertyType: string, locale: Locale) {
-  switch (propertyType) {
-    case "uzlet":
-      return locale === "hu" ? "Üzlet" : "Commercial";
-    case "telek":
-      return locale === "hu" ? "Telek" : "Plot";
-    case "egyeb":
-      return locale === "hu" ? "Egyéb" : "Other";
-    default:
-      return locale === "hu" ? "Lakás" : "Apartment";
-  }
-}
-
-function propertyPlaceholder(propertyType: string) {
-  switch (propertyType) {
-    case "uzlet":
-      return "linear-gradient(135deg, rgba(0,108,73,0.92), rgba(108,248,187,0.68)), radial-gradient(circle at top right, rgba(255,255,255,0.22), transparent 40%)";
-    case "telek":
-      return "linear-gradient(135deg, rgba(131,81,0,0.9), rgba(255,185,95,0.72)), radial-gradient(circle at top right, rgba(255,255,255,0.24), transparent 40%)";
-    case "egyeb":
-      return "linear-gradient(135deg, rgba(25,28,30,0.9), rgba(118,117,134,0.72)), radial-gradient(circle at top right, rgba(255,255,255,0.24), transparent 42%)";
-    default:
-      return "linear-gradient(135deg, rgba(70,72,212,0.92), rgba(96,99,238,0.75)), radial-gradient(circle at top right, rgba(255,255,255,0.28), transparent 42%)";
-  }
+function propertyTypeLabel(propertyType: string, _locale: Locale) {
+  return _propertyTypeLabel(propertyType);
 }
 
 function buildMockLogs(locale: Locale): DisplayLog[] {

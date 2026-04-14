@@ -20,6 +20,7 @@ import {
 
 import { api } from "@/trpc/react";
 import { PhotoGallery } from "@/components/shared/photo-gallery";
+import { CurrencyInputUncontrolled } from "@/components/shared/currency-input";
 
 type MaintenanceCategory = "javitas" | "karbantartas" | "felujitas" | "csere";
 type MaintenanceStatus = "pending" | "in_progress" | "done";
@@ -426,17 +427,15 @@ export default function MaintenanceDetailPage() {
             <label className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Költség (Ft)
             </label>
-            <input
-              type="number"
+            <CurrencyInputUncontrolled
               defaultValue={costHuf || ""}
               placeholder="0"
-              onBlur={(e) => {
-                const val = Number(e.target.value);
+              onBlur={(raw) => {
+                const val = Number(raw);
                 if (val !== costHuf) {
                   updateMutation.mutate({ id: id, costHuf: val });
                 }
               }}
-              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div>

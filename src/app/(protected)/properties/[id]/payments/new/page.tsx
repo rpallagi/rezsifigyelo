@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
+import { CurrencyInput } from "@/components/shared/currency-input";
 
 export default function NewPaymentPage() {
   const router = useRouter();
@@ -43,13 +44,10 @@ export default function NewPaymentPage() {
           <label className="block text-sm font-medium">
             Összeg (Ft) <span className="text-destructive">*</span>
           </label>
-          <input
-            type="number"
+          <CurrencyInput
             value={amountHuf}
-            onChange={(e) => setAmountHuf(e.target.value)}
-            placeholder="pl. 150000"
-            required
-            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            onChange={setAmountHuf}
+            placeholder="pl. 150 000"
           />
         </div>
 

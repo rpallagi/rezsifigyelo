@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { CurrencyInput } from "@/components/shared/currency-input";
 import {
   Wrench,
   ShieldCheck,
@@ -324,10 +325,9 @@ export default function NewMaintenancePage() {
             <label className="mb-2 block text-sm font-medium">
               Költség (Ft)
             </label>
-            <input
-              type="number"
+            <CurrencyInput
               value={costHuf}
-              onChange={(e) => setCostHuf(e.target.value)}
+              onChange={setCostHuf}
               placeholder="0"
               className="w-full rounded-[16px] border border-border/60 bg-background px-4 py-3 text-sm ring-1 ring-border/60 transition focus:outline-none focus:ring-2 focus:ring-ring"
             />

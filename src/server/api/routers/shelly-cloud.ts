@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, and, like } from "drizzle-orm";
 
 import { createTRPCRouter, landlordProcedure } from "@/server/api/trpc";
-import { appSettings } from "@/server/db/schema";
+import { appSettings, meterReadings } from "@/server/db/schema";
 
 function getShellySettingsKeys(userId: number) {
   return {
@@ -126,8 +126,6 @@ export const shellyCloudRouter = createTRPCRouter({
       }
 
       // Clear existing Shelly-imported readings for THIS specific meter
-      const { meterReadings } = await import("@/server/db/schema");
-      const { eq, and, like } = await import("drizzle-orm");
       const deleteConditions = [
         eq(meterReadings.propertyId, device.propertyId),
         eq(meterReadings.utilityType, device.utilityType),
@@ -375,24 +373,18 @@ export const shellyCloudRouter = createTRPCRouter({
     }),
 
   listDevices: landlordProcedure.query(async ({ ctx }) => {
-    console.log("[shellyCloud.listDevices] START userId=", ctx.dbUser.id);
     const creds = await getShellyCloudCredentials(ctx.db, ctx.dbUser.id);
-    console.log("[shellyCloud.listDevices] creds:", creds ? "yes" : "no");
     if (!creds) return [];
 
     const host = creds.serverHost.replace(/^https?:\/\//, "").replace(/\/$/, "");
-    const url = `https://${host}/interface/device/list?auth_key=${creds.authKey.slice(0, 8)}...`;
-    console.log("[shellyCloud.listDevices] URL:", url);
 
     let res: Response;
     try {
       res = await fetch(`https://${host}/interface/device/list?auth_key=${creds.authKey}`);
     } catch (fetchErr) {
-      console.error("[shellyCloud.listDevices] fetch threw:", fetchErr);
       throw new Error(`Network error: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
     }
 
-    console.log("[shellyCloud.listDevices] status:", res.status);
     if (!res.ok) {
       throw new Error(`Shelly Cloud API hiba (${res.status})`);
     }
@@ -409,8 +401,6 @@ export const shellyCloudRouter = createTRPCRouter({
         }>;
       };
     };
-
-    console.log("[shellyCloud.listDevices] isok:", listData.isok, "count:", listData.data?.devices ? Object.keys(listData.data.devices).length : 0);
 
     if (!listData.isok || !listData.data?.devices) return [];
 

@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 
 import { useLocale } from "@/components/providers/locale-provider";
 import { api } from "@/trpc/react";
+import { CurrencyInput } from "@/components/shared/currency-input";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -1243,12 +1244,11 @@ function NewPaymentForm({
         {/* Amount */}
         <div className="mt-4">
           <label className="block text-sm font-medium">Összeg (Ft)</label>
-          <input
-            type="number"
+          <CurrencyInput
             value={amountHuf}
-            onChange={(e) => setAmountHuf(e.target.value)}
+            onChange={setAmountHuf}
             placeholder="0"
-            min={0}
+            min="0"
             className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>

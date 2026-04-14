@@ -3,7 +3,6 @@
 import {
   BarChart3,
   Building2,
-  CreditCard,
   Filter,
   Gauge,
   Home,
@@ -61,7 +60,6 @@ const iconMap: Record<string, LucideIcon> = {
   dashboard: Home,
   properties: Building2,
   readings: Gauge,
-  payments: CreditCard,
   maintenance: Wrench,
   tenants: Users,
   todos: SquareCheckBig,

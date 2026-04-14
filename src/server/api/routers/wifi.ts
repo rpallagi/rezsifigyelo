@@ -94,5 +94,6 @@ export const wifiRouter = createTRPCRouter({
       await ctx.db
         .delete(wifiNetworks)
         .where(eq(wifiNetworks.id, input.id));
+      return { success: true };
     }),
 });

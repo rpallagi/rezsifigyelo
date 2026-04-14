@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
+import { CurrencyInput } from "@/components/shared/currency-input";
 
 export default function NewCommonFeePage() {
   const router = useRouter();
@@ -47,12 +48,9 @@ export default function NewCommonFeePage() {
           <label className="block text-sm font-medium">
             Havi összeg (Ft) <span className="text-destructive">*</span>
           </label>
-          <input
-            type="number"
+          <CurrencyInput
             value={monthlyAmount}
-            onChange={(e) => setMonthlyAmount(e.target.value)}
-            required
-            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            onChange={setMonthlyAmount}
           />
         </div>
 

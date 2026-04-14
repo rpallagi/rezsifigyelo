@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/trpc/react";
 import { AddressInput } from "@/components/shared/address-input";
+import { CurrencyInput } from "@/components/shared/currency-input";
 
 export default function NewPropertyPage() {
   const router = useRouter();
@@ -15,12 +16,11 @@ export default function NewPropertyPage() {
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactEmail, setContactEmail] = useState("");
-  const [billingName, setBillingName] = useState("");
-  const [billingEmail, setBillingEmail] = useState("");
   const [landlordProfileId, setLandlordProfileId] = useState("");
   const [buildingArea, setBuildingArea] = useState("");
   const [landArea, setLandArea] = useState("");
   const [monthlyRent, setMonthlyRent] = useState("");
+  const [rentCurrency, setRentCurrency] = useState<"HUF" | "EUR">("HUF");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [notes, setNotes] = useState("");
   const { data: landlordProfiles } = api.landlordProfile.list.useQuery();
@@ -57,12 +57,11 @@ export default function NewPropertyPage() {
       contactName: contactName || undefined,
       contactPhone: contactPhone || undefined,
       contactEmail: contactEmail || undefined,
-      billingName: billingName || undefined,
-      billingEmail: billingEmail || undefined,
       landlordProfileId: landlordProfileId ? Number(landlordProfileId) : undefined,
       buildingArea: buildingArea ? Number(buildingArea) : undefined,
       landArea: landArea ? Number(landArea) : undefined,
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
+      rentCurrency,
       purchasePrice: purchasePrice ? Number(purchasePrice) : undefined,
       notes: notes || undefined,
     });
@@ -239,35 +238,6 @@ export default function NewPropertyPage() {
           </div>
         </fieldset>
 
-        <fieldset className="rounded-lg border border-border p-4">
-          <legend className="px-2 text-sm font-medium">Vevő adatok (opcionális)</legend>
-          <p className="mb-4 text-xs text-muted-foreground">
-            Ha a bérlő más néven vagy emailre kéri a számlát. Üresen hagyva a bérlő adatait használjuk.
-          </p>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-xs text-muted-foreground">Vevő neve</label>
-              <input
-                type="text"
-                value={billingName}
-                onChange={(e) => setBillingName(e.target.value)}
-                placeholder="Üresen hagyva: bérlő neve"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground">Vevő email</label>
-              <input
-                type="email"
-                value={billingEmail}
-                onChange={(e) => setBillingEmail(e.target.value)}
-                placeholder="Üresen hagyva: bérlő email"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-          </div>
-        </fieldset>
-
         {/* Area */}
         <fieldset className="rounded-lg border border-border p-4">
           <legend className="px-2 text-sm font-medium">Terület</legend>
@@ -304,19 +274,34 @@ export default function NewPropertyPage() {
           <legend className="px-2 text-sm font-medium">Pénzügyi adatok</legend>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-xs text-muted-foreground">
-                Havi bérleti díj (Ft)
-              </label>
-              <input
-                type="number"
-                value={monthlyRent}
-                onChange={(e) => setMonthlyRent(e.target.value)}
-                placeholder="0"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+              <label className="block text-xs text-muted-foreground">Havi bérleti díj</label>
+              <div className="mt-1 flex gap-2">
+                <CurrencyInput
+                  value={monthlyRent}
+                  onChange={setMonthlyRent}
+                  placeholder="0"
+                  className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <div className="flex gap-1 rounded-md border border-border p-0.5">
+                  {(["HUF", "EUR"] as const).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setRentCurrency(c)}
+                      className={`rounded px-2.5 py-1.5 text-xs font-medium transition ${
+                        rentCurrency === c
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {c === "HUF" ? "Ft" : "€"}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {monthlyRent && buildingArea && (
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  ≈ {Math.round(Number(monthlyRent) / Number(buildingArea)).toLocaleString("hu-HU")} Ft/m²
+                  ≈ {Math.round(Number(monthlyRent) / Number(buildingArea)).toLocaleString("hu-HU")} {rentCurrency === "HUF" ? "Ft" : "€"}/m²
                 </p>
               )}
             </div>
@@ -324,12 +309,10 @@ export default function NewPropertyPage() {
               <label className="block text-xs text-muted-foreground">
                 Vételár (Ft)
               </label>
-              <input
-                type="number"
+              <CurrencyInput
                 value={purchasePrice}
-                onChange={(e) => setPurchasePrice(e.target.value)}
+                onChange={setPurchasePrice}
                 placeholder="0"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           </div>

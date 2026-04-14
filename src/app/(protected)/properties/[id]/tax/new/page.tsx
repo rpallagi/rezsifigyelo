@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
+import { CurrencyInput } from "@/components/shared/currency-input";
 
 export default function NewPropertyTaxPage() {
   const router = useRouter();
@@ -64,12 +65,9 @@ export default function NewPropertyTaxPage() {
             <label className="block text-sm font-medium">
               Éves összeg (Ft) <span className="text-destructive">*</span>
             </label>
-            <input
-              type="number"
+            <CurrencyInput
               value={annualAmount}
-              onChange={(e) => setAnnualAmount(e.target.value)}
-              required
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              onChange={setAnnualAmount}
             />
           </div>
         </div>
@@ -78,12 +76,10 @@ export default function NewPropertyTaxPage() {
           <label className="block text-sm font-medium">
             Részlet összeg (Ft)
           </label>
-          <input
-            type="number"
+          <CurrencyInput
             value={installmentAmount}
-            onChange={(e) => setInstallmentAmount(e.target.value)}
+            onChange={setInstallmentAmount}
             placeholder="Éves összeg / 2"
-            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 

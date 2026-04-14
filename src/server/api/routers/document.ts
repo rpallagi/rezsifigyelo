@@ -58,5 +58,6 @@ export const documentRouter = createTRPCRouter({
 
       await requireLandlordPropertyAccess(ctx, document.propertyId);
       await ctx.db.delete(documents).where(eq(documents.id, input.id));
+      return { success: true };
     }),
 });

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { CurrencyInput } from "@/components/shared/currency-input";
 import {
   ArrowLeft,
   ArrowRight,
@@ -426,10 +427,9 @@ export default function MoveInWizardPage() {
                 <Field label="Kaució összege">
                   <div className="relative">
                     <Wallet className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="number"
+                    <CurrencyInput
                       value={depositAmount}
-                      onChange={(e) => setDepositAmount(e.target.value)}
+                      onChange={setDepositAmount}
                       placeholder="0"
                       className={`${inputClassName()} pl-11`}
                     />
