@@ -644,13 +644,17 @@ export default function MoveInWizardPage() {
                         value={!["3", "6", "12", "0"].includes(leaseMonths) ? leaseMonths : ""}
                         onChange={(e) => {
                           const val = e.target.value.replace(/\D/g, "");
-                          setLeaseMonths(val || "12");
+                          setLeaseMonths(val);
                         }}
                         onFocus={() => {
                           if (["3", "6", "12", "0"].includes(leaseMonths)) setLeaseMonths("");
                         }}
                         placeholder="Egyéni (hónap)"
-                        className="w-32 rounded-full border border-border px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                        className={`w-32 rounded-full border px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring ${
+                          !["3", "6", "12", "0", ""].includes(leaseMonths)
+                            ? "border-primary bg-primary/5"
+                            : "border-border"
+                        }`}
                       />
                     </div>
                   </Field>
