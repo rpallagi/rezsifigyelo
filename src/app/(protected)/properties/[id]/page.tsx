@@ -416,7 +416,7 @@ export default async function PropertyDetailPage({
                 </p>
                 {activeTenancy && (
                   <Link
-                    href={`/properties/${property.id}/edit`}
+                    href={`/properties/${property.id}/tenant`}
                     className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-muted-foreground transition hover:bg-secondary hover:text-foreground"
                     title="Bérlő adatainak szerkesztése"
                   >
@@ -441,14 +441,27 @@ export default async function PropertyDetailPage({
                       <span className="font-medium">Telefon:</span> {activeTenancy.tenantPhone}
                     </p>
                   )}
-                  <p>
-                    <span className="font-medium">Adószám:</span>{" "}
-                    {property.billingTaxNumber ?? "Nincs megadva"}
-                  </p>
+                  {activeTenancy.tenantAddress && (
+                    <p>
+                      <span className="font-medium">Cím:</span>{" "}
+                      {activeTenancy.tenantAddress}
+                    </p>
+                  )}
                   <p>
                     <span className="font-medium">Típus:</span>{" "}
-                    {property.billingBuyerType === "company" ? "Cég" : "Magánszemély"}
+                    {activeTenancy.tenantType === "company" ? "Cég" : "Magánszemély"}
                   </p>
+                  {activeTenancy.tenantTaxNumber && (
+                    <p>
+                      <span className="font-medium">Adószám:</span>{" "}
+                      {activeTenancy.tenantTaxNumber}
+                    </p>
+                  )}
+                  {activeTenancy.billingName && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Számlázási cím: {activeTenancy.billingName}
+                    </p>
+                  )}
                 </div>
               )}
               {!activeTenancy && (
