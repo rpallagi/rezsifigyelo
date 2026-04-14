@@ -346,7 +346,9 @@ async function buildInvoicePreview(
     let rentDescription = `${property.address ?? property.name} havi bérleti díja szerződés szerint\n${periodLabel}`;
 
     // SZJ calculation for rent
-    if (property.applySzj) {
+    // SZJ: prefer tenancy-level, fallback to property-level
+    const shouldApplySzj = activeTenancy?.applySzj ?? property.applySzj;
+    if (shouldApplySzj) {
       const szjCostRate = property.szjCostRate ?? 10;
       const szjRate = property.szjRate ?? 15;
       const szjBase = property.monthlyRent * (1 - szjCostRate / 100);
@@ -550,7 +552,7 @@ export const invoiceRouter = createTRPCRouter({
         name: preview.property.name,
         address: preview.property.address,
         landlordProfileId: preview.property.landlordProfileId,
-        applySzj: preview.property.applySzj,
+        applySzj: preview.activeTenancy?.applySzj ?? preview.property.applySzj,
         szjRate: preview.property.szjRate,
         szjCostRate: preview.property.szjCostRate,
       },

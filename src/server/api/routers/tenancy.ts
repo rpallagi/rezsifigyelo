@@ -502,6 +502,7 @@ export const tenancyRouter = createTRPCRouter({
         depositCurrency: z.enum(["HUF", "EUR"]).optional(),
         leaseMonths: z.number().optional(),
         inflationTracking: z.boolean().optional(),
+        applySzj: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

@@ -181,6 +181,7 @@ export default function MoveInWizardPage() {
   const [rentCurrency, setRentCurrency] = useState<"HUF" | "EUR">("HUF");
   const [autoBilling, setAutoBilling] = useState(false);
   const [autoBillingDay, setAutoBillingDay] = useState("1");
+  const [applySzj, setApplySzj] = useState(false);
   const [sendInvitation, setSendInvitation] = useState(false);
   const [billingSameAsTenant, setBillingSameAsTenant] = useState(true);
   const [billingName, setBillingName] = useState("");
@@ -223,6 +224,7 @@ export default function MoveInWizardPage() {
     setDepositCurrency((activeTenancy.depositCurrency as "HUF" | "EUR") ?? "HUF");
     setLeaseMonths(activeTenancy.leaseMonths?.toString() ?? "12");
     setInflationTracking(activeTenancy.inflationTracking ?? false);
+    setApplySzj(activeTenancy.applySzj ?? false);
     // Property-level fields
     setMonthlyRent(property.monthlyRent?.toString() ?? "");
     setRentCurrency((property.rentCurrency as "HUF" | "EUR") ?? "HUF");
@@ -304,6 +306,7 @@ export default function MoveInWizardPage() {
         depositCurrency,
         leaseMonths: leaseMonths && Number(leaseMonths) > 0 ? Number(leaseMonths) : undefined,
         inflationTracking,
+        applySzj,
       });
       // Also update property-level fields (rent, auto-billing)
       if (monthlyRent || autoBilling) {
@@ -741,6 +744,41 @@ export default function MoveInWizardPage() {
                       />
                     </Field>
                   )}
+
+                  {/* SZJ toggle */}
+                  <label className="flex items-start gap-3 rounded-2xl bg-background/80 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={applySzj}
+                      onChange={(e) => setApplySzj(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+                    />
+                    <div>
+                      <p className="text-sm font-medium">Kifizetői SZJA (SZJ)</p>
+                      <p className="text-xs text-muted-foreground">
+                        A bérleti díj számlán megjelenik az SZJA levonás összege és az utalandó nettó összeg.
+                      </p>
+                    </div>
+                  </label>
+                  {applySzj && monthlyRent && (() => {
+                    const rent = Number(monthlyRent);
+                    const szjBase = rent * 0.9; // 10% általány
+                    const szjAmount = Math.round(szjBase * 0.15); // 15%
+                    const netAmount = rent - szjAmount;
+                    return rent > 0 ? (
+                      <div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-4 text-sm tabular-nums">
+                        <p className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">SZJ kalkulátor</p>
+                        <div className="mt-2 space-y-1">
+                          <div className="flex justify-between"><span className="text-muted-foreground">Bruttó bérleti díj</span><span className="font-medium">{rent.toLocaleString("hu-HU")} Ft</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">SZJA levonás (15%)</span><span className="font-medium text-destructive">−{szjAmount.toLocaleString("hu-HU")} Ft</span></div>
+                          <div className="border-t border-amber-200 dark:border-amber-800 pt-1 flex justify-between font-bold">
+                            <span>Utalandó összeg</span>
+                            <span className="text-emerald-700 dark:text-emerald-400">{netAmount.toLocaleString("hu-HU")} Ft</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               )}
 

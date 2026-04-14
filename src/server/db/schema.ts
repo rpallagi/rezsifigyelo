@@ -364,6 +364,8 @@ export const tenancies = createTable(
     depositCurrency: d.varchar({ length: 3 }).notNull().default("HUF"),
     // Inflation tracking (inflációkövető bérleti díj)
     inflationTracking: d.boolean().notNull().default(false),
+    // SZJ per tenancy (overrides property-level if set)
+    applySzj: d.boolean().notNull().default(false),
     active: d.boolean().notNull().default(true),
     createdAt: d
       .timestamp({ withTimezone: true })
