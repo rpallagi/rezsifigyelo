@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq, and, desc, lt, lte, inArray } from "drizzle-orm";
+import { eq, and, desc, lt, lte, gte, inArray } from "drizzle-orm";
 
 import {
   createTRPCRouter,
@@ -11,7 +11,26 @@ import { requirePropertyAccess } from "@/server/api/access";
 import { meterReadings, meterInfo, properties, tariffs } from "@/server/db/schema";
 
 export const readingRouter = createTRPCRouter({
-  listAll: landlordProcedure.query(async ({ ctx }) => {
+  listAll: landlordProcedure
+    .input(
+      z.object({
+        fromDate: z.string().optional(),
+        toDate: z.string().optional(),
+        propertyIds: z.array(z.number()).optional(),
+      }).optional(),
+    )
+    .query(async ({ ctx, input }) => {
+    const whereConditions = [eq(properties.landlordId, ctx.dbUser.id)];
+    if (input?.fromDate) {
+      whereConditions.push(gte(meterReadings.readingDate, input.fromDate));
+    }
+    if (input?.toDate) {
+      whereConditions.push(lte(meterReadings.readingDate, input.toDate));
+    }
+    if (input?.propertyIds && input.propertyIds.length > 0) {
+      whereConditions.push(inArray(meterReadings.propertyId, input.propertyIds));
+    }
+
     const rows = await ctx.db
       .select({
         id: meterReadings.id,
@@ -32,9 +51,9 @@ export const readingRouter = createTRPCRouter({
       .from(meterReadings)
       .innerJoin(properties, eq(meterReadings.propertyId, properties.id))
       .leftJoin(meterInfo, eq(meterReadings.meterInfoId, meterInfo.id))
-      .where(eq(properties.landlordId, ctx.dbUser.id))
+      .where(and(...whereConditions))
       .orderBy(desc(meterReadings.readingDate))
-      .limit(200);
+      .limit(input?.fromDate ? 2000 : 200);
 
     // Enrich virtual meter readings with calculated consumption
     const virtualMeters = await ctx.db.query.meterInfo.findMany({
