@@ -593,7 +593,7 @@ export const tenancyRouter = createTRPCRouter({
       const responseText = await res.text();
 
       // Parse the XML response
-      const validity = responseText.match(/<taxpayerValidity>(.*?)<\/taxpayerValidity>/)?.[1];
+      const validity = responseText.match(/<(?:\w+:)?taxpayerValidity>(.*?)<\/(?:\w+:)?taxpayerValidity>/)?.[1];
       if (validity !== "true") {
         throw new TRPCError({
           code: "NOT_FOUND",
