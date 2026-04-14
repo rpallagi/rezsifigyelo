@@ -25,7 +25,7 @@ export const documentRouter = createTRPCRouter({
         filename: z.string(),
         storedUrl: z.string(),
         category: z
-          .enum(["atadas_atvetel", "szerzodes", "marketing", "egyeb"])
+          .enum(["atadas_atvetel", "szerzodes", "adasveteli", "bejegyzo_hatarozat", "szmsz", "alapito_okirat", "energetikai", "biztositas", "marketing", "egyeb"])
           .default("egyeb"),
         notes: z.string().optional(),
         fileSize: z.number().optional(),

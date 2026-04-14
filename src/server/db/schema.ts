@@ -103,6 +103,12 @@ export const todoPriorityEnum = pgEnum("rezsi_todo_priority", [
 export const documentCategoryEnum = pgEnum("rezsi_document_category", [
   "atadas_atvetel",
   "szerzodes",
+  "adasveteli",
+  "bejegyzo_hatarozat",
+  "szmsz",
+  "alapito_okirat",
+  "energetikai",
+  "biztositas",
   "marketing",
   "egyeb",
 ]);

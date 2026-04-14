@@ -4,13 +4,11 @@ import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import { MultiPhotoUpload, type UploadedPhoto } from "@/components/shared/multi-photo-upload";
+import { DOCUMENT_CATEGORIES } from "@/lib/document-categories";
 
-const categoryLabels: Record<string, string> = {
-  szerzodes: "Szerződés",
-  atadas_atvetel: "Átadás-átvétel",
-  marketing: "Marketing",
-  egyeb: "Egyéb",
-};
+const categoryLabels = Object.fromEntries(
+  DOCUMENT_CATEGORIES.map((c) => [c.value, c.label]),
+);
 
 export default function NewDocumentPage() {
   const router = useRouter();
