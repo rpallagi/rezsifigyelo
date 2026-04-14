@@ -267,6 +267,10 @@ export const properties = createTable(
     autoBilling: d.boolean().notNull().default(false),
     autoBillingDay: d.integer().notNull().default(1),
     autoBillingMissingReadings: d.varchar({ length: 20 }).notNull().default("skip_readings"),
+    // SZJ (kifizetői SZJA) — per-property toggle for rent invoices
+    applySzj: d.boolean().notNull().default(false),
+    szjRate: d.doublePrecision().notNull().default(15), // SZJA rate %
+    szjCostRate: d.doublePrecision().notNull().default(10), // általány költség %
     // Area (m²)
     buildingArea: d.doublePrecision(),
     landArea: d.doublePrecision(),
@@ -655,6 +659,7 @@ export const invoiceItems = createTable(
     utilityType: utilityTypeEnum(),
     sourceType: d.varchar({ length: 50 }),
     sourceId: d.integer(),
+    notes: d.text(), // per-item megjegyzés (Számlázz.hu <megjegyzes>)
     sortOrder: d.integer().notNull().default(0),
     createdAt: d
       .timestamp({ withTimezone: true })

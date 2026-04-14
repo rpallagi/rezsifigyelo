@@ -335,10 +335,28 @@ async function buildInvoicePreview(
 
   const items: PreviewItem[] = [];
 
+  // Period month name for descriptions
+  const periodDate = new Date(input.periodFrom + "T00:00:00");
+  const monthNames = ["Január", "Február", "Március", "Április", "Május", "Június", "Július", "Augusztus", "Szeptember", "Október", "November", "December"];
+  const periodLabel = `${periodDate.getFullYear()} ${monthNames[periodDate.getMonth()]}`;
+
   if (input.includeRent && property.monthlyRent && property.monthlyRent > 0) {
     const amounts = applyVat(property.monthlyRent, invoiceVatCode);
+    let rentDescription = `${property.address ?? property.name} havi bérleti díja szerződés szerint\n${periodLabel}`;
+
+    // SZJ calculation for rent
+    if (property.applySzj) {
+      const szjCostRate = property.szjCostRate ?? 10;
+      const szjRate = property.szjRate ?? 15;
+      const szjBase = property.monthlyRent * (1 - szjCostRate / 100);
+      const szjAmount = Math.round(szjBase * szjRate / 100);
+      const netAmount = property.monthlyRent - szjAmount;
+      rentDescription += `\nA fizető által levonandó ${szjRate}% adó összege: ${szjAmount.toLocaleString("hu-HU")} Ft`;
+      rentDescription += `\n(Kifizetői SZJ és ${szjCostRate}% általányköltség számítása mellett) utalandó összeg: ${netAmount.toLocaleString("hu-HU")} Ft`;
+    }
+
     items.push({
-      description: `Bérleti díj (${input.periodFrom} - ${input.periodTo})`,
+      description: rentDescription,
       quantity: 1,
       unit: "hó",
       unitPriceHuf: property.monthlyRent,
@@ -355,8 +373,8 @@ async function buildInvoicePreview(
       const amounts = applyVat(fee.monthlyAmount, invoiceVatCode);
       items.push({
         description: fee.recipient
-          ? `Közös költség - ${fee.recipient}`
-          : "Közös költség",
+          ? `Közös költség - ${fee.recipient}\n${periodLabel}`
+          : `Közös költség\n${periodLabel}`,
         quantity: 1,
         unit: fee.frequency === "quarterly" ? "negyedév" : "hó",
         unitPriceHuf: fee.monthlyAmount,
@@ -385,7 +403,7 @@ async function buildInvoicePreview(
     } else {
       groupedReadings.set(key, {
         grossAmountHuf: reading.costHuf,
-        description: `${reading.utilityType} fogyasztás (${input.periodFrom} - ${input.periodTo})`,
+        description: `${reading.utilityType} fogyasztás\n${periodLabel}`,
         utilityType: reading.utilityType,
         count: 1,
       });

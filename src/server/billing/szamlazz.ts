@@ -23,6 +23,7 @@ export type ProviderInvoiceItem = {
   vatRate: string;
   vatAmountHuf: number;
   grossAmountHuf: number;
+  notes?: string;
 };
 
 export type SzamlazzRequest = {
@@ -173,7 +174,7 @@ function buildInvoiceXml(request: SzamlazzRequest) {
       <nettoErtek>${roundCurrency(item.netAmountHuf)}</nettoErtek>
       <afaErtek>${roundCurrency(item.vatAmountHuf)}</afaErtek>
       <bruttoErtek>${roundCurrency(item.grossAmountHuf)}</bruttoErtek>
-      <megjegyzes></megjegyzes>
+      <megjegyzes>${escapeXml(item.notes ?? "")}</megjegyzes>
     </tetel>`,
       )
       .join("\n")}

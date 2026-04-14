@@ -30,6 +30,9 @@ export default function EditPropertyPage() {
   const [autoBilling, setAutoBilling] = useState(false);
   const [autoBillingDay, setAutoBillingDay] = useState("1");
   const [autoBillingMissingReadings, setAutoBillingMissingReadings] = useState<"estimate" | "skip_readings" | "draft_only">("skip_readings");
+  const [applySzj, setApplySzj] = useState(false);
+  const [szjRate, setSzjRate] = useState("15");
+  const [szjCostRate, setSzjCostRate] = useState("10");
   const [buildingArea, setBuildingArea] = useState("");
   const [landArea, setLandArea] = useState("");
   const [monthlyRent, setMonthlyRent] = useState("");
@@ -64,6 +67,9 @@ export default function EditPropertyPage() {
       setBillingDueDay(String(property.billingDueDay ?? 5));
       setLandlordProfileId(property.landlordProfileId?.toString() ?? "");
       setAutoBilling(property.autoBilling ?? false);
+      setApplySzj(property.applySzj ?? false);
+      setSzjRate(String(property.szjRate ?? 15));
+      setSzjCostRate(String(property.szjCostRate ?? 10));
       setAutoBillingDay(String(property.autoBillingDay ?? 1));
       setAutoBillingMissingReadings(
         (property.autoBillingMissingReadings as "estimate" | "skip_readings" | "draft_only") ?? "skip_readings",
@@ -105,6 +111,9 @@ export default function EditPropertyPage() {
       autoBilling,
       autoBillingDay: Number(autoBillingDay || 1),
       autoBillingMissingReadings,
+      applySzj,
+      szjRate: Number(szjRate || 15),
+      szjCostRate: Number(szjCostRate || 10),
       buildingArea: buildingArea ? Number(buildingArea) : undefined,
       landArea: landArea ? Number(landArea) : undefined,
       monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
@@ -326,6 +335,49 @@ export default function EditPropertyPage() {
                   <option value="estimate">Becslés az utolsó fogyasztásból</option>
                   <option value="draft_only">Csak draft (ne küldje ki)</option>
                 </select>
+              </div>
+            </div>
+          )}
+        </fieldset>
+
+        {/* SZJ (kifizetői SZJA) */}
+        <fieldset className="rounded-lg border border-border p-4">
+          <legend className="px-2 text-sm font-medium">Kifizetői SZJA (SZJ)</legend>
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={applySzj}
+              onChange={(e) => setApplySzj(e.target.checked)}
+              className="rounded"
+            />
+            <span className="text-sm">Kifizetői SZJA alkalmazása a bérleti díjra</span>
+          </label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ha be van kapcsolva, a bérleti díj számla tételében megjelenik az SZJA levonás összege és az utalandó nettó összeg.
+          </p>
+          {applySzj && (
+            <div className="mt-3 grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-xs text-muted-foreground">SZJA mérték (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={szjRate}
+                  onChange={(e) => setSzjRate(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground">Általány költség (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={szjCostRate}
+                  onChange={(e) => setSzjCostRate(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
               </div>
             </div>
           )}
