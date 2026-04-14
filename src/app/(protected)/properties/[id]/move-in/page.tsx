@@ -642,45 +642,40 @@ export default function MoveInWizardPage() {
                     </div>
                   </Field>
 
-                  <Field label="Szerződés időtartama">
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { value: "3", label: "3 hónap" },
-                        { value: "6", label: "6 hónap" },
-                        { value: "12", label: "1 év" },
-                        { value: "0", label: "Határozatlan" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setLeaseMonths(opt.value)}
-                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                            leaseMonths === opt.value
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border hover:bg-secondary"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">vagy egyéni:</span>
+                  <Field label="Szerződés időtartama (hónap)">
+                    <div className="flex items-center gap-3">
                       <input
                         type="number"
-                        min="1"
+                        min="0"
                         max="999"
-                        value={!["3", "6", "12", "0"].includes(leaseMonths) ? leaseMonths : ""}
-                        onChange={(e) => setLeaseMonths(e.target.value || "")}
-                        placeholder="pl. 120"
-                        className={`w-24 rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring ${
-                          !["3", "6", "12", "0", ""].includes(leaseMonths)
-                            ? "border-primary bg-primary/5"
-                            : "border-border"
-                        }`}
+                        value={leaseMonths}
+                        onChange={(e) => setLeaseMonths(e.target.value)}
+                        className="w-24 rounded-xl border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                       />
-                      <span className="text-xs text-muted-foreground">hónap</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { value: "3", label: "3" },
+                          { value: "6", label: "6" },
+                          { value: "12", label: "12" },
+                          { value: "24", label: "24" },
+                          { value: "0", label: "∞" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setLeaseMonths(opt.value)}
+                            className={`rounded-lg border px-2 py-1 text-[11px] font-medium transition ${
+                              leaseMonths === opt.value
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border text-muted-foreground hover:bg-secondary"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+                    {leaseMonths === "0" && <p className="mt-1 text-xs text-muted-foreground">Határozatlan időtartam</p>}
                   </Field>
                 </div>
               </div>
