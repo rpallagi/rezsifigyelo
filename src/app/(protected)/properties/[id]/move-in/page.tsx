@@ -177,6 +177,10 @@ export default function MoveInWizardPage() {
   const [depositCurrency, setDepositCurrency] = useState<"HUF" | "EUR">("HUF");
   const [leaseMonths, setLeaseMonths] = useState("12");
   const [inflationTracking, setInflationTracking] = useState(false);
+  const [monthlyRent, setMonthlyRent] = useState("");
+  const [rentCurrency, setRentCurrency] = useState<"HUF" | "EUR">("HUF");
+  const [autoBilling, setAutoBilling] = useState(false);
+  const [autoBillingDay, setAutoBillingDay] = useState("1");
   const [sendInvitation, setSendInvitation] = useState(false);
   const [billingSameAsTenant, setBillingSameAsTenant] = useState(true);
   const [billingName, setBillingName] = useState("");
@@ -219,6 +223,11 @@ export default function MoveInWizardPage() {
     setDepositCurrency((activeTenancy.depositCurrency as "HUF" | "EUR") ?? "HUF");
     setLeaseMonths(activeTenancy.leaseMonths?.toString() ?? "12");
     setInflationTracking(activeTenancy.inflationTracking ?? false);
+    // Property-level fields
+    setMonthlyRent(property.monthlyRent?.toString() ?? "");
+    setRentCurrency((property.rentCurrency as "HUF" | "EUR") ?? "HUF");
+    setAutoBilling(property.autoBilling ?? false);
+    setAutoBillingDay(String(property.autoBillingDay ?? 1));
     if (activeTenancy.billingName) {
       setBillingSameAsTenant(false);
       setBillingName(activeTenancy.billingName ?? "");
@@ -244,6 +253,7 @@ export default function MoveInWizardPage() {
     },
   });
 
+  const updateProperty = api.property.update.useMutation();
   const updateTenant = api.tenancy.updateTenant.useMutation({
     onSuccess: () => {
       setMoveInError("");
@@ -270,7 +280,7 @@ export default function MoveInWizardPage() {
     }
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (isEditMode) {
       const activeTenancy = property?.tenancies.find((t) => t.active);
       if (!activeTenancy) return;
@@ -295,6 +305,16 @@ export default function MoveInWizardPage() {
         leaseMonths: leaseMonths && Number(leaseMonths) > 0 ? Number(leaseMonths) : undefined,
         inflationTracking,
       });
+      // Also update property-level fields (rent, auto-billing)
+      if (monthlyRent || autoBilling) {
+        await updateProperty.mutateAsync({
+          id: propertyId,
+          monthlyRent: monthlyRent ? Number(monthlyRent) : undefined,
+          rentCurrency,
+          autoBilling,
+          autoBillingDay: Number(autoBillingDay || 1),
+        });
+      }
       return;
     }
     moveIn.mutate({
@@ -663,6 +683,66 @@ export default function MoveInWizardPage() {
                   </Field>
                 </div>
               </div>
+
+              {/* Monthly rent + auto-billing (property-level, shown in edit mode) */}
+              {isEditMode && (
+                <div className="space-y-4 border-t border-border/60 pt-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Havi bérleti díj">
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={monthlyRent}
+                          onChange={(e) => setMonthlyRent(e.target.value)}
+                          placeholder="0"
+                          className={inputClassName()}
+                        />
+                        <div className="flex gap-1 rounded-2xl border border-border p-1">
+                          {(["HUF", "EUR"] as const).map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setRentCurrency(c)}
+                              className={`rounded-xl px-3 py-2 text-xs font-medium transition ${
+                                rentCurrency === c ? "bg-primary text-primary-foreground" : "hover:bg-secondary"
+                              }`}
+                            >
+                              {c === "HUF" ? "Ft" : "€"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </Field>
+                  </div>
+
+                  <label className="flex items-start gap-3 rounded-2xl bg-background/80 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={autoBilling}
+                      onChange={(e) => setAutoBilling(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+                    />
+                    <div>
+                      <p className="text-sm font-medium">Automatikus havi számlázás</p>
+                      <p className="text-xs text-muted-foreground">
+                        Minden hónap megadott napján automatikusan kiállítja a bérleti díj számlát.
+                      </p>
+                    </div>
+                  </label>
+                  {autoBilling && (
+                    <Field label="Számlázás napja (1-28)">
+                      <input
+                        type="number"
+                        min="1"
+                        max="28"
+                        value={autoBillingDay}
+                        onChange={(e) => setAutoBillingDay(e.target.value)}
+                        className={inputClassName()}
+                      />
+                    </Field>
+                  )}
+                </div>
+              )}
 
               {/* Billing override */}
               <div className="border-t border-border/60 pt-5">
