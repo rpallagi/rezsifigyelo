@@ -90,6 +90,7 @@ function SectionCard({
 }
 
 import { propertyTypeLabel, propertyPlaceholder as placeholderCover } from "@/lib/property-labels";
+import { ROIPropertyCards } from "./roi-property-cards";
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
@@ -410,99 +411,31 @@ export default async function ROIPage({
           </section>
 
           <SectionCard title={copy.yieldBreakdown}>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-              {roiProperties.slice(0, 4).map((property) => {
-                return (
-                  <Link
-                    key={property.id}
-                    href={`/properties/${property.id}`}
-                    className="group overflow-hidden rounded-[30px] bg-card/95 p-3 shadow-[0_18px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 dark:shadow-[0_18px_40px_rgba(0,0,0,0.24)]"
-                  >
-                    <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[24px]">
-                      <PropertyCoverImage
-                        imageUrl={property.avatarUrl}
-                        title={property.name}
-                        className="h-full w-full object-cover"
-                        placeholderClassName="h-full w-full"
-                        placeholderBackground={placeholderCover(property.propertyType)}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
-                      <div className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-900 shadow-sm">
-                        {propertyTypeLabel(property.propertyType)}
-                      </div>
-                      <div className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-3">
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
-                            {copy.highestYield}
-                          </p>
-                          <p className="mt-1 text-2xl font-semibold text-white">
-                            {formatPercent(property.roi)}
-                          </p>
-                        </div>
-                        <div className="rounded-full bg-white/12 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur">
-                          {property.breakEvenYears?.toFixed(1) ?? "—"} {locale === "hu" ? "év" : "yr"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="px-1">
-                      <h3 className="truncate font-semibold tracking-tight">{property.name}</h3>
-                      <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                        {property.address ?? m.common.noAddress}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-2.5">
-                      <div className="rounded-[22px] bg-background/75 px-3 py-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                          {copy.netRent}
-                        </p>
-                        <p className="mt-1 text-base font-semibold">
-                          {displayAmount(property.monthlyRent ?? 0)}
-                        </p>
-                        {property.isEur && (
-                          <p className="mt-0.5 text-[10px] text-muted-foreground">
-                            {property.rawMonthly.toLocaleString("hu-HU")} € × {eurRate} Ft/€
-                          </p>
-                        )}
-                      </div>
-                      <div className="rounded-[22px] bg-background/75 px-3 py-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                          {copy.maintenance}
-                          {property.maintenanceIsEstimate && (
-                            <span className="ml-1 normal-case tracking-normal opacity-60">~becslés</span>
-                          )}
-                        </p>
-                        <p className={`mt-1 text-base font-semibold ${property.maintenanceIsEstimate ? "text-muted-foreground" : "text-rose-600 dark:text-rose-300"}`}>
-                          {displayAmount(property.maintenanceCost)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 rounded-[22px] bg-background/70 px-4 py-3">
-                      <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        <span>{copy.breakEvenStatus}</span>
-                        <span className="text-primary">
-                          {property.breakEvenYears?.toFixed(1) ?? "—"} {copy.remaining}
-                        </span>
-                      </div>
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary/60">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{
-                            width: `${
-                              property.breakEvenYears
-                                ? Math.max(10, Math.min(100, Math.round(100 / property.breakEvenYears)))
-                                : 10
-                            }%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+            <ROIPropertyCards
+              properties={roiProperties.map((property) => ({
+                id: property.id,
+                name: property.name,
+                address: property.address,
+                avatarUrl: property.avatarUrl,
+                propertyType: property.propertyType,
+                roi: property.roi,
+                breakEvenYears: property.breakEvenYears,
+                monthlyRentDisplay: displayAmount(property.monthlyRent ?? 0),
+                isEur: property.isEur,
+                eurDetail: property.isEur ? `${property.rawMonthly.toLocaleString("hu-HU")} € × ${eurRate} Ft/€` : null,
+                maintenanceDisplay: displayAmount(property.maintenanceCost),
+                maintenanceIsEstimate: property.maintenanceIsEstimate,
+                placeholderBg: placeholderCover(property.propertyType),
+                typeLabel: propertyTypeLabel(property.propertyType),
+              }))}
+              copy={{
+                highestYield: copy.highestYield,
+                netRent: copy.netRent,
+                maintenance: copy.maintenance,
+                breakEvenStatus: copy.breakEvenStatus,
+                remaining: copy.remaining,
+              }}
+            />
           </SectionCard>
 
           <div className="grid grid-cols-1 gap-8 xl:grid-cols-[1fr_0.42fr]">
