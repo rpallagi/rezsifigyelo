@@ -540,8 +540,8 @@ function NewInvoiceForm({
               className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">{messages.billingPage.chooseProperty}</option>
-              {(selectedProfileId
-                ? properties?.filter((p) => p.landlordProfile?.id === selectedProfileId)
+              {(effectiveProfileId
+                ? properties?.filter((p) => p.landlordProfile?.id === effectiveProfileId)
                 : properties
               )?.map((property) => (
                 <option key={property.id} value={property.id}>
