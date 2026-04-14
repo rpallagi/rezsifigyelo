@@ -153,24 +153,8 @@ export default async function TenantsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <TenantEditActions
+                          propertyId={t.propertyId}
                           tenancyId={t.id}
-                          initialName={displayName}
-                          initialEmail={displayEmail}
-                          initialPhone={displayPhone}
-                          initialAddress={t.tenantAddress ?? ""}
-                          initialMotherName={t.tenantMotherName ?? ""}
-                          initialBirthPlace={t.tenantBirthPlace ?? ""}
-                          initialBirthDate={t.tenantBirthDate ?? ""}
-                          initialTenantType={t.tenantType ?? "individual"}
-                          initialTaxNumber={t.tenantTaxNumber ?? ""}
-                          initialBillingName={t.billingName ?? ""}
-                          initialBillingEmail={t.billingEmail ?? ""}
-                          initialBillingAddress={t.billingAddress ?? ""}
-                          initialBillingTaxNumber={t.billingTaxNumber ?? ""}
-                          initialBillingBuyerType={t.billingBuyerType ?? "individual"}
-                          initialDepositAmount={t.depositAmount ?? undefined}
-                          initialDepositCurrency={t.depositCurrency ?? "HUF"}
-                          initialLeaseMonths={t.leaseMonths ?? undefined}
                         />
                       </td>
                     </tr>
