@@ -351,11 +351,13 @@ async function buildInvoicePreview(
     if (shouldApplySzj) {
       const szjCostRate = property.szjCostRate ?? 10;
       const szjRate = property.szjRate ?? 15;
-      const szjBase = property.monthlyRent * (1 - szjCostRate / 100);
-      const szjAmount = Math.round(szjBase * szjRate / 100);
+      const costAllowance = Math.round(property.monthlyRent * szjCostRate / 100);
+      const taxBase = property.monthlyRent - costAllowance;
+      const szjAmount = Math.round(taxBase * szjRate / 100);
       const netAmount = property.monthlyRent - szjAmount;
-      rentDescription += `\nA fizető által levonandó ${szjRate}% adó összege: ${szjAmount.toLocaleString("hu-HU")} Ft`;
-      rentDescription += `\n(Kifizetői SZJ és ${szjCostRate}% általányköltség számítása mellett) utalandó összeg: ${netAmount.toLocaleString("hu-HU")} Ft`;
+      rentDescription += `\nA kifizető által levonandó ${szjRate}% SZJA összege: ${szjAmount.toLocaleString("hu-HU")} Ft`;
+      rentDescription += `\n(${szjCostRate}% költséghányad alkalmazásával, adóalap: ${taxBase.toLocaleString("hu-HU")} Ft)`;
+      rentDescription += `\nUtalandó nettó összeg: ${netAmount.toLocaleString("hu-HU")} Ft`;
     }
 
     items.push({

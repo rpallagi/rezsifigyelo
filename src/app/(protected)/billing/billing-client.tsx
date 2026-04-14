@@ -789,26 +789,37 @@ function NewInvoiceForm({
                       const rent = item.unitPriceHuf;
                       const costRate = preview.data.property.szjCostRate ?? 10;
                       const szjRate = preview.data.property.szjRate ?? 15;
-                      const szjBase = rent * (1 - costRate / 100);
-                      const szjAmount = Math.round(szjBase * szjRate / 100);
+                      const costAllowance = Math.round(rent * costRate / 100);
+                      const taxBase = rent - costAllowance;
+                      const szjAmount = Math.round(taxBase * szjRate / 100);
                       const netAmount = rent - szjAmount;
                       return (
                         <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-4">
                           <p className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">Kifizetői SZJA kalkulátor</p>
+                          <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-400">Szja tv. 17. § (3) — {costRate}% költséghányad alkalmazásával</p>
                           <div className="mt-2 space-y-1 text-sm tabular-nums">
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Bruttó bérleti díj</span>
                               <span className="font-medium">{rent.toLocaleString("hu-HU")} Ft</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">SZJA levonás ({szjRate}%)</span>
+                              <span className="text-muted-foreground">{costRate}% költséghányad</span>
+                              <span className="text-muted-foreground">−{costAllowance.toLocaleString("hu-HU")} Ft</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Adóalap (bérleti díj {100 - costRate}%-a)</span>
+                              <span className="font-medium">{taxBase.toLocaleString("hu-HU")} Ft</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Levont SZJA ({szjRate}%)</span>
                               <span className="font-medium text-destructive">−{szjAmount.toLocaleString("hu-HU")} Ft</span>
                             </div>
-                            <div className="border-t border-amber-200 dark:border-amber-800 pt-1 flex justify-between font-bold">
-                              <span>Utalandó összeg</span>
+                            <div className="border-t border-amber-200 dark:border-amber-800 pt-1 mt-1 flex justify-between font-bold">
+                              <span>Utalandó nettó összeg</span>
                               <span className="text-emerald-700 dark:text-emerald-400">{netAmount.toLocaleString("hu-HU")} Ft</span>
                             </div>
                           </div>
+                          <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-500">SZOCHO nem terheli az ingatlan bérbeadásból származó jövedelmet.</p>
                         </div>
                       );
                     })()}
