@@ -1073,7 +1073,7 @@ export default function MoveInWizardPage() {
                 <span className="text-muted-foreground">Havi bérleti díj</span>
                 <span className="font-semibold">
                   {property.monthlyRent
-                    ? `${property.monthlyRent.toLocaleString("hu-HU")} Ft`
+                    ? `${property.monthlyRent.toLocaleString("hu-HU")} ${property.rentCurrency === "EUR" ? "€" : "Ft"}`
                     : "Nincs megadva"}
                 </span>
               </div>
