@@ -57,20 +57,31 @@ export const propertyRouter = createTRPCRouter({
           where: (t, { eq }) => eq(t.active, true),
           with: { tenant: true },
         },
-        meterInfo: true,
-        tariffGroup: true,
-        building: true,
+        meterInfo: {
+          columns: { id: true, propertyId: true, utilityType: true, serialNumber: true, location: true, meterType: true },
+        },
+        tariffGroup: {
+          columns: { id: true, name: true },
+        },
+        building: {
+          columns: { id: true, name: true, address: true },
+        },
         landlordProfile: true,
         handoverChecklists: {
           where: (c, { eq }) => eq(c.status, "pending"),
         },
         maintenanceLogs: {
           columns: { id: true, costHuf: true },
+          limit: 10,
         },
       },
       orderBy: (p, { asc }) => [asc(p.name)],
     });
 
+    // Skip sanitizeAvatarUrl in production — Blob URLs are always valid
+    if (process.env.NODE_ENV === "production") {
+      return propertyList;
+    }
     return Promise.all(propertyList.map((property) => sanitizeAvatarUrl(property)));
   }),
 
