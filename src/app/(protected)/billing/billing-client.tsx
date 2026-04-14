@@ -424,6 +424,7 @@ function NewInvoiceForm({
     return `Bérleti díj és rezsi — ${d.toLocaleDateString("hu-HU", { year: "numeric", month: "long" })}`;
   });
   const [editedDescriptions, setEditedDescriptions] = useState<Record<number, string>>({});
+  const [editedNotes, setEditedNotes] = useState<Record<number, string>>({});
   const [manualConfirmed, setManualConfirmed] = useState(false);
 
   const selectedProperty =
@@ -702,11 +703,9 @@ function NewInvoiceForm({
         </div>
       </section>
 
-      {/* Preview section */}
+      {/* Preview section — redesigned */}
       <section className="rounded-[28px] bg-card/90 p-4 shadow-sm ring-1 ring-border/60 sm:p-6">
-        <h2 className="text-lg font-semibold">
-          {messages.billingPage.preview}
-        </h2>
+        <h2 className="text-lg font-semibold">Élőnézet</h2>
 
         {preview.error ? (
           <p className="mt-3 text-sm text-destructive">
@@ -718,144 +717,109 @@ function NewInvoiceForm({
           </p>
         ) : (
           <div className="mt-4 space-y-4">
-            {/* Three-column summary */}
-            <div className="grid gap-3 md:grid-cols-3">
-              {/* Readiness */}
-              <div className="rounded-[20px] bg-background/80 p-4 ring-1 ring-border/50">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {messages.billingPage.readinessTitle}
-                </p>
-                <p className="mt-2 text-sm">
-                  <span className="font-medium">
-                    {messages.billingPage.providerStatusLabel}:
-                  </span>{" "}
-                  {preview.data.canSendToProvider
-                    ? messages.billingPage.readyToSend
-                    : messages.billingPage.notReadyToSend}
-                </p>
-                <p className="mt-1 text-sm">
-                  <span className="font-medium">
-                    {messages.billingPage.activeTenantLabel}:
-                  </span>{" "}
-                  {preview.data.tenant?.name ?? messages.common.noTenant}
-                </p>
-                <p className="mt-1 text-sm">
-                  <span className="font-medium">
-                    {messages.billingPage.billingModeLabel}:
-                  </span>{" "}
-                  {preview.data.billingDefaults.billingMode === "advance"
-                    ? messages.billingPage.billingModeAdvance
-                    : messages.billingPage.billingModeArrears}
-                </p>
-              </div>
-
-              {/* Seller */}
-              <div className="rounded-[20px] bg-background/80 p-4 ring-1 ring-border/50">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {messages.billingPage.sellerSectionTitle}
-                </p>
-                <p className="mt-2 text-sm font-medium">
-                  {preview.data.sellerProfile.displayName}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {preview.data.sellerProfile.billingName}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {preview.data.sellerProfile.billingAddress ??
-                    messages.common.noAddress}
-                </p>
-              </div>
-
-              {/* Buyer */}
-              <div className="rounded-[20px] bg-background/80 p-4 ring-1 ring-border/50">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {messages.billingPage.buyerSectionTitle}
-                </p>
-                <p className="mt-2 text-sm font-medium">
-                  {preview.data.buyer.name}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {buyerSourceLabel}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {preview.data.buyer.email ?? messages.common.none}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {preview.data.buyer.address ?? messages.common.noAddress}
-                </p>
-              </div>
+            {/* Compact seller/buyer header */}
+            <div className="rounded-xl bg-secondary/30 px-4 py-3 text-xs space-y-1">
+              <p>
+                <span className="font-semibold">Kiállító:</span>{" "}
+                {preview.data.sellerProfile.displayName} · {preview.data.sellerProfile.billingAddress ?? ""}
+                {preview.data.canSendToProvider
+                  ? <span className="ml-2 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 text-[10px] font-semibold">Küldhető</span>
+                  : <span className="ml-2 rounded bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 px-1.5 py-0.5 text-[10px] font-semibold">Nem küldhető</span>
+                }
+              </p>
+              <p>
+                <span className="font-semibold">Vevő:</span>{" "}
+                {preview.data.buyer.name}
+                {preview.data.buyer.taxNumber && <span> · {preview.data.buyer.taxNumber}</span>}
+                {preview.data.buyer.address && <span className="text-muted-foreground"> · {preview.data.buyer.address}</span>}
+              </p>
             </div>
 
-            {/* Line items + total */}
-            <div className="grid gap-3 md:grid-cols-[1.4fr_0.9fr]">
-              <div className="rounded-[20px] bg-background/80 p-4 ring-1 ring-border/50">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {messages.billingPage.invoiceList}
-                </p>
-                <div className="mt-3 space-y-3">
-                  {preview.data.items.map((item, index) => (
-                    <div
-                      key={`${item.sourceType}-${index}`}
-                      className="rounded-[18px] bg-card p-3 ring-1 ring-border/40"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <textarea
-                            value={editedDescriptions[index] ?? item.description}
-                            onChange={(e) => setEditedDescriptions((prev) => ({ ...prev, [index]: e.target.value }))}
-                            rows={Math.max(2, (editedDescriptions[index] ?? item.description).split("\n").length)}
-                            className="w-full resize-none rounded-lg border border-border/50 bg-background/50 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30"
-                          />
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {item.quantity} {item.unit} · {item.vatRate}
-                          </p>
-                        </div>
-                        <p className="shrink-0 text-sm font-semibold tabular-nums">
-                          {item.grossAmountHuf.toLocaleString(intlLocale)}{" "}
-                          {messages.common.currencyCode}
-                        </p>
-                      </div>
-                      {/* SZJ info box for rent items */}
-                      {item.sourceType === "rent" && preview.data.property.applySzj && (() => {
-                        const rent = item.unitPriceHuf;
-                        const costRate = preview.data.property.szjCostRate ?? 10;
-                        const szjRate = preview.data.property.szjRate ?? 15;
-                        const szjBase = rent * (1 - costRate / 100);
-                        const szjAmount = Math.round(szjBase * szjRate / 100);
-                        const netAmount = rent - szjAmount;
-                        return (
-                          <div className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 px-3 py-2 text-xs">
-                            <p className="font-semibold text-amber-800 dark:text-amber-300">Kifizetői SZJA kalkulátor</p>
-                            <div className="mt-1 space-y-0.5 tabular-nums">
-                              <p>Bruttó bérleti díj: <span className="font-medium">{rent.toLocaleString("hu-HU")} Ft</span></p>
-                              <p>SZJA levonás ({szjRate}%): <span className="font-medium text-destructive">−{szjAmount.toLocaleString("hu-HU")} Ft</span></p>
-                              <p className="font-semibold">Utalandó összeg: <span className="text-emerald-700 dark:text-emerald-400">{netAmount.toLocaleString("hu-HU")} Ft</span></p>
+            {/* Line items — prominently editable */}
+            <div className="space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tételek</p>
+              {preview.data.items.map((item, index) => {
+                const sourceLabel = item.sourceType === "rent" ? "Bérleti díj" : item.sourceType === "common_fee" ? "Közös költség" : "Rezsi";
+                return (
+                  <div key={`${item.sourceType}-${index}`} className="rounded-2xl border border-border bg-background p-4 space-y-3">
+                    {/* Header: type badge + amount */}
+                    <div className="flex items-center justify-between">
+                      <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">{sourceLabel}</span>
+                      <span className="text-lg font-bold tabular-nums">
+                        {item.grossAmountHuf.toLocaleString(intlLocale)} {messages.common.currencyCode}
+                      </span>
+                    </div>
+
+                    {/* Description — big editable textarea */}
+                    <div>
+                      <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Megnevezés</label>
+                      <textarea
+                        value={editedDescriptions[index] ?? item.description}
+                        onChange={(e) => setEditedDescriptions((prev) => ({ ...prev, [index]: e.target.value }))}
+                        rows={Math.max(4, (editedDescriptions[index] ?? item.description).split("\n").length + 1)}
+                        className="w-full resize-y rounded-xl border border-border bg-background px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+
+                    {/* Item note — optional */}
+                    <div>
+                      <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Tétel megjegyzés (opcionális)</label>
+                      <input
+                        type="text"
+                        value={editedNotes[index] ?? ""}
+                        onChange={(e) => setEditedNotes((prev) => ({ ...prev, [index]: e.target.value }))}
+                        placeholder="pl. részletezés, hivatkozás..."
+                        className="w-full rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+
+                    {/* Meta: quantity, unit, VAT */}
+                    <p className="text-[11px] text-muted-foreground">{item.quantity} {item.unit} · ÁFA: {item.vatRate}</p>
+
+                    {/* SZJ calculator for rent */}
+                    {item.sourceType === "rent" && preview.data.property.applySzj && (() => {
+                      const rent = item.unitPriceHuf;
+                      const costRate = preview.data.property.szjCostRate ?? 10;
+                      const szjRate = preview.data.property.szjRate ?? 15;
+                      const szjBase = rent * (1 - costRate / 100);
+                      const szjAmount = Math.round(szjBase * szjRate / 100);
+                      const netAmount = rent - szjAmount;
+                      return (
+                        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-4">
+                          <p className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">Kifizetői SZJA kalkulátor</p>
+                          <div className="mt-2 space-y-1 text-sm tabular-nums">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Bruttó bérleti díj</span>
+                              <span className="font-medium">{rent.toLocaleString("hu-HU")} Ft</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">SZJA levonás ({szjRate}%)</span>
+                              <span className="font-medium text-destructive">−{szjAmount.toLocaleString("hu-HU")} Ft</span>
+                            </div>
+                            <div className="border-t border-amber-200 dark:border-amber-800 pt-1 flex justify-between font-bold">
+                              <span>Utalandó összeg</span>
+                              <span className="text-emerald-700 dark:text-emerald-400">{netAmount.toLocaleString("hu-HU")} Ft</span>
                             </div>
                           </div>
-                        );
-                      })()}
-                    </div>
-                  ))}
-                </div>
-              </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })}
+            </div>
 
-              <div className="rounded-[20px] bg-background/80 p-4 ring-1 ring-border/50">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {messages.billingPage.invoiceTotal}
-                </p>
-                <p className="mt-4 text-3xl font-semibold tabular-nums tracking-tight">
-                  {preview.data.grossTotalHuf.toLocaleString(intlLocale)}{" "}
-                  {messages.common.currencyCode}
-                </p>
-                <div className="mt-4 space-y-1.5 text-sm text-muted-foreground">
-                  <p>
-                    <span className="font-medium text-foreground">
-                      {messages.billingPage.issueDateLabel}:
-                    </span>{" "}
-                    {new Date(preview.data.issueDate).toLocaleDateString(
-                      intlLocale,
-                    )}
+            {/* Totals + dates */}
+            <div className="rounded-2xl border border-border bg-background p-5">
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Számla végösszeg</p>
+                  <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">
+                    {preview.data.grossTotalHuf.toLocaleString(intlLocale)} {messages.common.currencyCode}
                   </p>
+                </div>
+                <div className="text-right text-sm text-muted-foreground space-y-0.5">
+                  <p>Kiállítás: <span className="font-medium text-foreground">{new Date(preview.data.issueDate).toLocaleDateString(intlLocale)}</span></p>
                   <p>
                     <span className="font-medium text-foreground">
                       {messages.billingPage.dueDateLabel}:
