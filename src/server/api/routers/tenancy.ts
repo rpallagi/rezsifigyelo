@@ -601,18 +601,35 @@ export const tenancyRouter = createTRPCRouter({
         });
       }
 
-      const name = responseText.match(/<taxpayerName>(.*?)<\/taxpayerName>/)?.[1] ?? "";
-      const taxpayerId = responseText.match(/<(?:ns2:)?taxpayerId>(.*?)<\/(?:ns2:)?taxpayerId>/)?.[1] ?? torzsszam;
-      const vatCode = responseText.match(/<(?:ns2:)?vatCode>(.*?)<\/(?:ns2:)?vatCode>/)?.[1] ?? "";
-      const postalCode = responseText.match(/<(?:ns2:)?postalCode>(.*?)<\/(?:ns2:)?postalCode>/)?.[1] ?? "";
-      const city = responseText.match(/<(?:ns2:)?city>(.*?)<\/(?:ns2:)?city>/)?.[1] ?? "";
-      const streetName = responseText.match(/<(?:ns2:)?streetName>(.*?)<\/(?:ns2:)?streetName>/)?.[1] ?? "";
-      const publicPlaceCategory = responseText.match(/<(?:ns2:)?publicPlaceCategory>(.*?)<\/(?:ns2:)?publicPlaceCategory>/)?.[1] ?? "";
-      const number = responseText.match(/<(?:ns2:)?number>(.*?)<\/(?:ns2:)?number>/)?.[1] ?? "";
+      // Helper to match XML tags with any namespace prefix (ns2:, ns3:, or none)
+      const tag = (name: string) => new RegExp(`<(?:\\w+:)?${name}>(.*?)<\\/(?:\\w+:)?${name}>`);
 
-      const fullTaxNumber = vatCode ? `${taxpayerId}-${vatCode}` : taxpayerId;
-      const addressParts = [postalCode, city, `${streetName} ${publicPlaceCategory}`.trim(), number].filter(Boolean);
-      const fullAddress = addressParts.join(", ").replace(/,\s*,/g, ",").trim();
+      const name = responseText.match(tag("taxpayerName"))?.[1] ?? "";
+      const taxpayerId = responseText.match(tag("taxpayerId"))?.[1] ?? torzsszam;
+      const vatCode = responseText.match(tag("vatCode"))?.[1] ?? "";
+      const countyCode = responseText.match(tag("countyCode"))?.[1] ?? "";
+
+      // Extract HQ address from first taxpayerAddressItem
+      const hqBlock = responseText.match(/<(?:\w+:)?taxpayerAddressItem>[\s\S]*?<(?:\w+:)?taxpayerAddressType>HQ<\/(?:\w+:)?taxpayerAddressType>[\s\S]*?<(?:\w+:)?taxpayerAddress>([\s\S]*?)<\/(?:\w+:)?taxpayerAddress>/)?.[1] ?? "";
+      const postalCode = hqBlock.match(tag("postalCode"))?.[1] ?? "";
+      const city = hqBlock.match(tag("city"))?.[1] ?? "";
+      const streetName = hqBlock.match(tag("streetName"))?.[1] ?? "";
+      const publicPlaceCategory = hqBlock.match(tag("publicPlaceCategory"))?.[1] ?? "";
+      const number = hqBlock.match(tag("number"))?.[1] ?? "";
+
+      // Build full tax number: 8-1-2 format (e.g. 10537914-4-44)
+      const fullTaxNumber = vatCode && countyCode
+        ? `${taxpayerId}-${vatCode}-${countyCode}`
+        : vatCode
+          ? `${taxpayerId}-${vatCode}`
+          : taxpayerId;
+
+      // Build address, skip "N/A" public place category
+      const place = publicPlaceCategory && publicPlaceCategory !== "N/A"
+        ? `${streetName} ${publicPlaceCategory}`.trim()
+        : streetName;
+      const addressParts = [postalCode, city, place, number].filter(Boolean);
+      const fullAddress = addressParts.join(" ").trim();
 
       return {
         name: name.trim(),
