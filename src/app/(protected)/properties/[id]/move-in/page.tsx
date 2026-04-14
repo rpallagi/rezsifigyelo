@@ -663,24 +663,23 @@ export default function MoveInWizardPage() {
                           {opt.label}
                         </button>
                       ))}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">vagy egyéni:</span>
                       <input
                         type="number"
                         min="1"
                         max="999"
                         value={!["3", "6", "12", "0"].includes(leaseMonths) ? leaseMonths : ""}
-                        onChange={(e) => {
-                          setLeaseMonths(e.target.value);
-                        }}
-                        onFocus={() => {
-                          if (["3", "6", "12", "0"].includes(leaseMonths)) setLeaseMonths("");
-                        }}
-                        placeholder="Egyéni (hónap)"
-                        className={`w-36 rounded-full border px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring ${
+                        onChange={(e) => setLeaseMonths(e.target.value || "")}
+                        placeholder="pl. 120"
+                        className={`w-24 rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring ${
                           !["3", "6", "12", "0", ""].includes(leaseMonths)
                             ? "border-primary bg-primary/5"
                             : "border-border"
                         }`}
                       />
+                      <span className="text-xs text-muted-foreground">hónap</span>
                     </div>
                   </Field>
                 </div>
