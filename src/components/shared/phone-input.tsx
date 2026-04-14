@@ -9,7 +9,7 @@ import { useCallback } from "react";
  * International: +XX XXX XXX XXXX (generic grouping)
  */
 function formatPhone(digits: string): string {
-  if (!digits) return "+";
+  if (!digits) return "+36 ";
 
   // Hungarian number: 36...
   if (digits.startsWith("36") && digits.length > 2) {
@@ -62,7 +62,7 @@ export function PhoneInput({
   // Format existing value on render (handles loading saved data)
   const displayed = value
     ? value.includes(" ") ? value : formatPhone(value.replace(/\D/g, ""))
-    : "+";
+    : "+36 ";
 
   return (
     <input
