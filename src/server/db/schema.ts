@@ -362,6 +362,8 @@ export const tenancies = createTable(
     leaseRenewalNotified: d.boolean().notNull().default(false),
     depositAmount: d.doublePrecision(),
     depositCurrency: d.varchar({ length: 3 }).notNull().default("HUF"),
+    // Inflation tracking (inflációkövető bérleti díj)
+    inflationTracking: d.boolean().notNull().default(false),
     active: d.boolean().notNull().default(true),
     createdAt: d
       .timestamp({ withTimezone: true })
@@ -372,6 +374,38 @@ export const tenancies = createTable(
   (t) => [
     index("tenancy_property_id_idx").on(t.propertyId),
     index("tenancy_tenant_id_idx").on(t.tenantId),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Rent Adjustments (bérleti díj módosítások — infláció, emelés)
+// ---------------------------------------------------------------------------
+
+export const rentAdjustments = createTable(
+  "rent_adjustment",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    propertyId: d
+      .integer()
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    tenancyId: d.integer().references(() => tenancies.id, { onDelete: "set null" }),
+    year: d.integer().notNull(),
+    adjustmentType: d.varchar({ length: 30 }).notNull(), // "inflation_estimate" | "inflation_final" | "manual"
+    percentage: d.doublePrecision().notNull(),
+    previousRent: d.doublePrecision().notNull(),
+    newRent: d.doublePrecision().notNull(),
+    correctionAmount: d.doublePrecision(), // januári különbözet (februári korrekcióhoz)
+    appliedAt: d.date().notNull(),
+    note: d.text(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  }),
+  (t) => [
+    index("rent_adjustment_property_idx").on(t.propertyId),
+    index("rent_adjustment_year_idx").on(t.year),
   ],
 );
 
@@ -1207,6 +1241,13 @@ export const tariffsRelations = relations(tariffs, ({ one }) => ({
   tariffGroup: one(tariffGroups, {
     fields: [tariffs.tariffGroupId],
     references: [tariffGroups.id],
+  }),
+}));
+
+export const rentAdjustmentsRelations = relations(rentAdjustments, ({ one }) => ({
+  property: one(properties, {
+    fields: [rentAdjustments.propertyId],
+    references: [properties.id],
   }),
 }));
 

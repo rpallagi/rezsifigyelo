@@ -176,6 +176,7 @@ export default function MoveInWizardPage() {
   const [depositAmount, setDepositAmount] = useState("");
   const [depositCurrency, setDepositCurrency] = useState<"HUF" | "EUR">("HUF");
   const [leaseMonths, setLeaseMonths] = useState("12");
+  const [inflationTracking, setInflationTracking] = useState(false);
   const [sendInvitation, setSendInvitation] = useState(false);
   const [billingSameAsTenant, setBillingSameAsTenant] = useState(true);
   const [billingName, setBillingName] = useState("");
@@ -217,6 +218,7 @@ export default function MoveInWizardPage() {
     setDepositAmount(activeTenancy.depositAmount?.toString() ?? "");
     setDepositCurrency((activeTenancy.depositCurrency as "HUF" | "EUR") ?? "HUF");
     setLeaseMonths(activeTenancy.leaseMonths?.toString() ?? "12");
+    setInflationTracking(activeTenancy.inflationTracking ?? false);
     if (activeTenancy.billingName) {
       setBillingSameAsTenant(false);
       setBillingName(activeTenancy.billingName ?? "");
@@ -291,6 +293,7 @@ export default function MoveInWizardPage() {
         depositAmount: depositAmount ? Number(depositAmount) : undefined,
         depositCurrency,
         leaseMonths: leaseMonths && Number(leaseMonths) > 0 ? Number(leaseMonths) : undefined,
+        inflationTracking,
       });
       return;
     }

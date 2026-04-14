@@ -17,6 +17,7 @@ import { smartMeterRouter } from "@/server/api/routers/smart-meter";
 import { homeAssistantRouter } from "@/server/api/routers/home-assistant";
 import { shellyCloudRouter } from "@/server/api/routers/shelly-cloud";
 import { homewizardRouter } from "@/server/api/routers/homewizard";
+import { rentAdjustmentRouter } from "@/server/api/routers/rent-adjustment";
 import { invoiceRouter } from "@/server/api/routers/invoice";
 import { landlordProfileRouter } from "@/server/api/routers/landlord-profile";
 import { marketingRouter } from "@/server/api/routers/marketing";
@@ -42,6 +43,7 @@ export const appRouter = createTRPCRouter({
   homeAssistant: homeAssistantRouter,
   shellyCloud: shellyCloudRouter,
   homewizard: homewizardRouter,
+  rentAdjustment: rentAdjustmentRouter,
   invoice: invoiceRouter,
   landlordProfile: landlordProfileRouter,
   marketing: marketingRouter,

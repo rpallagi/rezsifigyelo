@@ -164,6 +164,15 @@ export default function SettingsPage() {
             </p>
           </Link>
           <Link
+            href="/settings/inflation"
+            className="rounded-lg border border-border p-4 hover:bg-secondary/50"
+          >
+            <h3 className="font-medium">Inflációkövetés</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Éves bérleti díj emelés batch alkalmazása
+            </p>
+          </Link>
+          <Link
             href="/settings/smart-meters"
             className="rounded-lg border border-border p-4 hover:bg-secondary/50"
           >
