@@ -423,6 +423,7 @@ function NewInvoiceForm({
     const d = new Date(startOfMonth());
     return `Bérleti díj és rezsi — ${d.toLocaleDateString("hu-HU", { year: "numeric", month: "long" })}`;
   });
+  const [editedDescriptions, setEditedDescriptions] = useState<Record<number, string>>({});
 
   const selectedProperty =
     properties?.find((p) => p.id === propertyId) ?? null;
@@ -777,22 +778,48 @@ function NewInvoiceForm({
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {messages.billingPage.invoiceList}
                 </p>
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 space-y-3">
                   {preview.data.items.map((item, index) => (
                     <div
-                      key={`${item.description}-${index}`}
-                      className="flex flex-col gap-1 rounded-[18px] bg-card p-3 ring-1 ring-border/40 sm:flex-row sm:items-center sm:justify-between"
+                      key={`${item.sourceType}-${index}`}
+                      className="rounded-[18px] bg-card p-3 ring-1 ring-border/40"
                     >
-                      <div>
-                        <p className="font-medium">{item.description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.quantity} {item.unit}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <textarea
+                            value={editedDescriptions[index] ?? item.description}
+                            onChange={(e) => setEditedDescriptions((prev) => ({ ...prev, [index]: e.target.value }))}
+                            rows={Math.max(2, (editedDescriptions[index] ?? item.description).split("\n").length)}
+                            className="w-full resize-none rounded-lg border border-border/50 bg-background/50 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {item.quantity} {item.unit} · {item.vatRate}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-sm font-semibold tabular-nums">
+                          {item.grossAmountHuf.toLocaleString(intlLocale)}{" "}
+                          {messages.common.currencyCode}
                         </p>
                       </div>
-                      <p className="text-sm font-semibold tabular-nums">
-                        {item.grossAmountHuf.toLocaleString(intlLocale)}{" "}
-                        {messages.common.currencyCode}
-                      </p>
+                      {/* SZJ info box for rent items */}
+                      {item.sourceType === "rent" && preview.data.property.applySzj && (() => {
+                        const rent = item.unitPriceHuf;
+                        const costRate = preview.data.property.szjCostRate ?? 10;
+                        const szjRate = preview.data.property.szjRate ?? 15;
+                        const szjBase = rent * (1 - costRate / 100);
+                        const szjAmount = Math.round(szjBase * szjRate / 100);
+                        const netAmount = rent - szjAmount;
+                        return (
+                          <div className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 px-3 py-2 text-xs">
+                            <p className="font-semibold text-amber-800 dark:text-amber-300">Kifizetői SZJA kalkulátor</p>
+                            <div className="mt-1 space-y-0.5 tabular-nums">
+                              <p>Bruttó bérleti díj: <span className="font-medium">{rent.toLocaleString("hu-HU")} Ft</span></p>
+                              <p>SZJA levonás ({szjRate}%): <span className="font-medium text-destructive">−{szjAmount.toLocaleString("hu-HU")} Ft</span></p>
+                              <p className="font-semibold">Utalandó összeg: <span className="text-emerald-700 dark:text-emerald-400">{netAmount.toLocaleString("hu-HU")} Ft</span></p>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>

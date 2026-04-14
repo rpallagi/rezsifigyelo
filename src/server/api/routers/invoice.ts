@@ -38,6 +38,7 @@ type PreviewProperty = typeof properties.$inferSelect & {
 };
 type PreviewItem = {
   description: string;
+  notes?: string;
   quantity: number;
   unit: string;
   unitPriceHuf: number;
@@ -549,6 +550,9 @@ export const invoiceRouter = createTRPCRouter({
         name: preview.property.name,
         address: preview.property.address,
         landlordProfileId: preview.property.landlordProfileId,
+        applySzj: preview.property.applySzj,
+        szjRate: preview.property.szjRate,
+        szjCostRate: preview.property.szjCostRate,
       },
       tenant: preview.activeTenancy?.tenant
         ? {
