@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/trpc/react";
 import { CurrencyInput } from "@/components/shared/currency-input";
+import { TaxNumberInput } from "@/components/shared/tax-number-input";
 
 export default function TenantEditPage() {
   const params = useParams();
@@ -230,11 +231,13 @@ export default function TenantEditPage() {
             ) : (
               <div>
                 <label className="block text-xs text-muted-foreground">Adószám *</label>
-                <input
-                  type="text"
+                <TaxNumberInput
                   value={tenantTaxNumber}
-                  onChange={(e) => setTenantTaxNumber(e.target.value)}
-                  placeholder="12345678-1-23"
+                  onChange={setTenantTaxNumber}
+                  onCompanyFound={(data) => {
+                    setTenantName(data.name);
+                    if (data.address) setTenantAddress(data.address);
+                  }}
                   className={inputCls}
                 />
               </div>

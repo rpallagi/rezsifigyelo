@@ -20,6 +20,7 @@ import {
   tenantInvitations,
   handoverChecklists,
   meterReadings,
+  landlordProfiles,
 } from "@/server/db/schema";
 import { createMoveInChecklist } from "@/server/tenancy/invitations";
 import { parseLandlordProfileScopeFromHeader } from "@/lib/landlord-profile-scope";
@@ -528,5 +529,95 @@ export const tenancyRouter = createTRPCRouter({
         where: eq(tenantHistory.propertyId, input.propertyId),
         orderBy: [desc(tenantHistory.createdAt)],
       });
+    }),
+
+  // Lookup taxpayer by tax number via Számlázz.hu API
+  lookupTaxNumber: landlordProcedure
+    .input(z.object({ taxNumber: z.string().min(8) }))
+    .mutation(async ({ ctx, input }) => {
+      // Extract the 8-digit core (torzsszam) — user may enter "12345678" or "12345678-1-23"
+      const torzsszam = input.taxNumber.replace(/\D/g, "").slice(0, 8);
+      if (torzsszam.length < 8) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Legalább 8 számjegy szükséges" });
+      }
+
+      // Find an agent key from any landlord profile
+      const profile = await ctx.db.query.landlordProfiles.findFirst({
+        where: eq(landlordProfiles.ownerUserId, ctx.dbUser.id),
+        columns: { agentKey: true },
+      });
+
+      let agentKey = profile?.agentKey ?? "";
+
+      // Fallback to app settings
+      if (!agentKey) {
+        const { getInvoiceSettings } = await import("@/server/billing/settings");
+        const settings = await getInvoiceSettings(ctx.db, ctx.dbUser.id);
+        agentKey = settings.agentKey;
+      }
+
+      if (!agentKey) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Nincs Számlázz.hu Agent kulcs beállítva. Állítsd be a kiadói profilban.",
+        });
+      }
+
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<xmltaxpayer xmlns="http://www.szamlazz.hu/xmltaxpayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.szamlazz.hu/xmltaxpayer http://www.szamlazz.hu/docs/xsds/agent/xmltaxpayer.xsd">
+  <beallitasok>
+    <szamlaagentkulcs>${agentKey}</szamlaagentkulcs>
+  </beallitasok>
+  <torzsszam>${torzsszam}</torzsszam>
+</xmltaxpayer>`;
+
+      const formData = new FormData();
+      formData.append(
+        "action-szamla_agent_taxpayer",
+        new Blob([xml], { type: "application/xml" }),
+        "taxpayer.xml",
+      );
+
+      const res = await fetch("https://www.szamlazz.hu/szamla/", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Számlázz.hu API hiba (${res.status})`,
+        });
+      }
+
+      const responseText = await res.text();
+
+      // Parse the XML response
+      const validity = responseText.match(/<taxpayerValidity>(.*?)<\/taxpayerValidity>/)?.[1];
+      if (validity !== "true") {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Érvénytelen adószám vagy nem található adóalany.",
+        });
+      }
+
+      const name = responseText.match(/<taxpayerName>(.*?)<\/taxpayerName>/)?.[1] ?? "";
+      const taxpayerId = responseText.match(/<(?:ns2:)?taxpayerId>(.*?)<\/(?:ns2:)?taxpayerId>/)?.[1] ?? torzsszam;
+      const vatCode = responseText.match(/<(?:ns2:)?vatCode>(.*?)<\/(?:ns2:)?vatCode>/)?.[1] ?? "";
+      const postalCode = responseText.match(/<(?:ns2:)?postalCode>(.*?)<\/(?:ns2:)?postalCode>/)?.[1] ?? "";
+      const city = responseText.match(/<(?:ns2:)?city>(.*?)<\/(?:ns2:)?city>/)?.[1] ?? "";
+      const streetName = responseText.match(/<(?:ns2:)?streetName>(.*?)<\/(?:ns2:)?streetName>/)?.[1] ?? "";
+      const publicPlaceCategory = responseText.match(/<(?:ns2:)?publicPlaceCategory>(.*?)<\/(?:ns2:)?publicPlaceCategory>/)?.[1] ?? "";
+      const number = responseText.match(/<(?:ns2:)?number>(.*?)<\/(?:ns2:)?number>/)?.[1] ?? "";
+
+      const fullTaxNumber = vatCode ? `${taxpayerId}-${vatCode}` : taxpayerId;
+      const addressParts = [postalCode, city, `${streetName} ${publicPlaceCategory}`.trim(), number].filter(Boolean);
+      const fullAddress = addressParts.join(", ").replace(/,\s*,/g, ",").trim();
+
+      return {
+        name: name.trim(),
+        taxNumber: fullTaxNumber,
+        address: fullAddress,
+      };
     }),
 });

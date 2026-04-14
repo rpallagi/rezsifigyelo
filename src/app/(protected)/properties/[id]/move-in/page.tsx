@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CurrencyInput } from "@/components/shared/currency-input";
+import { TaxNumberInput } from "@/components/shared/tax-number-input";
 import {
   ArrowLeft,
   ArrowRight,
@@ -488,11 +489,13 @@ export default function MoveInWizardPage() {
                   </>
                 ) : (
                   <Field label="Adószám" required>
-                    <input
-                      type="text"
+                    <TaxNumberInput
                       value={tenantTaxNumber}
-                      onChange={(e) => setTenantTaxNumber(e.target.value)}
-                      placeholder="12345678-1-23"
+                      onChange={setTenantTaxNumber}
+                      onCompanyFound={(data) => {
+                        setTenantName(data.name);
+                        if (data.address) setTenantAddress(data.address);
+                      }}
                       className={inputClassName()}
                     />
                   </Field>
