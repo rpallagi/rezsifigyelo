@@ -127,28 +127,49 @@ function resolveBuyer(
   property: PreviewProperty,
   activeTenancy: PreviewActiveTenancy,
 ) {
-  const billingName = property.billingName?.trim() ?? "";
-  const billingEmail = property.billingEmail?.trim() ?? "";
-  const billingAddress = property.billingAddress?.trim() ?? "";
-  const billingTaxNumber = property.billingTaxNumber?.trim() ?? "";
-  const tenantDisplayName =
-    `${activeTenancy?.tenant?.firstName ?? ""} ${activeTenancy?.tenant?.lastName ?? ""}`.trim();
-  const propertyContactName = property.contactName?.trim() ?? "";
-  const propertyName = property.name.trim();
-  const resolvedBillingAddress =
-    billingAddress.length > 0 ? billingAddress : (property.address ?? null);
-
-  if (billingName.length > 0) {
+  // 1. Tenancy-level billing override (set during move-in)
+  const tenancyBillingName = activeTenancy?.billingName?.trim() ?? "";
+  if (tenancyBillingName.length > 0) {
     return {
-      name: billingName,
-      email: billingEmail || null,
-      address: resolvedBillingAddress,
-      taxNumber: billingTaxNumber || null,
+      name: tenancyBillingName,
+      email: activeTenancy?.billingEmail?.trim() || null,
+      address: activeTenancy?.billingAddress?.trim() || activeTenancy?.tenantAddress?.trim() || (property.address ?? null),
+      taxNumber: activeTenancy?.billingTaxNumber?.trim() || null,
+      buyerType: (activeTenancy?.billingBuyerType as "individual" | "company") ?? "individual",
+      source: "tenancy_billing" as const,
+    };
+  }
+
+  // 2. Property-level billing override (legacy, for backwards compat)
+  const propBillingName = property.billingName?.trim() ?? "";
+  if (propBillingName.length > 0) {
+    const propBillingAddress = property.billingAddress?.trim() ?? "";
+    return {
+      name: propBillingName,
+      email: property.billingEmail?.trim() || null,
+      address: propBillingAddress.length > 0 ? propBillingAddress : (property.address ?? null),
+      taxNumber: property.billingTaxNumber?.trim() || null,
       buyerType: property.billingBuyerType,
       source: "billing_profile" as const,
     };
   }
 
+  // 3. Tenant data from tenancy record
+  const tenantName = activeTenancy?.tenantName?.trim() ?? "";
+  if (tenantName.length > 0) {
+    return {
+      name: tenantName,
+      email: activeTenancy?.tenantEmail?.trim() || activeTenancy?.tenant?.email || null,
+      address: activeTenancy?.tenantAddress?.trim() || (property.address ?? null),
+      taxNumber: activeTenancy?.tenantTaxNumber?.trim() || null,
+      buyerType: (activeTenancy?.tenantType as "individual" | "company") ?? "individual",
+      source: "tenant" as const,
+    };
+  }
+
+  // 4. Tenant from linked user account
+  const tenantDisplayName =
+    `${activeTenancy?.tenant?.firstName ?? ""} ${activeTenancy?.tenant?.lastName ?? ""}`.trim();
   if (tenantDisplayName.length > 0) {
     return {
       name: tenantDisplayName,
@@ -171,23 +192,26 @@ function resolveBuyer(
     };
   }
 
+  // 5. Property contact fallback
+  const propertyContactName = property.contactName?.trim() ?? "";
   if (propertyContactName.length > 0) {
     return {
       name: propertyContactName,
       email: property.contactEmail ?? null,
-      address: resolvedBillingAddress,
-      taxNumber: billingTaxNumber || null,
-      buyerType: property.billingBuyerType,
+      address: property.address ?? null,
+      taxNumber: null,
+      buyerType: "individual" as const,
       source: "property_contact" as const,
     };
   }
 
+  // 6. Property name as last resort
   return {
-    name: propertyName,
+    name: property.name.trim(),
     email: property.contactEmail ?? null,
-    address: resolvedBillingAddress,
-    taxNumber: billingTaxNumber || null,
-    buyerType: property.billingBuyerType,
+    address: property.address ?? null,
+    taxNumber: null,
+    buyerType: "individual" as const,
     source: "property_name" as const,
   };
 }

@@ -332,6 +332,18 @@ export const tenancies = createTable(
     tenantName: d.varchar({ length: 200 }),
     tenantEmail: d.varchar({ length: 255 }),
     tenantPhone: d.varchar({ length: 50 }),
+    tenantAddress: d.text(),
+    tenantMotherName: d.varchar({ length: 200 }),
+    tenantBirthPlace: d.varchar({ length: 200 }),
+    tenantBirthDate: d.date(),
+    tenantType: d.varchar({ length: 20 }).notNull().default("individual"), // individual | company
+    tenantTaxNumber: d.varchar({ length: 50 }),
+    // Billing override — if different from tenant data
+    billingName: d.varchar({ length: 255 }),
+    billingEmail: d.varchar({ length: 255 }),
+    billingAddress: d.text(),
+    billingTaxNumber: d.varchar({ length: 50 }),
+    billingBuyerType: d.varchar({ length: 20 }),
     moveInDate: d.date(),
     moveOutDate: d.date(),
     leaseMonths: d.integer(),

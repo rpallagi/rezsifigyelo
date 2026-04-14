@@ -11,9 +11,7 @@ import {
   Droplets,
   FileText,
   Flame,
-  Home,
   KeyRound,
-  Mail,
   Upload,
   Wallet,
   Waves,
@@ -161,13 +159,25 @@ export default function MoveInWizardPage() {
 
   const { data: property, isLoading } = api.property.get.useQuery({ id: propertyId });
 
+  const [tenantType, setTenantType] = useState<"individual" | "company">("individual");
   const [tenantEmail, setTenantEmail] = useState("");
   const [tenantName, setTenantName] = useState("");
   const [tenantPhone, setTenantPhone] = useState("");
+  const [tenantAddress, setTenantAddress] = useState("");
+  const [tenantMotherName, setTenantMotherName] = useState("");
+  const [tenantBirthPlace, setTenantBirthPlace] = useState("");
+  const [tenantBirthDate, setTenantBirthDate] = useState("");
+  const [tenantTaxNumber, setTenantTaxNumber] = useState("");
   const [moveInDate, setMoveInDate] = useState(new Date().toISOString().split("T")[0]!);
   const [depositAmount, setDepositAmount] = useState("");
   const [leaseMonths, setLeaseMonths] = useState("12");
   const [sendInvitation, setSendInvitation] = useState(false);
+  const [billingSameAsTenant, setBillingSameAsTenant] = useState(true);
+  const [billingName, setBillingName] = useState("");
+  const [billingEmail, setBillingEmail] = useState("");
+  const [billingAddress, setBillingAddress] = useState("");
+  const [billingTaxNumber, setBillingTaxNumber] = useState("");
+  const [billingBuyerType, setBillingBuyerType] = useState<"individual" | "company">("individual");
 
   // Step 1: Meter readings
   const [initialReadings, setInitialReadings] = useState<Record<string, string>>({});
@@ -218,6 +228,17 @@ export default function MoveInWizardPage() {
       tenantEmail: tenantEmail || undefined,
       tenantName: tenantName || undefined,
       tenantPhone: tenantPhone || undefined,
+      tenantAddress: tenantAddress || undefined,
+      tenantMotherName: tenantMotherName || undefined,
+      tenantBirthPlace: tenantBirthPlace || undefined,
+      tenantBirthDate: tenantBirthDate || undefined,
+      tenantType,
+      tenantTaxNumber: tenantTaxNumber || undefined,
+      billingName: !billingSameAsTenant ? (billingName || undefined) : undefined,
+      billingEmail: !billingSameAsTenant ? (billingEmail || undefined) : undefined,
+      billingAddress: !billingSameAsTenant ? (billingAddress || undefined) : undefined,
+      billingTaxNumber: !billingSameAsTenant ? (billingTaxNumber || undefined) : undefined,
+      billingBuyerType: !billingSameAsTenant ? billingBuyerType : undefined,
       moveInDate,
       depositAmount: depositAmount ? Number(depositAmount) : undefined,
       leaseMonths: leaseMonths && Number(leaseMonths) > 0 ? Number(leaseMonths) : undefined,
@@ -365,115 +386,260 @@ export default function MoveInWizardPage() {
                 </p>
               </div>
 
+              {/* Tenant type selector */}
+              <div className="flex gap-2">
+                {([
+                  { value: "individual", label: "Magánszemély" },
+                  { value: "company", label: "Cég" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setTenantType(opt.value)}
+                    className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                      tenantType === opt.value
+                        ? "border-primary bg-primary/10 text-primary ring-2 ring-primary/20"
+                        : "border-border hover:bg-secondary"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid gap-5 md:grid-cols-2">
                 <Field
-                  label="Bérlő neve"
+                  label={tenantType === "company" ? "Cégnév" : "Bérlő neve"}
                   required
                 >
-                  <div className="relative">
-                    <Home className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="text"
-                      value={tenantName}
-                      onChange={(e) => setTenantName(e.target.value)}
-                      placeholder="Teljes név"
-                      required
-                      className={`${inputClassName()} pl-11`}
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    value={tenantName}
+                    onChange={(e) => setTenantName(e.target.value)}
+                    placeholder={tenantType === "company" ? "Példa Kft." : "Teljes név"}
+                    required
+                    className={inputClassName()}
+                  />
                 </Field>
 
                 <Field
-                  label="Bérlő email"
+                  label="Email"
                   hint="Ha megadod, később meghívhatod az appba."
                 >
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="email"
-                      value={tenantEmail}
-                      onChange={(e) => setTenantEmail(e.target.value)}
-                      placeholder="berlo@email.com"
-                      className={`${inputClassName()} pl-11`}
-                    />
-                  </div>
+                  <input
+                    type="email"
+                    value={tenantEmail}
+                    onChange={(e) => setTenantEmail(e.target.value)}
+                    placeholder="berlo@email.com"
+                    className={inputClassName()}
+                  />
                 </Field>
 
                 <Field label="Telefonszám">
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="tel"
-                      value={tenantPhone}
-                      onChange={(e) => setTenantPhone(e.target.value)}
-                      placeholder="+36 30 123 4567"
-                      className={`${inputClassName()} pl-11`}
-                    />
-                  </div>
+                  <input
+                    type="tel"
+                    value={tenantPhone}
+                    onChange={(e) => setTenantPhone(e.target.value)}
+                    placeholder="+36 30 123 4567"
+                    className={inputClassName()}
+                  />
                 </Field>
 
-                <Field label="Beköltözés dátuma">
-                  <div className="relative">
-                    <CalendarDays className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="date"
-                      value={moveInDate}
-                      onChange={(e) => setMoveInDate(e.target.value)}
-                      className={`${inputClassName()} pl-11`}
-                    />
-                  </div>
+                <Field label="Állandó lakcím / Székhely">
+                  <input
+                    type="text"
+                    value={tenantAddress}
+                    onChange={(e) => setTenantAddress(e.target.value)}
+                    placeholder="1081 Budapest, Kálvária tér 1."
+                    className={inputClassName()}
+                  />
                 </Field>
 
-                <Field label="Kaució összege">
-                  <div className="relative">
-                    <Wallet className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <CurrencyInput
-                      value={depositAmount}
-                      onChange={setDepositAmount}
-                      placeholder="0"
-                      className={`${inputClassName()} pl-11`}
-                    />
-                  </div>
-                </Field>
+                {tenantType === "individual" ? (
+                  <>
+                    <Field label="Anyja neve">
+                      <input
+                        type="text"
+                        value={tenantMotherName}
+                        onChange={(e) => setTenantMotherName(e.target.value)}
+                        placeholder="Anyja születési neve"
+                        className={inputClassName()}
+                      />
+                    </Field>
 
-                <Field label="Szerződés időtartama">
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: "3", label: "3 hónap" },
-                      { value: "6", label: "6 hónap" },
-                      { value: "12", label: "1 év" },
-                      { value: "0", label: "Határozatlan" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setLeaseMonths(opt.value)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                          leaseMonths === opt.value
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border hover:bg-secondary"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
+                    <Field label="Születési hely">
+                      <input
+                        type="text"
+                        value={tenantBirthPlace}
+                        onChange={(e) => setTenantBirthPlace(e.target.value)}
+                        placeholder="pl. Budapest"
+                        className={inputClassName()}
+                      />
+                    </Field>
+
+                    <Field label="Születési dátum">
+                      <input
+                        type="date"
+                        value={tenantBirthDate}
+                        onChange={(e) => setTenantBirthDate(e.target.value)}
+                        className={inputClassName()}
+                      />
+                    </Field>
+                  </>
+                ) : (
+                  <Field label="Adószám" required>
                     <input
                       type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={!["3", "6", "12", "0"].includes(leaseMonths) ? leaseMonths : ""}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "");
-                        setLeaseMonths(val || "12");
-                      }}
-                      onFocus={() => {
-                        if (["3", "6", "12", "0"].includes(leaseMonths)) setLeaseMonths("");
-                      }}
-                      placeholder="Egyéni (hónap)"
-                      className="w-32 rounded-full border border-border px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                      value={tenantTaxNumber}
+                      onChange={(e) => setTenantTaxNumber(e.target.value)}
+                      placeholder="12345678-1-23"
+                      className={inputClassName()}
                     />
+                  </Field>
+                )}
+              </div>
+
+              {/* Separator */}
+              <div className="border-t border-border/60 pt-5">
+                <div className="grid gap-5 md:grid-cols-2">
+                  <Field label="Beköltözés dátuma">
+                    <div className="relative">
+                      <CalendarDays className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="date"
+                        value={moveInDate}
+                        onChange={(e) => setMoveInDate(e.target.value)}
+                        className={`${inputClassName()} pl-11`}
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label="Kaució összege">
+                    <div className="relative">
+                      <Wallet className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <CurrencyInput
+                        value={depositAmount}
+                        onChange={setDepositAmount}
+                        placeholder="0"
+                        className={`${inputClassName()} pl-11`}
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label="Szerződés időtartama">
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { value: "3", label: "3 hónap" },
+                        { value: "6", label: "6 hónap" },
+                        { value: "12", label: "1 év" },
+                        { value: "0", label: "Határozatlan" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setLeaseMonths(opt.value)}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                            leaseMonths === opt.value
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border hover:bg-secondary"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={!["3", "6", "12", "0"].includes(leaseMonths) ? leaseMonths : ""}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          setLeaseMonths(val || "12");
+                        }}
+                        onFocus={() => {
+                          if (["3", "6", "12", "0"].includes(leaseMonths)) setLeaseMonths("");
+                        }}
+                        placeholder="Egyéni (hónap)"
+                        className="w-32 rounded-full border border-border px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                  </Field>
+                </div>
+              </div>
+
+              {/* Billing override */}
+              <div className="border-t border-border/60 pt-5">
+                <label className="flex items-center gap-3 rounded-2xl bg-background/80 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={billingSameAsTenant}
+                    onChange={(e) => setBillingSameAsTenant(e.target.checked)}
+                    className="h-4 w-4 rounded border-border accent-primary"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">A számlázási adatok megegyeznek a bérlő adataival</p>
+                    <p className="text-xs text-muted-foreground">
+                      Ha a számla más névre szól (pl. cég nevére), kapcsold ki.
+                    </p>
                   </div>
-                </Field>
+                </label>
+
+                {!billingSameAsTenant && (
+                  <div className="mt-4 grid gap-5 md:grid-cols-2">
+                    <Field label="Számla címzett neve" required>
+                      <input
+                        type="text"
+                        value={billingName}
+                        onChange={(e) => setBillingName(e.target.value)}
+                        placeholder="pl. Példa Kft."
+                        className={inputClassName()}
+                      />
+                    </Field>
+
+                    <Field label="Számla címzett email">
+                      <input
+                        type="email"
+                        value={billingEmail}
+                        onChange={(e) => setBillingEmail(e.target.value)}
+                        placeholder="szamla@pelda.hu"
+                        className={inputClassName()}
+                      />
+                    </Field>
+
+                    <Field label="Számlázási cím">
+                      <input
+                        type="text"
+                        value={billingAddress}
+                        onChange={(e) => setBillingAddress(e.target.value)}
+                        placeholder="Ha eltér a bérlő címétől"
+                        className={inputClassName()}
+                      />
+                    </Field>
+
+                    <Field label="Címzett típusa">
+                      <select
+                        value={billingBuyerType}
+                        onChange={(e) => setBillingBuyerType(e.target.value as "individual" | "company")}
+                        className={inputClassName()}
+                      >
+                        <option value="individual">Magánszemély</option>
+                        <option value="company">Cég</option>
+                      </select>
+                    </Field>
+
+                    {billingBuyerType === "company" && (
+                      <Field label="Adószám" required>
+                        <input
+                          type="text"
+                          value={billingTaxNumber}
+                          onChange={(e) => setBillingTaxNumber(e.target.value)}
+                          placeholder="12345678-1-23"
+                          className={inputClassName()}
+                        />
+                      </Field>
+                    )}
+                  </div>
+                )}
               </div>
 
               {tenantEmail && (
