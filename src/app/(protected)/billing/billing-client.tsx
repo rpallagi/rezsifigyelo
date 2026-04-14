@@ -424,6 +424,7 @@ function NewInvoiceForm({
     return `Bérleti díj és rezsi — ${d.toLocaleDateString("hu-HU", { year: "numeric", month: "long" })}`;
   });
   const [editedDescriptions, setEditedDescriptions] = useState<Record<number, string>>({});
+  const [manualConfirmed, setManualConfirmed] = useState(false);
 
   const selectedProperty =
     properties?.find((p) => p.id === propertyId) ?? null;
@@ -573,6 +574,19 @@ function NewInvoiceForm({
             </select>
           </div>
         </div>
+
+        {/* Auto-billing warning */}
+        {propertyId && properties?.find((p) => p.id === propertyId)?.autoBilling && (
+          <div className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50 p-4 text-sm dark:border-amber-700/60 dark:bg-amber-950/20">
+            <p className="font-semibold text-amber-800 dark:text-amber-200">
+              ⚠️ Automatikus számlázás aktív
+            </p>
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+              Ez az ingatlan automatikus számlázásra van kapcsolva (minden hó {properties?.find((p) => p.id === propertyId)?.autoBillingDay ?? 1}-én).
+              Ha manuálisan állítasz ki számlát, a következő automata számlázás NEM fogja kihagyni az időszakot.
+            </p>
+          </div>
+        )}
 
         {/* Period — month shortcuts + manual */}
         <div className="mt-4 space-y-3">
@@ -890,11 +904,28 @@ function NewInvoiceForm({
           </div>
         )}
 
+        {/* Auto-billing confirmation checkbox */}
+        {propertyId && properties?.find((p) => p.id === propertyId)?.autoBilling && (
+          <div className="mt-4">
+            <label className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50/50 p-3 dark:border-amber-700/60 dark:bg-amber-950/10">
+              <input
+                type="checkbox"
+                checked={manualConfirmed}
+                onChange={(e) => setManualConfirmed(e.target.checked)}
+                className="mt-0.5 rounded"
+              />
+              <span className="text-xs text-amber-800 dark:text-amber-300">
+                Tudomásul veszem, ez egy manuális/extra számla az automatikus számlázás mellett.
+              </span>
+            </label>
+          </div>
+        )}
+
         {/* Submit button */}
         <div className="mt-5">
           <button
             type="button"
-            disabled={!preview.data || createInvoice.isPending}
+            disabled={!preview.data || createInvoice.isPending || (properties?.find((p) => p.id === propertyId)?.autoBilling && !manualConfirmed)}
             onClick={() =>
               propertyId &&
               createInvoice.mutate({

@@ -654,6 +654,7 @@ export const invoices = createTable(
     netTotalHuf: d.doublePrecision().notNull().default(0),
     vatTotalHuf: d.doublePrecision().notNull().default(0),
     grossTotalHuf: d.doublePrecision().notNull().default(0),
+    source: d.varchar({ length: 20 }).notNull().default("manual"), // "manual" | "auto"
     emailedToBuyer: d.boolean().notNull().default(false),
     reminderSentAt: d.timestamp({ withTimezone: true }),
     paidAt: d.timestamp({ withTimezone: true }),

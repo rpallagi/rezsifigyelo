@@ -11,7 +11,7 @@ import {
   properties,
   tenancies,
 } from "@/server/db/schema";
-import type { users } from "@/server/db/schema";
+import { users } from "@/server/db/schema";
 import { createInvoiceWithSzamlazz } from "@/server/billing/szamlazz";
 
 // ---------------------------------------------------------------------------
@@ -127,6 +127,7 @@ type PropertyResult = {
   reason?: string;
   invoiceId?: number;
   invoiceNumber?: string;
+  grossTotal?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -490,6 +491,7 @@ async function processProperty(
         sellerTaxNumber: sellerProfile.taxNumber ?? null,
         sellerProfileType: sellerProfile.profileType,
         note,
+        source: "auto",
         netTotalHuf,
         vatTotalHuf,
         grossTotalHuf,
@@ -567,6 +569,7 @@ async function processProperty(
 
         result.status = "sent";
         result.invoiceNumber = providerResult.invoiceNumber;
+        result.grossTotal = grossTotalHuf;
       } catch (szamlazzError) {
         // Invoice was created as draft, but Szamlazz.hu failed
         const message =
@@ -582,6 +585,7 @@ async function processProperty(
       }
     } else {
       result.status = "created";
+      result.grossTotal = grossTotalHuf;
       if (isDraftOnly) {
         result.reason = "draft_only mód — csak piszkozat készült";
       } else if (!agentKeyConfigured) {
@@ -608,7 +612,7 @@ async function processProperty(
 export async function GET(req: NextRequest) {
   // Verify cron secret
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.CRON_SECRET) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -667,6 +671,51 @@ export async function GET(req: NextRequest) {
   console.log(
     `[cron] generate-invoices done — sent: ${summary.sent}, created: ${summary.created}, skipped: ${summary.skipped}, errors: ${summary.errors}`,
   );
+
+  // Send summary email to landlord if any invoices were processed
+  if (results.length > 0 && results.some((r) => r.status !== "skipped")) {
+    try {
+      const { sendEmail } = await import("@/server/email/send");
+      // Get landlord email from first property's user
+      const firstProp = eligibleProperties[0];
+      const landlordUser = firstProp ? await db.query.users.findFirst({
+        where: eq(users.id, firstProp.landlordId),
+        columns: { email: true },
+      }) : null;
+
+      if (landlordUser?.email) {
+        const monthName = today.toLocaleDateString("hu-HU", { year: "numeric", month: "long" });
+        const successResults = results.filter((r) => r.status === "sent" || r.status === "created");
+        const errorResults = results.filter((r) => r.status === "error");
+
+        const successHtml = successResults.map((r) =>
+          `<li>✅ <strong>${r.propertyName}</strong> — ${r.grossTotal?.toLocaleString("hu-HU") ?? "?"} Ft${r.invoiceNumber ? ` — ${r.invoiceNumber}` : " (draft)"}</li>`
+        ).join("");
+
+        const errorHtml = errorResults.map((r) =>
+          `<li>❌ <strong>${r.propertyName}</strong> — ${r.reason}</li>`
+        ).join("");
+
+        const totalAmount = successResults.reduce((sum, r) => sum + (r.grossTotal ?? 0), 0);
+
+        await sendEmail({
+          to: landlordUser.email,
+          subject: `Automatikus számlázás összesítő — ${monthName}`,
+          html: `
+            <h2>Automatikus számlázás összesítő</h2>
+            <p>Ma <strong>${results.length}</strong> ingatlan került feldolgozásra.</p>
+            ${successResults.length > 0 ? `<h3>Sikeres (${successResults.length})</h3><ul>${successHtml}</ul>` : ""}
+            ${errorResults.length > 0 ? `<h3>Sikertelen (${errorResults.length})</h3><ul>${errorHtml}</ul>` : ""}
+            <p><strong>Összes kiállított összeg: ${totalAmount.toLocaleString("hu-HU")} Ft</strong></p>
+            <hr/>
+            <p style="color:#888;font-size:12px">Rezsi Figyelő — automatikus számlázás</p>
+          `,
+        });
+      }
+    } catch (emailError) {
+      console.error("[cron] Failed to send summary email:", emailError);
+    }
+  }
 
   return Response.json(summary);
 }
