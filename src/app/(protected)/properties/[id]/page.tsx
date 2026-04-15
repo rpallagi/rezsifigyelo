@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import { PropertyCoverImage } from "@/components/properties/property-cover-image";
 import { notFound } from "next/navigation";
@@ -891,6 +892,84 @@ export default async function PropertyDetailPage({
           }))}
         />
       </SectionCard>
+
+      {/* Monthly consumption summary */}
+      {property.readings.length > 0 && (() => {
+        const monthMap = new Map<string, { month: string; utilityType: string; consumption: number; costHuf: number }>();
+        for (const r of property.readings) {
+          const cons = r.consumption;
+          if (cons == null || cons <= 0) continue;
+          const month = r.readingDate.substring(0, 7);
+          const key = `${month}-${r.utilityType}`;
+          const existing = monthMap.get(key);
+          if (existing) {
+            existing.consumption += cons;
+            existing.costHuf += r.costHuf ?? 0;
+          } else {
+            monthMap.set(key, { month, utilityType: r.utilityType, consumption: cons, costHuf: r.costHuf ?? 0 });
+          }
+        }
+        const monthRows = [...monthMap.values()].sort((a, b) => b.month.localeCompare(a.month));
+        const monthNames = ["", "Január", "Február", "Március", "Április", "Május", "Június", "Július", "Augusztus", "Szeptember", "Október", "November", "December"];
+
+        // Group by month
+        const sections: { month: string; label: string; rows: typeof monthRows; total: number }[] = [];
+        let cur = "";
+        for (const row of monthRows) {
+          if (row.month !== cur) {
+            cur = row.month;
+            const [y, m] = row.month.split("-");
+            sections.push({ month: cur, label: `${y}. ${monthNames[Number(m)]}`, rows: [], total: 0 });
+          }
+          const sec = sections[sections.length - 1]!;
+          sec.rows.push(row);
+          sec.total += row.costHuf;
+        }
+
+        return (
+          <SectionCard title="Havi fogyasztás" subtitle="Közműtípusonkénti havi összesítés.">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/70 text-left text-muted-foreground">
+                    <th className="pb-2 font-medium">Közmű</th>
+                    <th className="pb-2 font-medium">Fogyasztás</th>
+                    <th className="pb-2 font-medium">Költség</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sections.slice(0, 6).map((sec) => (
+                    <React.Fragment key={sec.month}>
+                      <tr>
+                        <td colSpan={3} className="pb-0.5 pt-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{sec.label}</span>
+                            {sec.total > 0 && <span className="text-[11px] font-medium text-muted-foreground">{formatCurrency(sec.total)}</span>}
+                          </div>
+                        </td>
+                      </tr>
+                      {sec.rows.map((row) => (
+                        <tr key={`${row.month}-${row.utilityType}`} className="border-b border-border/30">
+                          <td className="py-1.5">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className={`inline-flex rounded-lg p-1 ${utilityColor(row.utilityType)}`}>
+                                {utilityIcon(row.utilityType)}
+                              </span>
+                              {utilityLabels[row.utilityType] ?? row.utilityType}
+                            </span>
+                          </td>
+                          <td className="py-1.5 font-mono tabular-nums">{row.consumption.toLocaleString("hu-HU", { maximumFractionDigits: 1 })}</td>
+                          <td className="py-1.5">{formatCurrency(row.costHuf)}</td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+        );
+      })()}
 
       <SectionCard
         title="Utolsó mérőállások"
