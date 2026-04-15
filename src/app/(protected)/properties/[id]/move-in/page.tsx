@@ -484,7 +484,10 @@ export default function MoveInWizardPage() {
                 </p>
               </div>
 
-              {/* Tenant type selector */}
+              {/* ━━━ 1. BÉRLŐ ADATAI ━━━ */}
+              <fieldset className="rounded-2xl border border-border/60 p-5 space-y-5">
+                <legend className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bérlő adatai</legend>
+
               <div className="flex gap-2">
                 {([
                   { value: "individual", label: "Magánszemély" },
@@ -597,8 +600,11 @@ export default function MoveInWizardPage() {
                 )}
               </div>
 
-              {/* Separator */}
-              <div className="border-t border-border/60 pt-5">
+              </fieldset>
+
+              {/* ━━━ 2. SZERZŐDÉS FELTÉTELEK ━━━ */}
+              <fieldset className="rounded-2xl border border-border/60 p-5 space-y-5">
+                <legend className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Szerződés feltételek</legend>
                 <div className="grid gap-5 md:grid-cols-2">
                   <Field label="Beköltözés dátuma">
                     <div className="relative">
@@ -678,11 +684,10 @@ export default function MoveInWizardPage() {
                     {leaseMonths === "0" && <p className="mt-1 text-xs text-muted-foreground">Határozatlan időtartam</p>}
                   </Field>
                 </div>
-              </div>
 
-              {/* Monthly rent + auto-billing (property-level, shown in edit mode) */}
+              {/* Monthly rent + auto-billing (shown in edit mode — part of Szerződés) */}
               {isEditMode && (
-                <div className="space-y-4 border-t border-border/60 pt-5">
+                <div className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Havi bérleti díj">
                       <div className="flex gap-2">
@@ -780,8 +785,13 @@ export default function MoveInWizardPage() {
                 </div>
               )}
 
-              {/* Billing override */}
-              <div className="border-t border-border/60 pt-5">
+              </fieldset>
+
+              {/* ━━━ 3. SZÁMLÁZÁS ━━━ */}
+              <fieldset className="rounded-2xl border border-border/60 p-5 space-y-4">
+                <legend className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Számlázás</legend>
+
+              <div>
                 <label className="flex items-center gap-3 rounded-2xl bg-background/80 px-4 py-3">
                   <input
                     type="checkbox"
@@ -857,8 +867,14 @@ export default function MoveInWizardPage() {
                 )}
               </div>
 
+              </fieldset>
+
+              {/* ━━━ 4. HOZZÁFÉRÉS ━━━ */}
+              <fieldset className="rounded-2xl border border-border/60 p-5 space-y-4">
+                <legend className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hozzáférés & egyéb</legend>
+
               {tenantEmail && (
-                <label className="mt-2 flex items-center gap-3 rounded-2xl bg-background/80 px-4 py-3">
+                <label className="flex items-center gap-3 rounded-2xl bg-background/80 px-4 py-3">
                   <input
                     type="checkbox"
                     checked={sendInvitation}
@@ -874,7 +890,6 @@ export default function MoveInWizardPage() {
                 </label>
               )}
 
-              {/* Inflation tracking toggle */}
               <label className="flex items-start gap-3 rounded-2xl bg-background/80 px-4 py-3">
                 <input
                   type="checkbox"
@@ -885,10 +900,12 @@ export default function MoveInWizardPage() {
                 <div>
                   <p className="text-sm font-medium">Inflációkövető bérleti díj</p>
                   <p className="text-xs text-muted-foreground">
-                    Minden év elején az infláció mértékével automatikusan emelkedik a bérleti díj. A Settings → Inflációkövetés oldalon alkalmazhatod batch-ben.
+                    Minden év elején az infláció mértékével automatikusan emelkedik a bérleti díj.
                   </p>
                 </div>
               </label>
+
+              </fieldset>
             </div>
           ) : null}
 
