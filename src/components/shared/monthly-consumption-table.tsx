@@ -91,7 +91,7 @@ export function MonthlyConsumptionTable({ propertyId }: { propertyId: number }) 
                 <td colSpan={3} className="pb-0.5 pt-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{sec.label}</span>
-                    {sec.total > 0 && <span className="text-[11px] font-medium text-muted-foreground">{formatCurrency(sec.total)}</span>}
+                    {sec.rows.length > 1 && sec.total > 0 && <span className="text-[11px] font-medium text-muted-foreground">{formatCurrency(sec.total)}</span>}
                   </div>
                 </td>
               </tr>
