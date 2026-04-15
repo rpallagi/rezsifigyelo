@@ -1,6 +1,6 @@
 import { api } from "@/trpc/server";
 import Link from "next/link";
-import { TariffRowActions, GroupDeleteButton } from "./tariff-actions";
+import { TariffRowActions, GroupDeleteButton, AiTariffRefresh } from "./tariff-actions";
 
 export default async function TariffsPage() {
   const groups = await api.tariff.listGroups();
@@ -73,6 +73,20 @@ export default async function TariffsPage() {
                   </tbody>
                 </table>
               )}
+
+              {/* AI tarifa frissítés */}
+              <div className="mt-4 border-t border-border/50 pt-4">
+                <AiTariffRefresh
+                  tariffGroupId={group.id}
+                  currentTariffs={group.tariffs.map((t) => ({
+                    id: t.id,
+                    utilityType: t.utilityType,
+                    rateHuf: t.rateHuf,
+                    unit: t.unit,
+                    validFrom: t.validFrom,
+                  }))}
+                />
+              </div>
             </div>
           ))}
         </div>
