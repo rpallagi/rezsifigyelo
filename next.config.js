@@ -10,6 +10,9 @@ const config = {
       },
     ],
   },
+  experimental: {
+    optimizePackageImports: ["@clerk/nextjs", "lucide-react", "recharts"],
+  },
 };
 
 export default config;
