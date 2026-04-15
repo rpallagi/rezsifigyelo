@@ -271,6 +271,8 @@ export const properties = createTable(
     applySzj: d.boolean().notNull().default(false),
     szjRate: d.doublePrecision().notNull().default(15), // SZJA rate %
     szjCostRate: d.doublePrecision().notNull().default(10), // általány költség %
+    // Sewer service
+    hasSewer: d.boolean().notNull().default(true),
     // Area (m²)
     buildingArea: d.doublePrecision(),
     landArea: d.doublePrecision(),

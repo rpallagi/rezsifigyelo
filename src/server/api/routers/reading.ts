@@ -277,8 +277,15 @@ export const readingRouter = createTRPCRouter({
         })
         .returning();
 
+      // Auto-sewer reading: only if property has sewer service
+      const propertyForSewer = await ctx.db.query.properties.findFirst({
+        where: eq(properties.id, input.propertyId),
+        columns: { hasSewer: true },
+      });
+
       if (
         input.utilityType === "viz" &&
+        propertyForSewer?.hasSewer !== false &&
         effectiveTariffGroupId &&
         consumption !== null &&
         consumption >= 0

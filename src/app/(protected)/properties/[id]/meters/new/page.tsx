@@ -34,7 +34,7 @@ import {
 /*  Types & Constants                                                   */
 /* ------------------------------------------------------------------ */
 
-type UtilityType = "villany" | "viz" | "gaz" | "csatorna";
+type UtilityType = "villany" | "viz" | "gaz";
 type MeterKind = "manual" | "smart";
 type SmartSource = "mqtt" | "ttn" | "home_assistant" | "shelly_cloud";
 
@@ -77,15 +77,6 @@ const utilityMeta: Record<
     borderColor: "border-orange-200",
     iconBg: "bg-orange-100",
   },
-  csatorna: {
-    label: "Csatorna",
-    unit: "m³",
-    icon: Waves,
-    color: "text-purple-600",
-    bgColor: "bg-purple-50",
-    borderColor: "border-purple-200",
-    iconBg: "bg-purple-100",
-  },
 };
 
 interface Preset {
@@ -122,6 +113,7 @@ export default function NewMeterPage() {
   const [step, setStep] = useState(0);
   const [utilityType, setUtilityType] = useState<UtilityType | null>(null);
   const [meterKind, setMeterKind] = useState<MeterKind | null>(null);
+  const [hasSewer, setHasSewer] = useState(true);
 
   /* ---- manual meter fields ---- */
   const [serialNumber, setSerialNumber] = useState("");
@@ -155,6 +147,7 @@ export default function NewMeterPage() {
   /* ---- mutations ---- */
   const { data: tariffGroups } = api.tariff.listGroups.useQuery();
   const createMeter = api.meter.create.useMutation();
+  const updateProperty = api.property.update.useMutation();
   const createSmartMeter = api.smartMeter.create.useMutation();
   const recordReading = api.reading.record.useMutation();
   const importShellyHistory = api.shellyCloud.importHistory.useMutation();
@@ -243,6 +236,13 @@ export default function NewMeterPage() {
         photoUrls: meterLocationPhotos.length > 0 ? meterLocationPhotos.map((p) => p.url) : undefined,
         tariffGroupId: tariffGroupId ? Number(tariffGroupId) : undefined,
       });
+
+      // Update property hasSewer flag if water meter
+      if (utilityType === "viz") {
+        try {
+          await updateProperty.mutateAsync({ id: propertyId, hasSewer });
+        } catch { /* non-critical */ }
+      }
 
       // 2. If smart: create smart meter device
       let createdSmartMeterId: number | undefined;
@@ -341,7 +341,7 @@ export default function NewMeterPage() {
   /* ---------------------------------------------------------------- */
 
   if (step === 0) {
-    const utilities: UtilityType[] = ["villany", "viz", "gaz", "csatorna"];
+    const utilities: UtilityType[] = ["villany", "viz", "gaz"];
 
     return (
       <div className="mx-auto max-w-lg space-y-5">
@@ -372,13 +372,13 @@ export default function NewMeterPage() {
                 type="button"
                 onClick={() => {
                   setUtilityType(ut);
-                  setStep(1);
+                  if (ut !== "viz") setStep(1);
                 }}
-                className={`flex flex-col items-center gap-3 rounded-[24px] border border-border/60 bg-card/90 p-6 ring-1 ring-border/60 transition-all hover:scale-[1.02] hover:bg-secondary/50 ${m.borderColor}`}
+                className={`flex flex-col items-center gap-3 rounded-[24px] border p-6 ring-1 transition-all hover:scale-[1.02] hover:bg-secondary/50 ${
+                  utilityType === ut ? `${m.borderColor} ring-primary/30 bg-primary/5` : `border-border/60 ring-border/60 bg-card/90`
+                }`}
               >
-                <div
-                  className={`flex h-14 w-14 items-center justify-center rounded-2xl ${m.iconBg}`}
-                >
+                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${m.iconBg}`}>
                   <Icon className={`h-7 w-7 ${m.color}`} />
                 </div>
                 <span className="text-sm font-semibold">{m.label}</span>
@@ -386,6 +386,33 @@ export default function NewMeterPage() {
             );
           })}
         </div>
+
+        {/* Sewer question when water selected */}
+        {utilityType === "viz" && step === 0 && (
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 px-4 py-3">
+              <input
+                type="checkbox"
+                checked={hasSewer}
+                onChange={(e) => setHasSewer(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+              />
+              <div>
+                <p className="text-sm font-medium">Van csatorna szolgáltatás</p>
+                <p className="text-xs text-muted-foreground">
+                  Ha van, a csatorna díj automatikusan a víz fogyasztás (m³) alapján számolódik, külön tarifával.
+                </p>
+              </div>
+            </label>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Tovább
+            </button>
+          </div>
+        )}
       </div>
     );
   }
