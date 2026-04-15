@@ -305,7 +305,7 @@ export default function NewMeterPage() {
       // Show success screen briefly before navigating
       setSubmitted(true);
       setTimeout(() => {
-        router.push(returnTo === "move-in" ? `/properties/${propertyId}/move-in?edit=true` : `/properties/${propertyId}`);
+        router.push(returnTo === "move-in" ? `/properties/${propertyId}/move-in?edit=true&step=1` : `/properties/${propertyId}`);
         router.refresh();
       }, 1200);
     } catch (err) {
@@ -348,7 +348,7 @@ export default function NewMeterPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => router.push(returnTo === "move-in" ? `/properties/${propertyId}/move-in?edit=true` : `/properties/${propertyId}`)}
+            onClick={() => router.push(returnTo === "move-in" ? `/properties/${propertyId}/move-in?edit=true&step=1` : `/properties/${propertyId}`)}
             className="rounded-xl p-2 hover:bg-secondary"
           >
             <ArrowLeft className="h-5 w-5" />

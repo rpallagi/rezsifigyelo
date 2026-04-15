@@ -159,7 +159,8 @@ export default function MoveInWizardPage() {
   const searchParams = useSearchParams();
   const propertyId = Number(params.id);
   const isEditMode = searchParams.get("edit") === "true";
-  const [step, setStep] = useState(0);
+  const startStep = searchParams.get("step") ? Number(searchParams.get("step")) : 0;
+  const [step, setStep] = useState(startStep);
 
   const { data: property, isLoading } = api.property.get.useQuery({ id: propertyId });
 
