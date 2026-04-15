@@ -162,10 +162,34 @@ export function GroupDeleteButton({ groupId, name }: { groupId: number; name: st
   );
 }
 
-const PROVIDER_LABELS: Record<string, { name: string; icon: string }> = {
-  claude: { name: "Claude", icon: "🟠" },
-  gemini: { name: "Gemini", icon: "🔵" },
-  openai: { name: "GPT", icon: "🟢" },
+function ClaudeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M4.709 15.955l4.71-2.715a.5.5 0 00.25-.433V7.5a.5.5 0 00-.75-.433L4.21 9.782a.5.5 0 00-.25.433v5.307a.5.5 0 00.75.433zm7.041-4.065l4.71 2.715a.5.5 0 00.75-.433V8.865a.5.5 0 00-.25-.433l-4.71-2.715a.5.5 0 00-.75.433v5.307a.5.5 0 00.25.433zm-1.5.866l-4.71 2.715a.5.5 0 00-.25.433v1.231a.5.5 0 00.75.433l4.71-2.715a.5.5 0 00.25-.433v-1.231a.5.5 0 00-.75-.433z" />
+    </svg>
+  );
+}
+
+function GeminiIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2a7.2 7.2 0 01-6-3.22c.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08a7.2 7.2 0 01-6 3.22z" />
+    </svg>
+  );
+}
+
+function OpenAIIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M22.282 9.821a5.985 5.985 0 00-.516-4.91 6.046 6.046 0 00-6.51-2.9A6.065 6.065 0 0012 .075a6.044 6.044 0 00-5.656 3.837A6.015 6.015 0 002.16 6.88a6.066 6.066 0 00.738 7.14 5.985 5.985 0 00.516 4.91 6.046 6.046 0 006.51 2.9A6.065 6.065 0 0012 24a6.044 6.044 0 005.656-3.838 6.015 6.015 0 004.184-2.967 6.066 6.066 0 00-.738-7.14z" />
+    </svg>
+  );
+}
+
+const PROVIDER_META: Record<string, { name: string; Icon: typeof ClaudeIcon; color: string }> = {
+  claude: { name: "Claude", Icon: ClaudeIcon, color: "text-orange-500" },
+  gemini: { name: "Gemini", Icon: GeminiIcon, color: "text-blue-500" },
+  openai: { name: "GPT", Icon: OpenAIIcon, color: "text-emerald-500" },
 };
 
 export function AiTariffRefresh({
@@ -218,7 +242,8 @@ export function AiTariffRefresh({
         <div className="flex gap-1 rounded-lg border border-border p-0.5">
           {(["claude", "gemini", "openai"] as const).map((p) => {
             const available = providers?.[p];
-            const meta = PROVIDER_LABELS[p]!;
+            const meta = PROVIDER_META[p]!;
+            const ProvIcon = meta.Icon;
             return (
               <button
                 key={p}
@@ -226,7 +251,7 @@ export function AiTariffRefresh({
                 disabled={!available}
                 onClick={() => setProvider(p)}
                 title={available ? meta.name : `${meta.name} — nincs API kulcs`}
-                className={`rounded-md px-2 py-1 text-xs font-medium transition ${
+                className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition ${
                   provider === p && available
                     ? "bg-primary text-primary-foreground"
                     : available
@@ -234,7 +259,8 @@ export function AiTariffRefresh({
                       : "text-muted-foreground/30 cursor-not-allowed"
                 }`}
               >
-                {meta.icon} {meta.name}
+                <ProvIcon className={`h-3 w-3 ${provider === p && available ? "" : meta.color}`} />
+                {meta.name}
               </button>
             );
           })}
@@ -259,7 +285,7 @@ export function AiTariffRefresh({
       {showPreview && research.data && (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold">AI kutatás eredménye ({PROVIDER_LABELS[research.data.provider]?.name})</p>
+            <p className="text-sm font-semibold">AI kutatás eredménye ({PROVIDER_META[research.data.provider]?.name})</p>
             <button type="button" onClick={() => setShowPreview(false)} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
           </div>
 
