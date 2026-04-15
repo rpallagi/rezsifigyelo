@@ -225,37 +225,8 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* OCR */}
-      <section className="rounded-lg border border-border p-6">
-        <h2 className="text-lg font-semibold">{messages.settingsPage.ocr}</h2>
-        <div className="mt-4 space-y-4">
-          <div>
-            <label className="block text-sm text-muted-foreground">{messages.settingsPage.provider}</label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {[
-                { value: "claude", label: "Claude Haiku" },
-                { value: "openai", label: "GPT-4o mini" },
-                { value: "gemini", label: "Gemini Flash" },
-              ].map((p) => (
-                <button
-                  key={p.value}
-                  onClick={() => setOcrProvider(p.value)}
-                  className={`rounded-md border px-3 py-1.5 text-sm ${
-                    ocrProvider === p.value
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border hover:bg-secondary"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            API kulcs: Vercel env var — ANTHROPIC_API_KEY / OPENAI_API_KEY / GOOGLE_AI_KEY
-          </p>
-        </div>
-      </section>
+      {/* AI Providers */}
+      <AiProvidersSection ocrProvider={ocrProvider} setOcrProvider={setOcrProvider} />
 
       {/* MQTT */}
       <section className="rounded-lg border border-border p-6">
@@ -370,5 +341,75 @@ export default function SettingsPage() {
         <UserProfile routing="hash" />
       </section>
     </div>
+  );
+}
+
+function AiProvidersSection({ ocrProvider, setOcrProvider }: { ocrProvider: string; setOcrProvider: (v: string) => void }) {
+  const { data: providers } = api.ai.availableProviders.useQuery();
+
+  const providerList = [
+    { key: "claude", name: "Claude Haiku", envVar: "ANTHROPIC_API_KEY", pricing: "API alapú — ~$0.001/kérés" },
+    { key: "gemini", name: "Gemini Flash", envVar: "GOOGLE_AI_KEY", pricing: "API alapú — ingyenes tier elérhető" },
+    { key: "openai", name: "GPT-4o mini", envVar: "OPENAI_API_KEY", pricing: "API alapú — ~$0.002/kérés" },
+  ] as const;
+
+  return (
+    <section className="rounded-lg border border-border p-6">
+      <h2 className="text-lg font-semibold">AI szolgáltatók</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        OCR (mérő leolvasás), tarifa kutatás és egyéb AI funkciókhoz.
+      </p>
+
+      <div className="mt-4 space-y-3">
+        {providerList.map((p) => {
+          const active = providers?.[p.key] ?? false;
+          const isSelected = ocrProvider === p.key;
+          return (
+            <div
+              key={p.key}
+              className={`flex items-center justify-between rounded-xl border p-4 transition ${
+                isSelected ? "border-primary bg-primary/5" : "border-border"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`h-2.5 w-2.5 rounded-full ${active ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"}`} />
+                <div>
+                  <p className="text-sm font-medium">{p.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{p.pricing}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {active ? (
+                  <>
+                    <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                      Aktív
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setOcrProvider(p.key)}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                        isSelected
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-border hover:bg-secondary"
+                      }`}
+                    >
+                      {isSelected ? "Kiválasztva (OCR)" : "Kiválasztás"}
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">
+                    Env var: <code className="rounded bg-secondary px-1 py-0.5 font-mono">{p.envVar}</code>
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mt-3 text-[10px] text-muted-foreground">
+        Az API kulcsokat a Vercel Settings → Environment Variables-ben kell megadni. Az aktív provider-ek automatikusan elérhetők az OCR és AI tarifa frissítés funkciókhoz.
+      </p>
+    </section>
   );
 }
