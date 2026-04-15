@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { PropertyCoverImage } from "@/components/properties/property-cover-image";
+import { CoverImagePicker } from "@/components/properties/cover-image-picker";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -297,16 +298,15 @@ export default async function PropertyDetailPage({
             }
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
-          <Link
-            href={`/properties/${property.id}/edit`}
-            className="group/photo absolute right-4 top-4 flex items-center gap-2 rounded-full bg-black/40 px-3 py-2 text-xs font-medium text-white/80 backdrop-blur-sm transition hover:bg-black/60 hover:text-white"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-              <circle cx="12" cy="13" r="4" />
-            </svg>
-            <span className="hidden sm:inline">{property.avatarUrl ? "Fotó módosítása" : "Fotó feltöltése"}</span>
-          </Link>
+          <CoverImagePicker
+            propertyId={property.id}
+            currentUrl={property.avatarUrl ?? null}
+            marketingPhotos={
+              property.documents
+                ?.filter((d) => d.category === "marketing" && d.storedUrl?.match(/\.(jpe?g|png|webp)/i))
+                .map((d) => ({ url: d.storedUrl, filename: d.filename })) ?? []
+            }
+          />
           <div className="absolute inset-x-0 bottom-0 p-5 sm:p-7">
             <Link
               href="/properties"
