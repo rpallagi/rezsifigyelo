@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import { ShellyCloudDevicePicker } from "@/components/shared/shelly-cloud-device-picker";
 import { HomeWizardDevicePicker } from "@/components/shared/homewizard-device-picker";
@@ -114,7 +114,9 @@ const PRESETS: Preset[] = [
 export default function NewMeterPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const propertyId = Number(params.id);
+  const returnTo = searchParams.get("returnTo");
 
   /* ---- wizard state ---- */
   const [step, setStep] = useState(0);
@@ -303,7 +305,7 @@ export default function NewMeterPage() {
       // Show success screen briefly before navigating
       setSubmitted(true);
       setTimeout(() => {
-        router.push(`/properties/${propertyId}`);
+        router.push(returnTo === "move-in" ? `/properties/${propertyId}/move-in?edit=true` : `/properties/${propertyId}`);
         router.refresh();
       }, 1200);
     } catch (err) {
@@ -346,7 +348,7 @@ export default function NewMeterPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => router.push(`/properties/${propertyId}`)}
+            onClick={() => router.push(returnTo === "move-in" ? `/properties/${propertyId}/move-in?edit=true` : `/properties/${propertyId}`)}
             className="rounded-xl p-2 hover:bg-secondary"
           >
             <ArrowLeft className="h-5 w-5" />

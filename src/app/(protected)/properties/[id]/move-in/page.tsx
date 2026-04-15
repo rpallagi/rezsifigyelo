@@ -932,7 +932,7 @@ export default function MoveInWizardPage() {
                     Ha vannak mérők, előbb add hozzá őket, aztán rögzítsd a nyitó állásokat.
                   </p>
                   <a
-                    href={`/properties/${propertyId}/meters/new`}
+                    href={`/properties/${propertyId}/meters/new?returnTo=move-in`}
                     className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                   >
                     + Mérőóra hozzáadása
