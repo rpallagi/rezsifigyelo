@@ -92,18 +92,20 @@ function statusTone(status: "success" | "warning" | "danger" | "neutral") {
 }
 
 function SectionCard({
+  id,
   title,
   subtitle,
   action,
   children,
 }: {
+  id?: string;
   title: string;
   subtitle?: string;
   action?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] bg-card/90 p-5 shadow-sm ring-1 ring-border/60 sm:p-6">
+    <section id={id} className="scroll-mt-20 rounded-[28px] bg-card/90 p-5 shadow-sm ring-1 ring-border/60 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
@@ -257,13 +259,16 @@ export default async function PropertyDetailPage({
           primary: true,
         },
   ];
-  const secondaryActions = [
-    { href: `/properties/${property.id}/meters/new`, label: "+ Mérőóra" },
-    { href: `/properties/${property.id}/maintenance/new`, label: "+ Karbantartás" },
-    { href: `/properties/${property.id}/documents/new`, label: "+ Dokumentum" },
-    { href: `/properties/${property.id}/wifi/new`, label: "+ WiFi" },
-    { href: `/properties/${property.id}/common-fees/new`, label: "+ Közös ktg." },
-    { href: `/properties/${property.id}/tax/new`, label: "+ Adó" },
+  // Smart section pills: if data exists → scroll to section, else → add new
+  const sectionPills = [
+    { id: "meters", label: "Mérőórák", count: property.meterInfo.length, addHref: `/properties/${property.id}/meters/new` },
+    { id: "maintenance", label: "Karbantartás", count: property.maintenanceLogs.length, addHref: `/properties/${property.id}/maintenance/new` },
+    { id: "documents", label: "Dokumentumok", count: property.documents.length, addHref: `/properties/${property.id}/documents/new` },
+    { id: "wifi", label: "WiFi", count: property.wifiNetworks.length, addHref: `/properties/${property.id}/wifi/new` },
+    { id: "common-fees", label: "Közös ktg.", count: property.commonFees.length, addHref: `/properties/${property.id}/common-fees/new` },
+    { id: "tax", label: "Adó", count: property.propertyTaxes.length, addHref: `/properties/${property.id}/tax/new` },
+  ];
+  const featureActions = [
     { href: `/properties/${property.id}/chat`, label: "Chat" },
     { href: `/properties/${property.id}/marketing`, label: "Marketing" },
     { href: `/properties/${property.id}/edit`, label: "Szerkesztés" },
@@ -491,8 +496,31 @@ export default async function PropertyDetailPage({
           ))}
         </div>
 
+        {/* Section pills: scroll to section if data exists, add new if empty */}
         <div className="flex flex-wrap gap-2">
-          {secondaryActions.map((action) => (
+          {sectionPills.map((pill) => (
+            pill.count > 0 ? (
+              <a
+                key={pill.id}
+                href={`#${pill.id}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-card/80 px-4 py-2 text-sm shadow-sm ring-1 ring-border/60 transition hover:bg-secondary/50"
+              >
+                {pill.label}
+                <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">{pill.count}</span>
+              </a>
+            ) : (
+              <Link
+                key={pill.id}
+                href={pill.addHref}
+                className="rounded-full bg-card/80 px-4 py-2 text-sm text-muted-foreground shadow-sm ring-1 ring-border/60 transition hover:bg-secondary/50"
+              >
+                + {pill.label}
+              </Link>
+            )
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {featureActions.map((action) => (
             <Link
               key={action.href}
               href={action.href}
@@ -730,7 +758,7 @@ export default async function PropertyDetailPage({
 
       {/* Meter cards — interactive */}
       {property.meterInfo.length > 0 && (
-        <SectionCard title="Mérőórák" subtitle="Gyári számok, helyszínek és gyors ellenőrzés.">
+        <SectionCard id="meters" title="Mérőórák" subtitle="Gyári számok, helyszínek és gyors ellenőrzés." action={<Link href={`/properties/${property.id}/meters/new`} className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">+ Mérőóra</Link>}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {property.meterInfo.map((meter) => {
               const smartDevice = property.smartMeters.find(
@@ -1118,7 +1146,7 @@ export default async function PropertyDetailPage({
       )}
 
       {property.maintenanceLogs.length > 0 && (
-        <SectionCard title="Karbantartás" subtitle="Friss hibák, beavatkozások és költségek.">
+        <SectionCard id="maintenance" title="Karbantartás" subtitle="Friss hibák, beavatkozások és költségek.">
           <div className="space-y-3">
             {property.maintenanceLogs.map((log) => (
               <div key={log.id} className="rounded-[22px] bg-background/80 p-4 ring-1 ring-border/50">
@@ -1149,7 +1177,7 @@ export default async function PropertyDetailPage({
 
       <div className="grid gap-8 xl:grid-cols-2">
         {property.documents.length > 0 && (
-          <SectionCard title="Dokumentumok" subtitle="Szerződések, képek és letölthető mellékletek.">
+          <SectionCard id="documents" title="Dokumentumok" subtitle="Szerződések, képek és letölthető mellékletek.">
             <div className="space-y-2">
               {property.documents.map((document) => (
                 <a
@@ -1176,7 +1204,7 @@ export default async function PropertyDetailPage({
         )}
 
         {property.wifiNetworks.length > 0 && (
-          <SectionCard title="WiFi hálózatok" subtitle="A propertyhez tartozó hozzáférések és helyek.">
+          <SectionCard id="wifi" title="WiFi hálózatok" subtitle="A propertyhez tartozó hozzáférések és helyek.">
             <div className="grid gap-3">
               {property.wifiNetworks.map((wifi) => (
                 <div key={wifi.id} className="rounded-[22px] bg-background/80 p-4 ring-1 ring-border/50">
@@ -1193,7 +1221,7 @@ export default async function PropertyDetailPage({
       {(property.commonFees.length > 0 || property.propertyTaxes.length > 0) && (
         <div className="grid gap-8 xl:grid-cols-2">
           {property.commonFees.length > 0 && (
-            <SectionCard title="Közös költség" subtitle="Fix vagy rendszeres társasházi tételek.">
+            <SectionCard id="common-fees" title="Közös költség" subtitle="Fix vagy rendszeres társasházi tételek.">
               <div className="space-y-3">
                 {property.commonFees.map((fee) => (
                   <div key={fee.id} className="rounded-[22px] bg-background/80 p-4 ring-1 ring-border/50">
@@ -1222,7 +1250,7 @@ export default async function PropertyDetailPage({
           )}
 
           {property.propertyTaxes.length > 0 && (
-            <SectionCard title="Ingatlanadó" subtitle="Szezonális státuszok és éves kötelezettségek.">
+            <SectionCard id="tax" title="Ingatlanadó" subtitle="Szezonális státuszok és éves kötelezettségek.">
               <div className="space-y-3">
                 {property.propertyTaxes.map((tax) => (
                   <div key={tax.id} className="rounded-[22px] bg-background/80 p-4 ring-1 ring-border/50">
