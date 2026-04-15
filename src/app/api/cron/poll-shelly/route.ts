@@ -232,26 +232,18 @@ export async function GET(req: NextRequest) {
         // Fallback to cumulative reading if stats API fails
       }
 
-      // Fallback: use cumulative energy from device status
-      if (dailyConsumption === null || dailyConsumption === 0) {
-        const rawValue = shellyData.emdataStatus?.total_act;
-        if (rawValue !== undefined) {
-          const finalValue = rawValue * device.multiplier + device.offset;
-          const prevReading = await db.query.meterReadings.findFirst({
-            where: and(
-              eq(meterReadings.propertyId, device.propertyId),
-              eq(meterReadings.utilityType, device.utilityType),
-            ),
-            orderBy: [desc(meterReadings.readingDate)],
-          });
-          if (prevReading) {
-            dailyConsumption = finalValue - prevReading.value;
-            if (dailyConsumption < 0) dailyConsumption = 0;
-          }
-        }
-      }
+      // No fallback — if daily stats API fails, skip this reading.
+      // The cumulative energy fallback was causing huge incorrect values
+      // when the stats API returned 0 (e.g., manual trigger, not yesterday).
 
       if (!dailyConsumption || dailyConsumption <= 0) {
+        results.push({ deviceId: device.deviceId, status: "no_consumption", value: livePower });
+        continue;
+      }
+
+      // Safety: reject unrealistic daily values (>500 kWh/day = impossible for residential)
+      if (dailyConsumption > 500) {
+        console.error(`[cron] Shelly ${device.deviceId}: rejected unrealistic consumption ${dailyConsumption} kWh`);
         results.push({ deviceId: device.deviceId, status: "no_consumption", value: livePower });
         continue;
       }
