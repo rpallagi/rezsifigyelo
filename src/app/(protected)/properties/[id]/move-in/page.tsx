@@ -924,9 +924,21 @@ export default function MoveInWizardPage() {
               </div>
 
               {property.meterInfo.length === 0 ? (
-                <div className="rounded-[24px] bg-background/80 p-6 text-center">
+                <div className="rounded-[24px] bg-background/80 p-6 text-center space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Nincs mérőóra az ingatlanhoz. Hozzáadhatsz a mérők menüben.
+                    Nincs mérőóra a bérleményben.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Ha vannak mérők, előbb add hozzá őket, aztán rögzítsd a nyitó állásokat.
+                  </p>
+                  <a
+                    href={`/properties/${propertyId}/meters/new`}
+                    className="inline-flex rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    + Mérőóra hozzáadása
+                  </a>
+                  <p className="text-[10px] text-muted-foreground">
+                    Vagy lépj tovább ha nincs szükség mérőállás rögzítésre.
                   </p>
                 </div>
               ) : (
