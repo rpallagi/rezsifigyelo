@@ -992,16 +992,6 @@ export default function MoveInWizardPage() {
                       icon: Zap,
                     };
                     const Icon = meta.icon;
-                    // Find latest cumulative reading for this meter
-                    // (property.readings is ordered by readingDate desc)
-                    const latestReading = property.readings?.find(
-                      (r: { meterInfoId: number | null; value: number; readingDate: string | Date }) =>
-                        r.meterInfoId === meter.id,
-                    );
-                    const smartValue = latestReading?.value ?? null;
-                    const smartDate = latestReading?.readingDate
-                      ? new Date(latestReading.readingDate).toLocaleDateString("hu-HU")
-                      : null;
                     return (
                       <div
                         key={meter.id}
@@ -1039,37 +1029,9 @@ export default function MoveInWizardPage() {
                           placeholder="Kezdő állás"
                           className={inputClassName()}
                         />
-                        {smartValue !== null ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setInitialReadings((prev) => ({
-                                ...prev,
-                                [meter.utilityType]: String(smartValue),
-                              }))
-                            }
-                            className="flex w-full items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-xs transition hover:bg-emerald-100/60 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40"
-                          >
-                            <span className="text-left text-emerald-700 dark:text-emerald-300">
-                              Utolsó állás:{" "}
-                              <span className="font-semibold tabular-nums">
-                                {smartValue.toLocaleString("hu-HU")}
-                              </span>
-                              {smartDate && (
-                                <span className="ml-1 text-[10px] opacity-70">
-                                  ({smartDate})
-                                </span>
-                              )}
-                            </span>
-                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                              Beillesztés →
-                            </span>
-                          </button>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            Opcionális. Ha üres, később rögzítheted.
-                          </p>
-                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Olvasd le a mérő kijelzőjéről. Opcionális — ha üres, később rögzítheted.
+                        </p>
                       </div>
                     );
                   })}
