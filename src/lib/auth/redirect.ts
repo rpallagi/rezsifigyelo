@@ -11,9 +11,10 @@ export async function getSignedInRedirectPath(userId: string) {
     columns: { role: true },
   });
 
-  if (dbUser?.role === "tenant") {
-    return "/my-home";
+  // Default new users (no DB record yet) and tenants → /my-home
+  // Only landlords get the management dashboard
+  if (dbUser?.role === "landlord" || dbUser?.role === "admin") {
+    return "/dashboard";
   }
-
-  return "/dashboard";
+  return "/my-home";
 }

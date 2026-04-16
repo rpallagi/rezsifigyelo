@@ -154,7 +154,7 @@ export const users = createTable(
     lastName: d.varchar({ length: 256 }),
     phone: d.varchar({ length: 30 }),
     imageUrl: d.text(),
-    role: userRoleEnum().notNull().default("landlord"),
+    role: userRoleEnum().notNull().default("tenant"),
     locale: d.varchar({ length: 5 }).notNull().default("hu"),
     theme: d.varchar({ length: 10 }).notNull().default("system"),
     isActive: d.boolean().notNull().default(true),

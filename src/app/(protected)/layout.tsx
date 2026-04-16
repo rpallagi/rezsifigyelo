@@ -1,4 +1,5 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { getCurrentLocale } from "@/lib/i18n/server";
 import { getMessages } from "@/lib/i18n/messages";
 import { ProtectedNavigation } from "@/components/layout/protected-navigation";
@@ -14,6 +15,14 @@ export default async function ProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Role-based gate: tenants can only access /my-home
+  const me = await api.user.me();
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") ?? "";
+  if (me.role === "tenant" && !pathname.startsWith("/my-home")) {
+    redirect("/my-home");
+  }
+
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
   const cookieStore = await cookies();
