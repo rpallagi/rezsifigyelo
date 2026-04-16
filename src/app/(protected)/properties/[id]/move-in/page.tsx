@@ -184,6 +184,19 @@ export default function MoveInWizardPage() {
   const [autoBillingDay, setAutoBillingDay] = useState("1");
   const [applySzj, setApplySzj] = useState(false);
   const [sendInvitation, setSendInvitation] = useState(false);
+  const [inviteSentEmail, setInviteSentEmail] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState("");
+  const sendInvite = api.tenancy.sendInvitationOnly.useMutation({
+    onSuccess: (data) => {
+      setInviteSentEmail(data.email);
+      setInviteError("");
+      setTimeout(() => setInviteSentEmail(null), 5000);
+    },
+    onError: (err) => {
+      setInviteError(err.message);
+      setInviteSentEmail(null);
+    },
+  });
   const [billingSameAsTenant, setBillingSameAsTenant] = useState(true);
   const [billingName, setBillingName] = useState("");
   const [billingEmail, setBillingEmail] = useState("");
@@ -524,17 +537,48 @@ export default function MoveInWizardPage() {
                   />
                 </Field>
 
-                <Field
-                  label="Email"
-                  hint="Ha megadod, később meghívhatod az appba."
-                >
-                  <input
-                    type="email"
-                    value={tenantEmail}
-                    onChange={(e) => setTenantEmail(e.target.value)}
-                    placeholder="berlo@email.com"
-                    className={inputClassName()}
-                  />
+                <Field label="Email" hint="A bérlő emailen kapja a regisztrációs linket.">
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={tenantEmail}
+                      onChange={(e) => {
+                        setTenantEmail(e.target.value);
+                        setInviteError("");
+                      }}
+                      placeholder="berlo@email.com"
+                      className={`${inputClassName()} flex-1`}
+                    />
+                    <button
+                      type="button"
+                      disabled={
+                        !tenantEmail ||
+                        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail) ||
+                        sendInvite.isPending
+                      }
+                      onClick={() => {
+                        sendInvite.mutate({
+                          propertyId,
+                          email: tenantEmail,
+                          name: tenantName || undefined,
+                        });
+                      }}
+                      className={`shrink-0 rounded-2xl border px-4 text-xs font-semibold transition disabled:opacity-40 ${
+                        inviteSentEmail === tenantEmail
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+                          : "border-border/60 bg-background/80 text-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      {sendInvite.isPending
+                        ? "Küldés..."
+                        : inviteSentEmail === tenantEmail
+                          ? "✓ Elküldve"
+                          : "Meghívó küldése"}
+                    </button>
+                  </div>
+                  {inviteError && (
+                    <p className="mt-1.5 text-xs text-destructive">{inviteError}</p>
+                  )}
                 </Field>
 
                 <Field label="Telefonszám">
@@ -950,6 +994,13 @@ export default function MoveInWizardPage() {
                       icon: Zap,
                     };
                     const Icon = meta.icon;
+                    const smartDevice = property.smartMeters?.find(
+                      (d: { meterInfoId: number | null; lastRawValue: number | null; multiplier: number; offset: number; lastSeenAt: Date | string | null }) =>
+                        d.meterInfoId === meter.id && d.lastRawValue !== null,
+                    );
+                    const smartValue = smartDevice
+                      ? Math.round((smartDevice.lastRawValue! * smartDevice.multiplier + smartDevice.offset) * 100) / 100
+                      : null;
                     return (
                       <div
                         key={meter.id}
@@ -987,9 +1038,32 @@ export default function MoveInWizardPage() {
                           placeholder="Kezdő állás"
                           className={inputClassName()}
                         />
-                        <p className="text-xs text-muted-foreground">
-                          Opcionális. Ha üres, később rögzítheted.
-                        </p>
+                        {smartValue !== null ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setInitialReadings((prev) => ({
+                                ...prev,
+                                [meter.utilityType]: String(smartValue),
+                              }))
+                            }
+                            className="flex w-full items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-xs transition hover:bg-emerald-100/60 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40"
+                          >
+                            <span className="text-emerald-700 dark:text-emerald-300">
+                              Okosóra állása:{" "}
+                              <span className="font-semibold tabular-nums">
+                                {smartValue.toLocaleString("hu-HU")}
+                              </span>
+                            </span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                              Beillesztés →
+                            </span>
+                          </button>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Opcionális. Ha üres, később rögzítheted.
+                          </p>
+                        )}
                       </div>
                     );
                   })}

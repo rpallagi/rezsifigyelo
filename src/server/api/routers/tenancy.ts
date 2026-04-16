@@ -524,6 +524,37 @@ export const tenancyRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  // Send invitation without creating tenancy (standalone)
+  sendInvitationOnly: landlordProcedure
+    .input(z.object({
+      propertyId: z.number(),
+      email: z.string().email(),
+      name: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await requireLandlordPropertyAccess(ctx, input.propertyId);
+      const tenantEmail = normalizeEmailAddress(input.email);
+
+      const client = await clerkClient();
+      const invitation = await client.invitations.createInvitation({
+        emailAddress: tenantEmail,
+        ignoreExisting: true,
+        notify: true,
+        redirectUrl: `${getBaseUrl(ctx.headers)}/sign-up`,
+      });
+
+      await ctx.db.insert(tenantInvitations).values({
+        landlordId: ctx.dbUser.id,
+        propertyId: input.propertyId,
+        tenantEmail,
+        tenantName: input.name,
+        clerkInvitationId: invitation.id,
+        status: "pending",
+      });
+
+      return { success: true, email: tenantEmail };
+    }),
+
   // Get tenant history for a property
   history: landlordProcedure
     .input(z.object({ propertyId: z.number() }))
