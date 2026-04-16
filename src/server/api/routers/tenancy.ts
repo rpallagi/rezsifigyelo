@@ -536,6 +536,32 @@ export const tenancyRouter = createTRPCRouter({
       await requireLandlordPropertyAccess(ctx, input.propertyId);
       const tenantEmail = normalizeEmailAddress(input.email);
 
+      // Revoke any stuck pending invitations for the same email + property first
+      // (avoids "stuck" pending invites where the user clicks an old link that's been replaced)
+      const existingPending = await ctx.db.query.tenantInvitations.findMany({
+        where: and(
+          eq(tenantInvitations.tenantEmail, tenantEmail),
+          eq(tenantInvitations.propertyId, input.propertyId),
+          eq(tenantInvitations.status, "pending"),
+        ),
+      });
+      if (existingPending.length > 0) {
+        const clerk = await clerkClient();
+        for (const inv of existingPending) {
+          if (inv.clerkInvitationId) {
+            try {
+              await clerk.invitations.revokeInvitation(inv.clerkInvitationId);
+            } catch {
+              // Clerk invitation may already be expired/revoked — ignore
+            }
+          }
+          await ctx.db
+            .update(tenantInvitations)
+            .set({ status: "revoked" })
+            .where(eq(tenantInvitations.id, inv.id));
+        }
+      }
+
       // Get property name for the email
       const property = await ctx.db.query.properties.findFirst({
         where: eq(properties.id, input.propertyId),

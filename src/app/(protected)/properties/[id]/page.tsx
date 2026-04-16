@@ -376,6 +376,20 @@ export default async function PropertyDetailPage({
                 </span>
                 {" · "}
                 {pendingInvitation.tenantEmail}
+                <span className="ml-2 inline-flex rounded-full bg-amber-200/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide dark:bg-amber-900/40">
+                  Várakozás regisztrációra
+                </span>
+              </div>
+            )}
+
+            {/* Offline tenant (no Clerk user yet) */}
+            {activeTenancy && !activeTenancy.tenantId && activeTenancy.tenantEmail && !pendingInvitation && (
+              <div className="mt-4 rounded-2xl bg-blue-50 px-4 py-4 text-sm text-blue-900 ring-1 ring-blue-300/60 dark:bg-blue-950/30 dark:text-blue-200 dark:ring-blue-700/50">
+                Bérlő nincs összelinkelve felhasználói fiókkal. Email:{" "}
+                <span className="font-medium">{activeTenancy.tenantEmail}</span>
+                <span className="ml-2 inline-flex rounded-full bg-blue-200/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide dark:bg-blue-900/40">
+                  Offline bérlő
+                </span>
               </div>
             )}
           </div>

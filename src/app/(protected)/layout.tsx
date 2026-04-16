@@ -23,6 +23,15 @@ export default async function ProtectedLayout({
     redirect("/my-home");
   }
 
+  // Tenants get a minimal layout (no landlord nav)
+  if (me.role === "tenant") {
+    return (
+      <HydrateClient>
+        <main className="min-h-screen bg-background">{children}</main>
+      </HydrateClient>
+    );
+  }
+
   const locale = await getCurrentLocale();
   const m = getMessages(locale);
   const cookieStore = await cookies();

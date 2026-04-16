@@ -36,6 +36,8 @@ export async function POST(req: Request) {
 
   if (evt.type === "user.created") {
     const { id, email_addresses, first_name, last_name, image_url } = evt.data;
+    // New users are tenants by default. Landlord role is granted manually.
+    const newUserRole: "tenant" | "landlord" = "tenant";
     const primaryEmail = normalizeEmailAddress(
       email_addresses.find((e) => e.id === evt.data.primary_email_address_id)
         ?.email_address ?? email_addresses[0]?.email_address ?? "",
@@ -61,6 +63,7 @@ export async function POST(req: Request) {
         firstName: first_name ?? null,
         lastName: last_name ?? null,
         imageUrl: image_url ?? null,
+        role: newUserRole,
       })
       .onConflictDoUpdate({
         target: users.clerkId,
