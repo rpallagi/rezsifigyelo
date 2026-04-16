@@ -34,6 +34,15 @@
 ## Következő lépések
 
 ### Magas prioritás
+- [ ] **HomeWizard local bridge agent** — cumulative live reading
+  - HW cloud API nem ad totált, csak history. Lokális API (`/api/v1/data`) kell.
+  - Kis Docker container a user Unraid-jén (always-on, LAN-on van) percenként polleria a HW mérőt
+  - POST-olja az értéket a meglévő `/api/webhooks/smart-meter` endpointra
+  - Schema: `smartMeterDevices.localApiIp` + `localApiVersion`
+  - UI: helyi IP input a smart meter beállításokban
+  - Endpoint: `GET /api/local-meters/list?token=xxx` — bridge lekéri a meter listát
+  - Bridge agent: `tools/homewizard-bridge/` (Node.js + Dockerfile + README)
+  - Move-in wizard: visszahozni a Beillesztés gombot ha van localApiIp + friss `lastSeenAt`
 - [ ] MNB API automatikus EUR/HUF árfolyam (napi cron + exchangeRates tábla)
 - [ ] Befizetéseknél napi árfolyam mentés (historikus ROI számítás)
 - [ ] Adó PDF AI extraction (határozat feltöltés → AI kiolvasás)

@@ -21,6 +21,7 @@ import {
   handoverChecklists,
   meterReadings,
   landlordProfiles,
+  properties,
 } from "@/server/db/schema";
 import { createMoveInChecklist } from "@/server/tenancy/invitations";
 import { parseLandlordProfileScopeFromHeader } from "@/lib/landlord-profile-scope";
@@ -535,11 +536,28 @@ export const tenancyRouter = createTRPCRouter({
       await requireLandlordPropertyAccess(ctx, input.propertyId);
       const tenantEmail = normalizeEmailAddress(input.email);
 
+      // Get property name for the email
+      const property = await ctx.db.query.properties.findFirst({
+        where: eq(properties.id, input.propertyId),
+        columns: { name: true, address: true },
+      });
+
+      // Get landlord name
+      const landlordName = [ctx.dbUser.firstName, ctx.dbUser.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || "A bérbeadód";
+
+      // If RESEND is configured, we send our own clear email — disable Clerk's default
+      // (Clerk's default goes to spam due to clerk.com sender domain).
+      // Without RESEND, fall back to Clerk's default email.
+      const useCustomEmail = !!process.env.RESEND_API_KEY;
+
       const client = await clerkClient();
       const invitation = await client.invitations.createInvitation({
         emailAddress: tenantEmail,
         ignoreExisting: true,
-        notify: true,
+        notify: !useCustomEmail,
         redirectUrl: `${getBaseUrl(ctx.headers)}/sign-up`,
       });
 
@@ -551,6 +569,46 @@ export const tenancyRouter = createTRPCRouter({
         clerkInvitationId: invitation.id,
         status: "pending",
       });
+
+      // Send our simple, clear email with the Clerk invitation link
+      const acceptUrl = invitation.url ?? `${getBaseUrl(ctx.headers)}/sign-up`;
+      const propertyLabel = property?.name ?? "az ingatlan";
+
+      const html = `
+<!DOCTYPE html>
+<html><body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #1f2937; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h1 style="font-size: 22px; margin: 0 0 16px;">Szia${input.name ? ` ${input.name}` : ""}!</h1>
+  <p style="margin: 0 0 16px;">${landlordName} meghívott a <strong>Rezsi Figyelő</strong> alkalmazásba bérlőként a következő ingatlanhoz:</p>
+  <p style="margin: 0 0 24px; padding: 12px 16px; background: #f3f4f6; border-radius: 8px; font-weight: 600;">
+    ${propertyLabel}${property?.address ? `<br><span style="font-weight: normal; color: #6b7280; font-size: 14px;">${property.address}</span>` : ""}
+  </p>
+
+  <p style="margin: 0 0 12px;">Az appban tudod:</p>
+  <ul style="margin: 0 0 24px; padding-left: 20px;">
+    <li style="margin-bottom: 6px;">Mérőórák állását rögzíteni</li>
+    <li style="margin-bottom: 6px;">Befizetéseket és számlákat áttekinteni</li>
+    <li style="margin-bottom: 6px;">A bérbeadóddal üzenetet váltani</li>
+    <li style="margin-bottom: 6px;">Karbantartási kéréseket küldeni</li>
+  </ul>
+
+  <p style="text-align: center; margin: 32px 0;">
+    <a href="${acceptUrl}" style="display: inline-block; background: #6366f1; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600;">Regisztráció megkezdése</a>
+  </p>
+
+  <p style="font-size: 12px; color: #6b7280; margin: 24px 0 0; text-align: center;">
+    Ha nem te vagy a címzett, nyugodtan figyelmen kívül hagyhatod ezt az emailt.
+  </p>
+</body></html>
+      `.trim();
+
+      if (useCustomEmail) {
+        const { sendEmail } = await import("@/server/email/send");
+        await sendEmail({
+          to: tenantEmail,
+          subject: `Meghívó — ${propertyLabel} (Rezsi Figyelő)`,
+          html,
+        });
+      }
 
       return { success: true, email: tenantEmail };
     }),
