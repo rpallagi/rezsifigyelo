@@ -166,13 +166,16 @@ export default async function ROIPage({
     .filter((property) => property.breakEvenYears != null)
     .sort((a, b) => (a.breakEvenYears ?? Infinity) - (b.breakEvenYears ?? Infinity))[0] ?? null;
 
-  const chartSeries = roiProperties.slice(0, 10).map((property) => ({
-    name: property.name,
-    annualRent: property.annualRent,
-    monthlyRent: Math.round(property.annualRent / 12),
-    annualDisplay: displayAmount(property.annualRent),
-    monthlyDisplay: displayAmount(Math.round(property.annualRent / 12)),
-  }));
+  const chartSeries = roiProperties
+    .filter((property) => property.tenancies.length > 0)
+    .slice(0, 7)
+    .map((property) => ({
+      name: property.name,
+      annualRent: property.annualRent,
+      monthlyRent: Math.round(property.annualRent / 12),
+      annualDisplay: displayAmount(property.annualRent),
+      monthlyDisplay: displayAmount(Math.round(property.annualRent / 12)),
+    }));
 
   const alerts = [
     lowestYield
