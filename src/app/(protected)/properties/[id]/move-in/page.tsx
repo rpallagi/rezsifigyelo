@@ -538,44 +538,42 @@ export default function MoveInWizardPage() {
                 </Field>
 
                 <Field label="Email" hint="A bérlő emailen kapja a regisztrációs linket.">
-                  <div className="flex gap-2">
-                    <input
-                      type="email"
-                      value={tenantEmail}
-                      onChange={(e) => {
-                        setTenantEmail(e.target.value);
-                        setInviteError("");
-                      }}
-                      placeholder="berlo@email.com"
-                      className={`${inputClassName()} flex-1`}
-                    />
-                    <button
-                      type="button"
-                      disabled={
-                        !tenantEmail ||
-                        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail) ||
-                        sendInvite.isPending
-                      }
-                      onClick={() => {
-                        sendInvite.mutate({
-                          propertyId,
-                          email: tenantEmail,
-                          name: tenantName || undefined,
-                        });
-                      }}
-                      className={`shrink-0 rounded-2xl border px-4 text-xs font-semibold transition disabled:opacity-40 ${
-                        inviteSentEmail === tenantEmail
-                          ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
-                          : "border-border/60 bg-background/80 text-foreground hover:bg-secondary"
-                      }`}
-                    >
-                      {sendInvite.isPending
-                        ? "Küldés..."
-                        : inviteSentEmail === tenantEmail
-                          ? "✓ Elküldve"
-                          : "Meghívó küldése"}
-                    </button>
-                  </div>
+                  <input
+                    type="email"
+                    value={tenantEmail}
+                    onChange={(e) => {
+                      setTenantEmail(e.target.value);
+                      setInviteError("");
+                    }}
+                    placeholder="berlo@email.com"
+                    className={inputClassName()}
+                  />
+                  <button
+                    type="button"
+                    disabled={
+                      !tenantEmail ||
+                      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail) ||
+                      sendInvite.isPending
+                    }
+                    onClick={() => {
+                      sendInvite.mutate({
+                        propertyId,
+                        email: tenantEmail,
+                        name: tenantName || undefined,
+                      });
+                    }}
+                    className={`mt-2 inline-flex w-full items-center justify-center rounded-2xl border px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 ${
+                      inviteSentEmail === tenantEmail
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+                        : "border-border/60 bg-background/80 text-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    {sendInvite.isPending
+                      ? "Küldés..."
+                      : inviteSentEmail === tenantEmail
+                        ? "✓ Meghívó elküldve"
+                        : "Meghívó küldése emailben"}
+                  </button>
                   {inviteError && (
                     <p className="mt-1.5 text-xs text-destructive">{inviteError}</p>
                   )}
