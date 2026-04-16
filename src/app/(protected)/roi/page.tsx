@@ -90,6 +90,7 @@ function SectionCard({
 }
 
 import { propertyTypeLabel, propertyPlaceholder as placeholderCover } from "@/lib/property-labels";
+import { RevenueChart } from "./revenue-chart";
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
@@ -165,11 +166,13 @@ export default async function ROIPage({
     .filter((property) => property.breakEvenYears != null)
     .sort((a, b) => (a.breakEvenYears ?? Infinity) - (b.breakEvenYears ?? Infinity))[0] ?? null;
 
-  const chartSeries = roiProperties.slice(0, 6).map((property) => ({
+  const chartSeries = roiProperties.slice(0, 10).map((property) => ({
     name: property.name,
-    value: property.annualRent,
+    annualRent: property.annualRent,
+    monthlyRent: Math.round(property.annualRent / 12),
+    annualDisplay: displayAmount(property.annualRent),
+    monthlyDisplay: displayAmount(Math.round(property.annualRent / 12)),
   }));
-  const maxChartValue = Math.max(...chartSeries.map((item) => item.value), 1);
 
   const alerts = [
     lowestYield
@@ -506,54 +509,9 @@ export default async function ROIPage({
           </SectionCard>
 
           <div className="grid grid-cols-1 gap-8 xl:grid-cols-[1fr_0.42fr]">
-            <SectionCard title={copy.cumulativeIncome} subtitle={copy.cumulativeIncomeSubtitle}>
-              <div className="space-y-6">
-                <div className="flex flex-wrap gap-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  {chartSeries.slice(0, 3).map((item, index) => (
-                    <div key={item.name} className="flex items-center gap-2">
-                      <span
-                        className={`h-2.5 w-2.5 rounded-full ${
-                          index === 0
-                            ? "bg-primary"
-                            : index === 1
-                              ? "bg-emerald-500"
-                              : "bg-amber-500"
-                        }`}
-                      />
-                      <span>{item.name}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="relative h-80 rounded-[24px] bg-background/70 px-6 py-8 ring-1 ring-border/40">
-                  <div className="absolute inset-x-6 top-8 bottom-16 flex flex-col justify-between">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <div key={index} className="border-t border-border/40" />
-                    ))}
-                  </div>
-
-                  <div className="relative z-10 flex h-full items-end justify-between gap-4 pt-6">
-                    {chartSeries.map((item, index) => {
-                      const height = Math.max(18, Math.round((item.value / maxChartValue) * 100));
-                      const tone =
-                        index === 0
-                          ? "bg-primary"
-                          : index === 1
-                            ? "bg-emerald-500/85"
-                            : index === 2
-                              ? "bg-amber-500/85"
-                              : "bg-primary/25";
-                      return (
-                        <div key={item.name} className="flex h-full flex-1 flex-col items-center justify-end gap-4">
-                          <div className={`w-full max-w-[72px] rounded-t-xl ${tone}`} style={{ height: `${height}%` }} />
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                            {item.name.slice(0, 8)}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+            <SectionCard title="Éves bevétel ingatlanonként" subtitle="Vidd az egeret egy oszlop fölé a részletekért">
+              <div className="rounded-[24px] bg-background/70 p-4 ring-1 ring-border/40">
+                <RevenueChart data={chartSeries} />
               </div>
             </SectionCard>
 
