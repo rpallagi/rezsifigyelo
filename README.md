@@ -1,5 +1,7 @@
 # Rezsi Figyelő
 
+**GitHub:** https://github.com/rpallagi/rezsifigyelo
+
 Next.js alapú rezsikövető és ingatlankezelő alkalmazás bérbeadóknak és bérlőknek.
 
 ## Jelenlegi stack

@@ -181,7 +181,7 @@ messages           — üzenetek bérbeadó ↔ bérlő között
 
 1. Nyisd meg: **vercel.com/dashboard**
 2. Kattints: **"Add New..." → "Project"**
-3. **Import Git Repository:** válaszd ki `rpallagi/rezsifigyelo`
+3. **Import Git Repository:** válaszd ki [`rpallagi/rezsifigyelo`](https://github.com/rpallagi/rezsifigyelo)
 4. Framework Preset: **Next.js** (auto-detected)
 5. **NE kattints még a Deploy-ra!** Először env vars:
 6. Kattints **"Environment Variables"** és add hozzá egyenként:
@@ -265,7 +265,7 @@ A szamlazz.hu állítja ki a hivatalos NAV-kompatibilis számlákat. Stripe fize
 
 | Szolgáltatás | Fiók | Projekt/App neve |
 |---|---|---|
-| GitHub | rpallagi | `rezsifigyelo` repo |
+| GitHub | rpallagi | [`rezsifigyelo`](https://github.com/rpallagi/rezsifigyelo) repo |
 | Neon | meglévő fiók | `rezsifigyelo` projekt (main + dev branch) |
 | Clerk | meglévő fiók | `Rezsi Figyelő` application |
 | Stripe | **ÚJ fiók** (Geo-Ép Kft / Pallagi Roland) | `Rezsi Figyelő` |
